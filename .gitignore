@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+
+*.session
+*.session-journal
+
+.env
+
+database/jobs.db
+
+output/*.xlsx
+output/*.ods
