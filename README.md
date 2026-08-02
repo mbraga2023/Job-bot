@@ -1,59 +1,150 @@
-# 🤖 Telegram QA Job Bot
+# 🤖 Telegram QA Job Intelligence Bot
 
-A Python automation that monitors a Telegram jobs channel, extracts QA job opportunities, classifies them, scores them based on personal preferences, and exports everything to an Excel spreadsheet.
+A Python automation platform that collects QA job opportunities from Telegram channels, extracts job information, scores opportunities based on personal preferences, validates application links, and prepares data for AI-based job analysis.
 
----
-
-## Features
-
-- 📥 Reads the latest job posts from a Telegram channel
-- 🔍 Parses job information automatically
-- 🏷 Classifies jobs by category
-- ⭐ Scores jobs based on your preferences
-- 🚀 Detects Remote/Home Office opportunities
-- 🔗 Extracts application links
-- 🌐 Resolves intermediary links (e.g. MeuPadrinho) to the original LinkedIn job (Playwright)
-- 💾 Stores jobs in SQLite
-- 📊 Exports all jobs to Excel
-- 🚫 Avoids duplicate jobs using a Telegram message hash
+The goal is to transform raw job posts into actionable career intelligence.
 
 ---
 
-## Tech Stack
+# Features
 
-- Python 3.11+
-- Telethon
-- SQLite
-- OpenPyXL
-- python-dotenv
-- Playwright
+## Job Collection
+
+* 📥 Reads job posts from Telegram channels
+* 🔍 Extracts job information automatically
+* 🚫 Prevents duplicated jobs using Telegram message hashes
+* 💾 Stores jobs in SQLite
+
+## Job Processing
+
+* 🏷 Classifies jobs by category
+* ⭐ Scores opportunities using customizable rules
+* 🚀 Detects remote opportunities
+* 🔗 Extracts application links
+
+## Link Validation
+
+Using Playwright:
+
+* Opens intermediary job platforms
+* Validates application pages
+* Extracts job details from platforms such as MeuPadrinho
+* Prepares structured data for AI analysis
+
+## AI Pipeline (in development)
+
+Future agents:
+
+* Job relevance analyzer
+* Resume matching agent
+* Application recommendation agent
+* Career report generator
 
 ---
 
-## Project Structure
+# Architecture
+
+```
+Telegram Channel
+        |
+        v
+Telegram Collector
+        |
+        v
+Parser
+        |
+        v
+Classifier
+        |
+        v
+Scorer
+        |
+        v
+SQLite Database
+        |
+        +----------------+
+        |                |
+        v                v
+Playwright        AI Agents
+Validation        Analysis
+        |
+        v
+Reports
+```
+
+---
+
+# Tech Stack
+
+* Python 3.11+
+* Telethon
+* SQLite
+* Playwright
+* OpenPyXL
+* Pandas
+* OpenAI API
+
+---
+
+# Project Structure
 
 ```
 job-bot/
-│
-├── main.py                # Main application
-├── parser.py              # Parses Telegram messages
-├── classifier.py          # Classifies jobs
-├── scorer.py              # Scores jobs
-├── url_validator.py       # Resolves intermediary links
-├── database.py            # SQLite operations
-├── exporter.py            # Excel export
-│
-├── jobs.db
-├── jobs.xlsx
-├── .env
-└── README.md
+
+├── database/
+│   └── jobs.db
+
+├── output/
+│   ├── jobs.xlsx
+│   └── analysis.json
+
+├── scripts/
+│   ├── collect.bat
+│   ├── validate.bat
+│   ├── analyse.bat
+│   └── full.bat
+
+├── src/
+
+│   ├── agents/
+│   │   ├── analyzers/
+│   │   ├── job_analyzer.py
+│   │   ├── resume_matcher.py
+│   │   └── report_agent.py
+
+│   ├── commands/
+│   │   ├── collect.py
+│   │   ├── validate.py
+│   │   ├── analyse.py
+│   │   └── report.py
+
+│   ├── database/
+│   │   └── database.py
+
+│   ├── models/
+│   │   └── job.py
+
+│   ├── services/
+│   │   ├── browser_service.py
+│   │   ├── database_service.py
+│   │   ├── excel_service.py
+│   │   ├── openai_service.py
+│   │   └── telegram_service.py
+
+│   ├── core/
+│   │   ├── parser.py
+│   │   ├── classifier.py
+│   │   └── scorer.py
+
+│   ├── config.py
+│   └── main.py
 ```
 
 ---
 
-## Installation
+# Installation
 
-Clone the repository.
+Clone:
 
 ```bash
 git clone https://github.com/yourusername/job-bot.git
@@ -61,31 +152,27 @@ git clone https://github.com/yourusername/job-bot.git
 cd job-bot
 ```
 
-Create a virtual environment.
-
-### Windows
+Create environment:
 
 ```bash
 python -m venv .venv
+```
 
+Activate:
+
+Windows:
+
+```bash
 .venv\Scripts\activate
 ```
 
-### Linux / macOS
-
-```bash
-python3 -m venv .venv
-
-source .venv/bin/activate
-```
-
-Install dependencies.
+Install:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-Install Playwright browsers.
+Install browsers:
 
 ```bash
 playwright install
@@ -93,174 +180,148 @@ playwright install
 
 ---
 
-## Environment Variables
+# Environment Variables
 
-Create a `.env` file.
+Create `.env`:
 
 ```env
 API_ID=YOUR_API_ID
 API_HASH=YOUR_API_HASH
+OPENAI_API_KEY=YOUR_KEY
 ```
-
-You can obtain these credentials from:
-
-https://my.telegram.org
 
 ---
 
-## Running
+# Running
+
+Main command:
 
 ```bash
-python main.py
+python src/main.py
 ```
 
-The bot will:
+Available commands:
 
-1. Connect to Telegram
-2. Read the latest messages
-3. Parse QA jobs
-4. Score each opportunity
-5. Save new jobs to SQLite
-6. Export everything to Excel
-
----
-
-## Job Scoring
-
-Each job receives a score based on predefined preferences.
-
-Current priorities include:
-
-| Criteria | Score |
-|----------|------:|
-| Remote | High |
-| Hybrid | Medium |
-| Pleno | High |
-| Senior | Medium |
-| Junior | Low |
-| Limeira/SP | High |
-| Campinas/SP | Medium |
-| QA Automation | High |
-| Manual QA | Medium |
-
-The scoring system can be customized in `scorer.py`.
+```bash
+python src/main.py collect
+python src/main.py validate
+python src/main.py analyse
+python src/main.py report
+```
 
 ---
 
-## Duplicate Detection
+# Database
 
-Each Telegram message generates an MD5 hash.
+Main table:
 
-```text
+```
+jobs
+```
+
+Stores:
+
+* title
+* company
+* location
+* contract
+* level
+* link
+* category
+* score
+* remote status
+
+Future AI memory:
+
+```
+job_analysis
+```
+
+Stores:
+
+* AI score
+* recommendation
+* matching skills
+* missing skills
+* analysis history
+
+---
+
+# Job Scoring
+
+Jobs receive scores based on personal preferences.
+
+Examples:
+
+| Criteria       | Priority |
+| -------------- | -------- |
+| Remote         | High     |
+| Pleno          | High     |
+| QA Automation  | High     |
+| Playwright     | High     |
+| Cypress        | High     |
+| API Testing    | Medium   |
+| Manual QA only | Lower    |
+
+---
+
+# Duplicate Detection
+
+Each Telegram message generates a unique hash:
+
+```
 Telegram Message
-        ↓
+        |
+        v
 MD5 Hash
-        ↓
+        |
+        v
 SQLite
 ```
 
-If the hash already exists, the job is skipped.
+Existing jobs are ignored.
 
 ---
 
-## Link Resolution
+# Roadmap
 
-Some Telegram posts contain intermediary websites such as:
+## Completed
 
-```
-Telegram
-      ↓
-meupadrinho.com.br
-      ↓
-LinkedIn Job
-```
+* [x] Telegram integration
+* [x] Job extraction
+* [x] SQLite storage
+* [x] Duplicate detection
+* [x] Job classification
+* [x] Job scoring
+* [x] Excel export
+* [x] Playwright validation
+* [x] MeuPadrinho analyzer
 
-The bot uses Playwright to:
+## In Progress
 
-- Open the intermediary page
-- Locate the **"Candidatar-se agora"** button
-- Follow redirects
-- Save the final LinkedIn job URL
+* [ ] AI job relevance analysis
+* [ ] Resume matching
+* [ ] Application tracking
+* [ ] Automated reports
 
-This provides direct application links in the exported spreadsheet.
+## Future
 
----
-
-## Excel Output
-
-Example:
-
-| Score | Category | Remote | Title | Company | Level | Link |
-|------:|----------|--------|-------|---------|-------|------|
-| 95 | QA | Yes | QA Automation Analyst | Compass UOL | Senior | LinkedIn |
-| 88 | QA | Yes | QA Engineer | CI&T | Pleno | LinkedIn |
-| 75 | QA | No | Test Analyst | Stefanini | Junior | Company |
+* [ ] Dashboard
+* [ ] Multi-channel support
+* [ ] Salary extraction
+* [ ] Company reputation analysis
+* [ ] Personalized application messages
 
 ---
 
-## Example Console Output
-
-```
-🚀 Starting Job Bot...
-
-[095] QA | Compass UOL | QA Automation Analyst
-[090] QA | CI&T | QA Engineer
-[072] QA | Stefanini | Test Analyst
-
-============================================================
-📊 SUMMARY
-============================================================
-Messages scanned : 500
-New jobs         : 41
-Duplicates       : 459
-Database records : 312
-============================================================
-```
-
----
-
-## Roadmap
-
-- [x] Telegram integration
-- [x] SQLite database
-- [x] Excel export
-- [x] Job classification
-- [x] Job scoring
-- [x] Duplicate detection
-- [x] Remote detection
-- [x] Link extraction
-- [ ] Playwright link resolver
-- [ ] Multi-channel support
-- [ ] Configurable scoring rules
-- [ ] Daily email report
-- [ ] Web dashboard
-- [ ] AI-based job relevance scoring
-
----
-
-## Future Improvements
-
-- Multiple Telegram channels
-- LinkedIn API integration
-- Company reputation score
-- Salary extraction
-- Location normalization
-- Automatic notifications
-- Dashboard with filters
-- Resume matching
-- AI recommendations
-
----
-
-## License
+# License
 
 MIT License
 
 ---
 
-## Author
+# Author
 
 Michel Braga
-michel.diener@gmail.com
 
 Software Developer | QA Automation | Python | Java | Spring Boot | Playwright
