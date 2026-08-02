@@ -1,37 +1,53 @@
 from config import HEADLESS
 
 from services.browser_service import open_page
-from services.excel_service import read_jobs
+
+from database.database import get_meupadrinho_jobs
 
 from agents.analyzers.meupadrinho import MeuPadrinhoAnalyzer
 
 
 async def run():
 
-    df = read_jobs()
+    jobs = get_meupadrinho_jobs()
 
-    if df.empty:
+    if not jobs:
         return
 
-    url = df.iloc[0]["Link"]
 
-    playwright, browser, page = await open_page(
-        url,
-        headless=HEADLESS
-    )
+    analyzer = MeuPadrinhoAnalyzer()
 
-    try:
 
-        if "meupadrinho" in url.lower():
+    for job_data in jobs:
 
-            analyzer = MeuPadrinhoAnalyzer()
+        url = job_data["link"]
+
+        print("\n================================")
+        print(f"Processing: {url}")
+        print("================================")
+
+
+        playwright, browser, page = await open_page(
+            url,
+            headless=HEADLESS
+        )
+
+        try:
 
             job = await analyzer.analyze(page)
 
             print(job)
 
-    finally:
 
-        await browser.close()
+        except Exception as error:
 
-        await playwright.stop()
+            print(
+                f"Error processing {url}: {error}"
+            )
+
+
+        finally:
+
+            await browser.close()
+
+            await playwright.stop()

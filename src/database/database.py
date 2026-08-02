@@ -1,6 +1,7 @@
 import sqlite3
 from pathlib import Path
 
+
 DB_FOLDER = Path("database")
 DB_FOLDER.mkdir(exist_ok=True)
 
@@ -8,8 +9,11 @@ DB_PATH = DB_FOLDER / "jobs.db"
 
 
 def get_connection():
+
     conn = sqlite3.connect(DB_PATH)
+
     conn.row_factory = sqlite3.Row
+
     return conn
 
 
@@ -82,6 +86,7 @@ def insert_job(job):
             )
 
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+
         """, (
 
             job["telegram_hash"],
@@ -141,17 +146,21 @@ def get_statistics():
             "SELECT COUNT(*) FROM jobs"
         ).fetchone()[0]
 
+
         qa = conn.execute(
             "SELECT COUNT(*) FROM jobs WHERE category='QA'"
         ).fetchone()[0]
+
 
         remote = conn.execute(
             "SELECT COUNT(*) FROM jobs WHERE remote=1"
         ).fetchone()[0]
 
+
         applied = conn.execute(
             "SELECT COUNT(*) FROM jobs WHERE applied=1"
         ).fetchone()[0]
+
 
     return {
         "total": total,
@@ -159,3 +168,39 @@ def get_statistics():
         "remote": remote,
         "applied": applied
     }
+
+
+def get_first_job():
+
+    with get_connection() as conn:
+
+        cursor = conn.execute("""
+            SELECT *
+            FROM jobs
+
+            ORDER BY score DESC,
+                     created_at DESC
+
+            LIMIT 1
+        """)
+
+        return cursor.fetchone()
+
+
+def get_meupadrinho_jobs():
+
+    with get_connection() as conn:
+
+        cursor = conn.execute("""
+            SELECT *
+
+            FROM jobs
+
+            WHERE link LIKE '%meupadrinho%'
+
+            ORDER BY score DESC,
+                     created_at DESC
+
+        """)
+
+        return cursor.fetchall()
