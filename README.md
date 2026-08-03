@@ -74,23 +74,36 @@ applications
 ## Project Structure
 
 ``` text
+database/
+scripts/
 src/
 ├── agents/
+        analysers/
+            - meupadrinho.py
+        - job_analyser.py (todo)
+        - link_validator.py
+        - report_agent.py (todo)
+        - resume_matcher.py (todo)
+        - telegram_collector.py
 ├── commands/
 ├── core/
+    - classifier.py
+    - parser.py
+    - scorer.py
 ├── database/
 │   ├── database.py
 │   ├── schema.py
 │   ├── jobs.py
 │   ├── job_details.py
-│   ├── job_ai_analysis.py
-│   ├── resume_matches.py
+│   ├── job_analysis.py
+│   ├── resume_matches.py (todo)
 │   └── applications.py
 ├── services/
 │   ├── telegram_service.py
 │   ├── browser_service.py
 │   ├── excel_service.py
 │   └── json_service.py
+    - openai_service.py (todo)
 ├── config.py
 └── main.py
 ```

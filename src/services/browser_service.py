@@ -1,5 +1,7 @@
 from playwright.async_api import async_playwright
 
+from config import TIMEOUT
+
 
 async def open_page(url: str, headless: bool = True):
 
@@ -14,7 +16,7 @@ async def open_page(url: str, headless: bool = True):
     await page.goto(
         url,
         wait_until="domcontentloaded",
-        timeout=30000
+        timeout=TIMEOUT
     )
 
     return playwright, browser, page

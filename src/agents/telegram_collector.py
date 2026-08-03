@@ -1,3 +1,4 @@
+#telegram_collector.py
 from telethon import TelegramClient
 
 from config import API_ID, API_HASH, TELEGRAM_CHANNEL

@@ -11,3 +11,4 @@ database/jobs.db
 output/*.xlsx
 output/*.ods
 output/*.json
+node_modules/*
