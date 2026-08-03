@@ -1,9 +1,12 @@
 import argparse
 
+from database.schema import create_database
+
 from commands.collect import run as collect
 from commands.validate import run as validate
 from commands.analyse import run as analyse
 from commands.report import run as report
+
 
 COMMANDS = {
     "collect": collect,
@@ -14,6 +17,9 @@ COMMANDS = {
 
 
 def main():
+
+    # Create tables if they don't exist
+    create_database()
 
     parser = argparse.ArgumentParser(
         description="AI Job Search Assistant"

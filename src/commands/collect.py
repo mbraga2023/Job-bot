@@ -1,2 +1,10 @@
+import asyncio
+
+from agents.telegram_collector import run as collect
+
+
 def run():
-    print("Collect command")
+
+    asyncio.run(
+        collect()
+    )

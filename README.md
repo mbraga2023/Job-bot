@@ -1,327 +1,194 @@
 # 🤖 Telegram QA Job Intelligence Bot
 
-A Python automation platform that collects QA job opportunities from Telegram channels, extracts job information, scores opportunities based on personal preferences, validates application links, and prepares data for AI-based job analysis.
+A Python automation platform that collects QA job opportunities from
+Telegram channels, validates application links, enriches job data, and
+uses AI agents to generate career intelligence.
 
-The goal is to transform raw job posts into actionable career intelligence.
+The project is organized as a multi-stage pipeline where each stage
+stores structured data in SQLite and passes it to the next stage.
 
----
+## Features
 
-# Features
+### Stage 1 --- Job Collection
 
-## Job Collection
+-   📥 Collect jobs from Telegram channels
+-   🔍 Parse job posts automatically
+-   🏷 Classify jobs by category
+-   ⭐ Score jobs using customizable rules
+-   🚫 Prevent duplicates using Telegram message hashes
+-   💾 Store raw jobs in the **jobs** table
+-   📊 Export collected jobs to timestamped Excel files
 
-* 📥 Reads job posts from Telegram channels
-* 🔍 Extracts job information automatically
-* 🚫 Prevents duplicated jobs using Telegram message hashes
-* 💾 Stores jobs in SQLite
+### Stage 2 --- Link Validation
 
-## Job Processing
+Using Playwright: - Open job links - Validate application pages -
+Extract structured job information - Support MeuPadrinho (extensible to
+other platforms) - Store validation results in **job_details** - Track
+validation status (PENDING / VALIDATED / FAILED / NOT_FOUND)
 
-* 🏷 Classifies jobs by category
-* ⭐ Scores opportunities using customizable rules
-* 🚀 Detects remote opportunities
-* 🔗 Extracts application links
+### Stage 3 --- AI Analysis (In Progress)
 
-## Link Validation
+-   AI relevance score
+-   Summary
+-   Strengths / Weaknesses
+-   Skill matching
+-   Recommendations
+-   Versioned analysis history in **job_ai_analysis**
 
-Using Playwright:
+### Planned
 
-* Opens intermediary job platforms
-* Validates application pages
-* Extracts job details from platforms such as MeuPadrinho
-* Prepares structured data for AI analysis
+-   Resume matching
+-   Application tracking
+-   Reports & Dashboard
 
-## AI Pipeline (in development)
+## Architecture
 
-Future agents:
-
-* Job relevance analyzer
-* Resume matching agent
-* Application recommendation agent
-* Career report generator
-
----
-
-# Architecture
-
+``` text
+Telegram
+    │
+    ▼
+Collector
+    │
+    ▼
+jobs
+    │
+    ▼
+Playwright Validator
+    │
+    ▼
+job_details
+    │
+    ▼
+AI Analysis
+    │
+    ▼
+job_ai_analysis
+    │
+    ▼
+resume_matches
+    │
+    ▼
+applications
 ```
-Telegram Channel
-        |
-        v
-Telegram Collector
-        |
-        v
-Parser
-        |
-        v
-Classifier
-        |
-        v
-Scorer
-        |
-        v
-SQLite Database
-        |
-        +----------------+
-        |                |
-        v                v
-Playwright        AI Agents
-Validation        Analysis
-        |
-        v
-Reports
-```
 
----
+## Project Structure
 
-# Tech Stack
-
-* Python 3.11+
-* Telethon
-* SQLite
-* Playwright
-* OpenPyXL
-* Pandas
-* OpenAI API
-
----
-
-# Project Structure
-
-```
-job-bot/
-
+``` text
+src/
+├── agents/
+├── commands/
+├── core/
 ├── database/
-│   └── jobs.db
-
-├── output/
-│   ├── jobs.xlsx
-│   └── analysis.json
-
-├── scripts/
-│   ├── collect.bat
-│   ├── validate.bat
-│   ├── analyse.bat
-│   └── full.bat
-
-├── src/
-
-│   ├── agents/
-│   │   ├── analyzers/
-│   │   ├── job_analyzer.py
-│   │   ├── resume_matcher.py
-│   │   └── report_agent.py
-
-│   ├── commands/
-│   │   ├── collect.py
-│   │   ├── validate.py
-│   │   ├── analyse.py
-│   │   └── report.py
-
-│   ├── database/
-│   │   └── database.py
-
-│   ├── models/
-│   │   └── job.py
-
-│   ├── services/
-│   │   ├── browser_service.py
-│   │   ├── database_service.py
-│   │   ├── excel_service.py
-│   │   ├── openai_service.py
-│   │   └── telegram_service.py
-
-│   ├── core/
-│   │   ├── parser.py
-│   │   ├── classifier.py
-│   │   └── scorer.py
-
-│   ├── config.py
-│   └── main.py
+│   ├── database.py
+│   ├── schema.py
+│   ├── jobs.py
+│   ├── job_details.py
+│   ├── job_ai_analysis.py
+│   ├── resume_matches.py
+│   └── applications.py
+├── services/
+│   ├── telegram_service.py
+│   ├── browser_service.py
+│   ├── excel_service.py
+│   └── json_service.py
+├── config.py
+└── main.py
 ```
 
----
+## Commands
 
-# Installation
-
-Clone:
-
-```bash
-git clone https://github.com/yourusername/job-bot.git
-
-cd job-bot
-```
-
-Create environment:
-
-```bash
-python -m venv .venv
-```
-
-Activate:
-
-Windows:
-
-```bash
-.venv\Scripts\activate
-```
-
-Install:
-
-```bash
-pip install -r requirements.txt
-```
-
-Install browsers:
-
-```bash
-playwright install
-```
-
----
-
-# Environment Variables
-
-Create `.env`:
-
-```env
-API_ID=YOUR_API_ID
-API_HASH=YOUR_API_HASH
-OPENAI_API_KEY=YOUR_KEY
-```
-
----
-
-# Running
-
-Main command:
-
-```bash
-python src/main.py
-```
-
-Available commands:
-
-```bash
+``` bash
 python src/main.py collect
 python src/main.py validate
 python src/main.py analyse
 python src/main.py report
 ```
 
----
+## Database
 
-# Database
+Tables: - jobs - job_details - job_ai_analysis - resume_matches -
+applications
 
-Main table:
+## View the SQLite database
 
-```
-jobs
-```
+Using the SQLite CLI:
 
-Stores:
-
-* title
-* company
-* location
-* contract
-* level
-* link
-* category
-* score
-* remote status
-
-Future AI memory:
-
-```
-job_analysis
+``` bash
+sqlite3 database/jobs.db
 ```
 
-Stores:
+Useful commands:
 
-* AI score
-* recommendation
-* matching skills
-* missing skills
-* analysis history
+``` sql
+.tables
+.schema jobs
+.schema job_details
 
----
+SELECT COUNT(*) FROM jobs;
 
-# Job Scoring
+SELECT id, score, company, title
+FROM jobs
+ORDER BY score DESC
+LIMIT 10;
 
-Jobs receive scores based on personal preferences.
+SELECT validation_status, COUNT(*)
+FROM jobs
+GROUP BY validation_status;
 
-Examples:
+SELECT *
+FROM job_details
+LIMIT 5;
 
-| Criteria       | Priority |
-| -------------- | -------- |
-| Remote         | High     |
-| Pleno          | High     |
-| QA Automation  | High     |
-| Playwright     | High     |
-| Cypress        | High     |
-| API Testing    | Medium   |
-| Manual QA only | Lower    |
-
----
-
-# Duplicate Detection
-
-Each Telegram message generates a unique hash:
-
-```
-Telegram Message
-        |
-        v
-MD5 Hash
-        |
-        v
-SQLite
+.quit
 ```
 
-Existing jobs are ignored.
+Or using Python:
 
----
+``` bash
+python
+```
 
-# Roadmap
+``` python
+import sqlite3
 
-## Completed
+conn = sqlite3.connect("database/jobs.db")
 
-* [x] Telegram integration
-* [x] Job extraction
-* [x] SQLite storage
-* [x] Duplicate detection
-* [x] Job classification
-* [x] Job scoring
-* [x] Excel export
-* [x] Playwright validation
-* [x] MeuPadrinho analyzer
+for row in conn.execute("SELECT id, company, title FROM jobs LIMIT 10"):
+    print(row)
+```
 
-## In Progress
+## Roadmap
 
-* [ ] AI job relevance analysis
-* [ ] Resume matching
-* [ ] Application tracking
-* [ ] Automated reports
+### Completed
 
-## Future
+-   Telegram integration
+-   SQLite multi-table architecture
+-   Job parser
+-   Classification & scoring
+-   Duplicate detection
+-   Excel export
+-   Playwright validation
+-   MeuPadrinho analyzer
+-   Incremental validation pipeline
 
-* [ ] Dashboard
-* [ ] Multi-channel support
-* [ ] Salary extraction
-* [ ] Company reputation analysis
-* [ ] Personalized application messages
+### In Progress
 
----
+-   AI analysis
+-   Resume matching
+-   Application tracking
+-   Reporting
 
-# License
+### Future
 
-MIT License
+-   Multi-platform analyzers
+-   Salary extraction
+-   Company intelligence
+-   Dashboard
+-   Cover letter generation
 
----
+## Author
 
-# Author
+**Michel Braga**
 
-Michel Braga
-
-Software Developer | QA Automation | Python | Java | Spring Boot | Playwright
+Software Developer • QA Automation • Python • Java • Spring Boot •
+Playwright
