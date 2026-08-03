@@ -1,3 +1,4 @@
+## database.py
 import sqlite3
 from pathlib import Path
 
@@ -198,9 +199,9 @@ def get_meupadrinho_jobs():
 
             WHERE link LIKE '%meupadrinho%'
 
-            ORDER BY score DESC,
-                     created_at DESC
+            ORDER BY created_at DESC
 
+            LIMIT 1
         """)
 
         return cursor.fetchall()

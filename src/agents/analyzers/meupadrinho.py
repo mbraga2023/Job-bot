@@ -1,5 +1,7 @@
+## meupadrinho.py
 from __future__ import annotations
 
+import os
 import re
 from typing import Any
 
@@ -13,6 +15,7 @@ class MeuPadrinhoAnalyzer:
         "Tecnologias",
         "Requisitos",
         "Diferenciais",
+        "Benefícios",
         "Outras Informações",
     }
 
@@ -21,26 +24,79 @@ class MeuPadrinhoAnalyzer:
         "Tecnologias",
         "Requisitos",
         "Diferenciais",
+        "Benefícios",
         "Candidatar-se agora",
     )
 
+    LEVELS = {
+        "estágio",
+        "estagio",
+        "junior",
+        "júnior",
+        "pleno",
+        "senior",
+        "sênior",
+        "especialista",
+    }
+
+    CONTRACTS = {
+        "clt",
+        "pj",
+        "freelancer",
+        "temporário",
+        "temporario",
+        "estágio",
+        "estagio",
+    }
+
+    SOURCES = {
+        "linkedin",
+        "indeed",
+        "gupy",
+        "greenhouse",
+        "catho",
+    }
+
+    REMOTE_VALUES = {
+        "remoto",
+        "remote",
+        "híbrido",
+        "hibrido",
+    }
+
     async def analyze(self, page: Page) -> dict[str, Any]:
-        """Analisa a página e retorna somente valores serializáveis."""
         await self.wait_for_content(page)
         lines = await self.get_lines(page)
 
+        if self.is_page_not_found(lines):
+            return {
+                "page_not_found": True,
+                "published_date": "",
+                "title": "",
+                "company": "",
+                "location": "",
+                "remote": False,
+                "level": "",
+                "contract": "",
+                "source": "",
+                "description": "",
+                "technologies": [],
+                "requirements": [],
+                "differentials": [],
+                "benefits": [],
+                "apply_button": False,
+            }
+
+        header_data = self.extract_header(lines)
+
         return {
-            "title": self.extract_title(lines),
-            "company": self.extract_company(lines),
-            "location": self.extract_location(lines),
-            "remote": self.extract_remote(lines),
-            "level": self.extract_level(lines),
-            "contract": self.extract_contract(lines),
-            "source": self.extract_source(lines),
+            "page_not_found": False,
+            **header_data,
             "description": self.extract_description(lines),
             "technologies": self.extract_section(lines, "Tecnologias"),
             "requirements": self.extract_section(lines, "Requisitos"),
             "differentials": self.extract_section(lines, "Diferenciais"),
+            "benefits": self.extract_section(lines, "Benefícios"),
             "apply_button": await self.get_apply_button(page),
         }
 
@@ -49,88 +105,92 @@ class MeuPadrinhoAnalyzer:
     # ---------------------------------------------------
 
     async def wait_for_content(self, page: Page) -> None:
-        """Aguarda a renderização do conteúdo sem falhar em páginas variantes."""
         try:
             await page.wait_for_load_state("domcontentloaded")
         except PlaywrightTimeoutError:
             pass
 
-        # Aguarda algum marcador conhecido da página.
         for marker in self.JOB_CONTENT_MARKERS:
             try:
-                await page.get_by_text(marker, exact=True).first.wait_for(
-                    state="attached",
-                    timeout=2500,
-                )
+                locator = page.get_by_text(marker, exact=True).first
+                await locator.wait_for(state="attached", timeout=2500)
                 return
             except PlaywrightTimeoutError:
                 continue
 
-        # Fallback para aplicações que alteram o texto depois do carregamento.
         try:
             await page.wait_for_load_state("networkidle", timeout=5000)
         except PlaywrightTimeoutError:
             pass
 
     async def get_lines(self, page: Page) -> list[str]:
-        text = await page.locator("body").inner_text()
+        body = page.locator("body")
+        await body.wait_for(state="attached")
+        text = await body.inner_text()
 
-        lines = [
-            self.clean_line(line)
-            for line in text.splitlines()
-            if self.clean_line(line)
-        ]
-
-        # Diagnóstico opcional. Ative com ANALYZER_DEBUG=1.
-        # Não imprime dados por padrão para evitar poluir o output da automação.
-        import os
+        lines = []
+        for raw_line in text.splitlines():
+            line = self.clean_line(raw_line)
+            if line:
+                lines.append(line)
 
         if os.getenv("ANALYZER_DEBUG") == "1":
             print(f"URL: {page.url}")
             print(f"Tamanho do texto: {len(text)}")
-            print("Linhas extraídas:")
             for index, line in enumerate(lines):
                 print(f"{index}: {line!r}")
 
         return lines
 
     async def get_apply_button(self, page: Page) -> bool:
-        """Retorna bool, nunca um Locator, para permitir serialização em JSON."""
-        button = page.get_by_role(
-            "button",
-            name="Candidatar-se agora",
-            exact=True,
+        """Retorna bool, nunca um Locator."""
+        selectors = (
+            page.get_by_role(
+                "button",
+                name="Candidatar-se agora",
+                exact=True,
+            ),
+            page.get_by_role(
+                "link",
+                name="Candidatar-se agora",
+                exact=True,
+            ),
+            page.get_by_text("Candidatar-se agora", exact=True),
         )
 
-        if await button.count() > 0:
-            return await button.first.is_visible()
+        for locator in selectors:
+            if await locator.count() > 0:
+                try:
+                    return await locator.first.is_visible()
+                except PlaywrightTimeoutError:
+                    return False
 
-        # Em algumas páginas a ação pode ser renderizada como link.
-        link = page.get_by_role(
-            "link",
-            name="Candidatar-se agora",
-            exact=True,
-        )
-
-        if await link.count() > 0:
-            return await link.first.is_visible()
-
-        # Último fallback para diferenças pequenas no HTML/role.
-        text_locator = page.get_by_text(
-            "Candidatar-se agora",
-            exact=True,
-        )
-
-        return await text_locator.count() > 0
+        return False
 
     # ---------------------------------------------------
     # Helpers
     # ---------------------------------------------------
 
+    def is_page_not_found(self, lines: list[str]) -> bool:
+        """Detecta páginas removidas ou inexistentes."""
+        text = self.normalize(" ".join(lines))
+
+        not_found_markers = (
+            "page not found",
+            "página não encontrada",
+            "pagina nao encontrada",
+            "vaga não encontrada",
+            "vaga nao encontrada",
+            "vaga não existe",
+            "vaga nao existe",
+            "404",
+        )
+
+        return any(marker in text for marker in not_found_markers)
+
     @staticmethod
     def clean_line(line: str) -> str:
-        line = re.sub(r"\s+", " ", line)
-        return line.strip()
+        return re.sub(r"\s+", " ", line).strip()
 
     @staticmethod
     def normalize(value: str) -> str:
@@ -138,12 +198,14 @@ class MeuPadrinhoAnalyzer:
 
     def find_index(self, lines: list[str], value: str) -> int:
         target = self.normalize(value)
-
-        for index, line in enumerate(lines):
-            if self.normalize(line) == target:
-                return index
-
-        return -1
+        return next(
+            (
+                index
+                for index, line in enumerate(lines)
+                if self.normalize(line) == target
+            ),
+            -1,
+        )
 
     def find_after(
         self,
@@ -160,106 +222,81 @@ class MeuPadrinhoAnalyzer:
         return lines[target_index]
 
     # ---------------------------------------------------
-    # Main fields
+    # Header
     # ---------------------------------------------------
 
-    def extract_title(self, lines: list[str]) -> str:
-        keywords = (
-            "quality assurance",
-            "test analyst",
-            "tester",
+    def extract_header(self, lines: list[str]) -> dict[str, Any]:
+        result: dict[str, Any] = {
+            "published_date": "",
+            "title": "",
+            "company": "",
+            "location": "",
+            "remote": False,
+            "level": "",
+            "contract": "",
+            "source": "",
+        }
+
+        published_index = next(
+            (
+                index
+                for index, line in enumerate(lines)
+                if self.normalize(line).startswith("publicado:")
+            ),
+            -1,
         )
 
-        for line in lines:
-            normalized = self.normalize(line)
+        if published_index == -1:
+            return result
 
-            # Evita considerar uma frase qualquer apenas porque contém "qa".
-            if any(keyword in normalized for keyword in keywords):
-                return line
+        published_line = lines[published_index]
+        result["published_date"] = re.sub(
+            r"^Publicado:\s*",
+            "",
+            published_line,
+            flags=re.IGNORECASE,
+        ).strip()
 
-            if re.search(r"\bqa\b", normalized):
-                return line
+        data = []
+        for line in lines[published_index + 1 :]:
+            if self.normalize(line) == self.normalize("Sobre a vaga"):
+                break
+            if line != "•":
+                data.append(line)
 
-        return ""
+        if not data:
+            return result
 
-    def extract_company(self, lines: list[str]) -> str:
-        title = self.extract_title(lines)
-        return self.find_after(lines, title) if title else ""
+        result["title"] = data[0]
+        pointer = 1
 
-    def extract_location(self, lines: list[str]) -> str:
-        title = self.extract_title(lines)
-        if not title:
-            return ""
+        # Algumas páginas exibem uma letra/logo entre o título e a empresa.
+        if pointer < len(data) and len(data[pointer]) == 1:
+            pointer += 1
 
-        title_index = self.find_index(lines, title)
-        company = self.extract_company(lines)
+        if pointer < len(data):
+            result["company"] = data[pointer]
+            pointer += 1
 
-        if not company:
-            return ""
+        if pointer < len(data):
+            result["location"] = data[pointer]
+            pointer += 1
 
-        company_index = self.find_index(lines[title_index + 1 :], company)
-        if company_index == -1:
-            return ""
+        for value in data[pointer:]:
+            normalized = self.normalize(value)
 
-        location_index = title_index + 1 + company_index + 1
-        return lines[location_index] if location_index < len(lines) else ""
+            if normalized in self.REMOTE_VALUES:
+                result["remote"] = True
+            elif normalized == "presencial":
+                result["remote"] = False
+            elif normalized in {self.normalize(item) for item in self.LEVELS}:
+                result["level"] = value
+            elif normalized in {self.normalize(item) for item in self.CONTRACTS}:
+                result["contract"] = value
+            elif normalized in {self.normalize(item) for item in self.SOURCES}:
+                result["source"] = value
 
-    def extract_remote(self, lines: list[str]) -> bool:
-        return any(
-            "remoto" in self.normalize(line)
-            or "remote" in self.normalize(line)
-            for line in lines
-        )
-
-    def extract_level(self, lines: list[str]) -> str:
-        levels = {
-            "estágio",
-            "estagio",
-            "junior",
-            "júnior",
-            "pleno",
-            "senior",
-            "sênior",
-            "especialista",
-        }
-
-        for line in lines:
-            if self.normalize(line) in levels:
-                return line
-
-        return ""
-
-    def extract_contract(self, lines: list[str]) -> str:
-        contracts = {
-            "pj",
-            "clt",
-            "freelancer",
-            "temporário",
-            "temporario",
-            "estágio",
-            "estagio",
-        }
-
-        for line in lines:
-            if self.normalize(line) in contracts:
-                return line
-
-        return ""
-
-    def extract_source(self, lines: list[str]) -> str:
-        sources = {
-            "linkedin",
-            "gupy",
-            "greenhouse",
-            "indeed",
-            "catho",
-        }
-
-        for line in lines:
-            if self.normalize(line) in sources:
-                return line
-
-        return ""
+        return result
 
     # ---------------------------------------------------
     # Sections
@@ -267,47 +304,38 @@ class MeuPadrinhoAnalyzer:
 
     def extract_description(self, lines: list[str]) -> str:
         start = self.find_index(lines, "Sobre a vaga")
-
         if start == -1:
             return ""
 
-        items: list[str] = []
         stop_sections = {
-            self.normalize(section)
-            for section in self.STOP_SECTIONS
+            self.normalize(section) for section in self.STOP_SECTIONS
         }
+        items = []
 
         for line in lines[start + 1 :]:
             if self.normalize(line) in stop_sections:
                 break
-
             if line != "•":
                 items.append(line)
 
         return "\n".join(items)
 
-    def extract_section(
-        self,
-        lines: list[str],
-        section: str,
-    ) -> list[str]:
+    def extract_section(self, lines: list[str], section: str) -> list[str]:
         start = self.find_index(lines, section)
-
         if start == -1:
             return []
 
+        current = self.normalize(section)
         stop_sections = {
             self.normalize(item)
             for item in self.STOP_SECTIONS
-            if self.normalize(item) != self.normalize(section)
+            if self.normalize(item) != current
         }
-
-        items: list[str] = []
+        items = []
 
         for line in lines[start + 1 :]:
             if self.normalize(line) in stop_sections:
                 break
-
             if line != "•":
                 items.append(line)
 
