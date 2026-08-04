@@ -11,6 +11,8 @@ TECH_WEIGHTS = {
     "sdet": 25,
     "quality assurance": 20,
     "analista de qualidade": 20,
+    "quality analyst": 20,
+    "quality engineer": 20,
 
     # Automation
     "automação": 20,

@@ -1,0 +1,4946 @@
+
+
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="UTF-8">
+
+
+<title>
+AI Job Dashboard
+</title>
+
+
+<style>
+
+body {
+
+    font-family: Arial, sans-serif;
+
+    margin: 30px;
+
+}
+
+
+h1 {
+
+    margin-bottom:20px;
+
+}
+
+
+table {
+
+    width:100%;
+
+    border-collapse:collapse;
+
+}
+
+
+th {
+
+    background:#222;
+
+    color:white;
+
+    padding:10px;
+
+    text-align:left;
+
+}
+
+
+td {
+
+    padding:8px;
+
+    border-bottom:1px solid #ddd;
+
+}
+
+
+tr:hover {
+
+    background:#f4f4f4;
+
+}
+
+
+.score {
+
+    font-weight:bold;
+
+    text-align:center;
+
+}
+
+
+select {
+
+    padding:5px;
+
+}
+
+
+a {
+
+    text-decoration:none;
+
+}
+
+
+</style>
+
+
+</head>
+
+
+<body>
+
+
+<h1>
+AI Job Search Dashboard
+</h1>
+
+
+<p>
+Total jobs: 44
+</p>
+
+
+
+<table>
+
+
+<thead>
+
+<tr>
+
+<th>
+Score
+</th>
+
+
+<th>
+Published
+</th>
+
+
+<th>
+Category
+</th>
+
+
+<th>
+Title
+</th>
+
+
+<th>
+Company
+</th>
+
+
+<th>
+Location
+</th>
+
+
+<th>
+Level
+</th>
+
+
+<th>
+Remote
+</th>
+
+
+<th>
+Page_found
+</th>
+
+
+<th>
+Status
+</th>
+
+
+<th>
+Link
+</th>
+
+
+</tr>
+
+</thead>
+
+
+<tbody>
+
+
+
+
+        <tr>
+
+            <td class="score">
+                80
+            </td>
+
+
+            <td>
+                04 de agosto de 2026
+            </td>
+
+
+            <td>
+                QA
+            </td>
+
+
+            <td>
+                Consultor Funcional SAP QA / Testes - Pleno
+            </td>
+
+
+            <td>
+                Insi
+            </td>
+
+
+            <td>
+                Santo Antônio de Posse, SP
+            </td>
+
+
+            <td>
+                Pleno
+            </td>
+
+
+            <td>
+                NO
+            </td>
+
+
+            <td>
+                FOUND
+            </td>
+
+
+            <td>
+
+                <select
+                    onchange="updateStatus(
+                        434,
+                        this.value
+                    )"
+                >
+
+                    
+                <option value="NEW" selected>
+                    NEW
+                </option>
+            
+                <option value="INTERESTED" >
+                    INTERESTED
+                </option>
+            
+                <option value="APPLIED" >
+                    APPLIED
+                </option>
+            
+                <option value="INTERVIEW" >
+                    INTERVIEW
+                </option>
+            
+                <option value="REJECTED" >
+                    REJECTED
+                </option>
+            
+                <option value="ACCEPTED" >
+                    ACCEPTED
+                </option>
+            
+                <option value="DISCARDED" >
+                    DISCARDED
+                </option>
+            
+
+                </select>
+
+            </td>
+
+
+            <td>
+
+                <a
+                    href="https://meupadrinho.com.br/vaga/FRWuT03l"
+                    target="_blank"
+                >
+                    Open
+                </a>
+
+            </td>
+
+
+        </tr>
+
+        
+
+        <tr>
+
+            <td class="score">
+                55
+            </td>
+
+
+            <td>
+                04 de agosto de 2026
+            </td>
+
+
+            <td>
+                OTHER
+            </td>
+
+
+            <td>
+                Analista de Qualidade de Software III
+            </td>
+
+
+            <td>
+                Insi
+            </td>
+
+
+            <td>
+                Brasil
+            </td>
+
+
+            <td>
+                Pleno
+            </td>
+
+
+            <td>
+                NO
+            </td>
+
+
+            <td>
+                FOUND
+            </td>
+
+
+            <td>
+
+                <select
+                    onchange="updateStatus(
+                        432,
+                        this.value
+                    )"
+                >
+
+                    
+                <option value="NEW" selected>
+                    NEW
+                </option>
+            
+                <option value="INTERESTED" >
+                    INTERESTED
+                </option>
+            
+                <option value="APPLIED" >
+                    APPLIED
+                </option>
+            
+                <option value="INTERVIEW" >
+                    INTERVIEW
+                </option>
+            
+                <option value="REJECTED" >
+                    REJECTED
+                </option>
+            
+                <option value="ACCEPTED" >
+                    ACCEPTED
+                </option>
+            
+                <option value="DISCARDED" >
+                    DISCARDED
+                </option>
+            
+
+                </select>
+
+            </td>
+
+
+            <td>
+
+                <a
+                    href="https://meupadrinho.com.br/vaga/4kb6GJJ0"
+                    target="_blank"
+                >
+                    Open
+                </a>
+
+            </td>
+
+
+        </tr>
+
+        
+
+        <tr>
+
+            <td class="score">
+                55
+            </td>
+
+
+            <td>
+                04 de agosto de 2026
+            </td>
+
+
+            <td>
+                OTHER
+            </td>
+
+
+            <td>
+                Analista de Qualidade de Software II
+            </td>
+
+
+            <td>
+                Insi
+            </td>
+
+
+            <td>
+                Brasil
+            </td>
+
+
+            <td>
+                Pleno
+            </td>
+
+
+            <td>
+                NO
+            </td>
+
+
+            <td>
+                FOUND
+            </td>
+
+
+            <td>
+
+                <select
+                    onchange="updateStatus(
+                        435,
+                        this.value
+                    )"
+                >
+
+                    
+                <option value="NEW" selected>
+                    NEW
+                </option>
+            
+                <option value="INTERESTED" >
+                    INTERESTED
+                </option>
+            
+                <option value="APPLIED" >
+                    APPLIED
+                </option>
+            
+                <option value="INTERVIEW" >
+                    INTERVIEW
+                </option>
+            
+                <option value="REJECTED" >
+                    REJECTED
+                </option>
+            
+                <option value="ACCEPTED" >
+                    ACCEPTED
+                </option>
+            
+                <option value="DISCARDED" >
+                    DISCARDED
+                </option>
+            
+
+                </select>
+
+            </td>
+
+
+            <td>
+
+                <a
+                    href="https://meupadrinho.com.br/vaga/HGIFgQzg"
+                    target="_blank"
+                >
+                    Open
+                </a>
+
+            </td>
+
+
+        </tr>
+
+        
+
+        <tr>
+
+            <td class="score">
+                25
+            </td>
+
+
+            <td>
+                04 de agosto de 2026
+            </td>
+
+
+            <td>
+                OTHER
+            </td>
+
+
+            <td>
+                Analista de Qualidade de Software Especialista
+            </td>
+
+
+            <td>
+                Insi
+            </td>
+
+
+            <td>
+                Brasil
+            </td>
+
+
+            <td>
+                Especialista
+            </td>
+
+
+            <td>
+                NO
+            </td>
+
+
+            <td>
+                FOUND
+            </td>
+
+
+            <td>
+
+                <select
+                    onchange="updateStatus(
+                        431,
+                        this.value
+                    )"
+                >
+
+                    
+                <option value="NEW" selected>
+                    NEW
+                </option>
+            
+                <option value="INTERESTED" >
+                    INTERESTED
+                </option>
+            
+                <option value="APPLIED" >
+                    APPLIED
+                </option>
+            
+                <option value="INTERVIEW" >
+                    INTERVIEW
+                </option>
+            
+                <option value="REJECTED" >
+                    REJECTED
+                </option>
+            
+                <option value="ACCEPTED" >
+                    ACCEPTED
+                </option>
+            
+                <option value="DISCARDED" >
+                    DISCARDED
+                </option>
+            
+
+                </select>
+
+            </td>
+
+
+            <td>
+
+                <a
+                    href="https://meupadrinho.com.br/vaga/ikoRe1DM"
+                    target="_blank"
+                >
+                    Open
+                </a>
+
+            </td>
+
+
+        </tr>
+
+        
+
+        <tr>
+
+            <td class="score">
+                15
+            </td>
+
+
+            <td>
+                04 de agosto de 2026
+            </td>
+
+
+            <td>
+                QA
+            </td>
+
+
+            <td>
+                Tester Jr
+            </td>
+
+
+            <td>
+                Paradigma Business Solutions
+            </td>
+
+
+            <td>
+                Florianópolis, SC
+            </td>
+
+
+            <td>
+                Junior
+            </td>
+
+
+            <td>
+                NO
+            </td>
+
+
+            <td>
+                FOUND
+            </td>
+
+
+            <td>
+
+                <select
+                    onchange="updateStatus(
+                        437,
+                        this.value
+                    )"
+                >
+
+                    
+                <option value="NEW" selected>
+                    NEW
+                </option>
+            
+                <option value="INTERESTED" >
+                    INTERESTED
+                </option>
+            
+                <option value="APPLIED" >
+                    APPLIED
+                </option>
+            
+                <option value="INTERVIEW" >
+                    INTERVIEW
+                </option>
+            
+                <option value="REJECTED" >
+                    REJECTED
+                </option>
+            
+                <option value="ACCEPTED" >
+                    ACCEPTED
+                </option>
+            
+                <option value="DISCARDED" >
+                    DISCARDED
+                </option>
+            
+
+                </select>
+
+            </td>
+
+
+            <td>
+
+                <a
+                    href="https://meupadrinho.com.br/vaga/Ktg_nAzV"
+                    target="_blank"
+                >
+                    Open
+                </a>
+
+            </td>
+
+
+        </tr>
+
+        
+
+        <tr>
+
+            <td class="score">
+                15
+            </td>
+
+
+            <td>
+                04 de agosto de 2026
+            </td>
+
+
+            <td>
+                QA
+            </td>
+
+
+            <td>
+                QA Analyst (BT)
+            </td>
+
+
+            <td>
+                Stefanini Latam
+            </td>
+
+
+            <td>
+                Ciudad de Buenos Aires
+            </td>
+
+
+            <td>
+                Senior
+            </td>
+
+
+            <td>
+                NO
+            </td>
+
+
+            <td>
+                FOUND
+            </td>
+
+
+            <td>
+
+                <select
+                    onchange="updateStatus(
+                        430,
+                        this.value
+                    )"
+                >
+
+                    
+                <option value="NEW" selected>
+                    NEW
+                </option>
+            
+                <option value="INTERESTED" >
+                    INTERESTED
+                </option>
+            
+                <option value="APPLIED" >
+                    APPLIED
+                </option>
+            
+                <option value="INTERVIEW" >
+                    INTERVIEW
+                </option>
+            
+                <option value="REJECTED" >
+                    REJECTED
+                </option>
+            
+                <option value="ACCEPTED" >
+                    ACCEPTED
+                </option>
+            
+                <option value="DISCARDED" >
+                    DISCARDED
+                </option>
+            
+
+                </select>
+
+            </td>
+
+
+            <td>
+
+                <a
+                    href="https://meupadrinho.com.br/vaga/Yi63B-RP"
+                    target="_blank"
+                >
+                    Open
+                </a>
+
+            </td>
+
+
+        </tr>
+
+        
+
+        <tr>
+
+            <td class="score">
+                10
+            </td>
+
+
+            <td>
+                04 de agosto de 2026
+            </td>
+
+
+            <td>
+                QA
+            </td>
+
+
+            <td>
+                Analista de Testes Jr
+            </td>
+
+
+            <td>
+                Paradigma
+            </td>
+
+
+            <td>
+                Florianópolis
+            </td>
+
+
+            <td>
+                Junior
+            </td>
+
+
+            <td>
+                NO
+            </td>
+
+
+            <td>
+                FOUND
+            </td>
+
+
+            <td>
+
+                <select
+                    onchange="updateStatus(
+                        433,
+                        this.value
+                    )"
+                >
+
+                    
+                <option value="NEW" selected>
+                    NEW
+                </option>
+            
+                <option value="INTERESTED" >
+                    INTERESTED
+                </option>
+            
+                <option value="APPLIED" >
+                    APPLIED
+                </option>
+            
+                <option value="INTERVIEW" >
+                    INTERVIEW
+                </option>
+            
+                <option value="REJECTED" >
+                    REJECTED
+                </option>
+            
+                <option value="ACCEPTED" >
+                    ACCEPTED
+                </option>
+            
+                <option value="DISCARDED" >
+                    DISCARDED
+                </option>
+            
+
+                </select>
+
+            </td>
+
+
+            <td>
+
+                <a
+                    href="https://meupadrinho.com.br/vaga/EhDy7c1h"
+                    target="_blank"
+                >
+                    Open
+                </a>
+
+            </td>
+
+
+        </tr>
+
+        
+
+        <tr>
+
+            <td class="score">
+                5
+            </td>
+
+
+            <td>
+                04 de agosto de 2026
+            </td>
+
+
+            <td>
+                OTHER
+            </td>
+
+
+            <td>
+                Analista de Qualidade de Software Júnior
+            </td>
+
+
+            <td>
+                Insi
+            </td>
+
+
+            <td>
+                Curitiba, PR
+            </td>
+
+
+            <td>
+                Junior
+            </td>
+
+
+            <td>
+                NO
+            </td>
+
+
+            <td>
+                FOUND
+            </td>
+
+
+            <td>
+
+                <select
+                    onchange="updateStatus(
+                        436,
+                        this.value
+                    )"
+                >
+
+                    
+                <option value="NEW" selected>
+                    NEW
+                </option>
+            
+                <option value="INTERESTED" >
+                    INTERESTED
+                </option>
+            
+                <option value="APPLIED" >
+                    APPLIED
+                </option>
+            
+                <option value="INTERVIEW" >
+                    INTERVIEW
+                </option>
+            
+                <option value="REJECTED" >
+                    REJECTED
+                </option>
+            
+                <option value="ACCEPTED" >
+                    ACCEPTED
+                </option>
+            
+                <option value="DISCARDED" >
+                    DISCARDED
+                </option>
+            
+
+                </select>
+
+            </td>
+
+
+            <td>
+
+                <a
+                    href="https://meupadrinho.com.br/vaga/ShtIrVCp"
+                    target="_blank"
+                >
+                    Open
+                </a>
+
+            </td>
+
+
+        </tr>
+
+        
+
+        <tr>
+
+            <td class="score">
+                105
+            </td>
+
+
+            <td>
+                25 de julho de 2026
+            </td>
+
+
+            <td>
+                QA
+            </td>
+
+
+            <td>
+                Analista de Automação de Testes – Pleno (Híbrido - SP)
+            </td>
+
+
+            <td>
+                Base2 Tecnologia
+            </td>
+
+
+            <td>
+                São Paulo, SP
+            </td>
+
+
+            <td>
+                Pleno
+            </td>
+
+
+            <td>
+                NO
+            </td>
+
+
+            <td>
+                FOUND
+            </td>
+
+
+            <td>
+
+                <select
+                    onchange="updateStatus(
+                        422,
+                        this.value
+                    )"
+                >
+
+                    
+                <option value="NEW" selected>
+                    NEW
+                </option>
+            
+                <option value="INTERESTED" >
+                    INTERESTED
+                </option>
+            
+                <option value="APPLIED" >
+                    APPLIED
+                </option>
+            
+                <option value="INTERVIEW" >
+                    INTERVIEW
+                </option>
+            
+                <option value="REJECTED" >
+                    REJECTED
+                </option>
+            
+                <option value="ACCEPTED" >
+                    ACCEPTED
+                </option>
+            
+                <option value="DISCARDED" >
+                    DISCARDED
+                </option>
+            
+
+                </select>
+
+            </td>
+
+
+            <td>
+
+                <a
+                    href="https://meupadrinho.com.br/vaga/4_CY_G7w"
+                    target="_blank"
+                >
+                    Open
+                </a>
+
+            </td>
+
+
+        </tr>
+
+        
+
+        <tr>
+
+            <td class="score">
+                100
+            </td>
+
+
+            <td>
+                25 de julho de 2026
+            </td>
+
+
+            <td>
+                QA
+            </td>
+
+
+            <td>
+                Analista de testes - Automação Funcional N3
+            </td>
+
+
+            <td>
+                Digisystem
+            </td>
+
+
+            <td>
+                Brasil
+            </td>
+
+
+            <td>
+                Pleno
+            </td>
+
+
+            <td>
+                YES
+            </td>
+
+
+            <td>
+                FOUND
+            </td>
+
+
+            <td>
+
+                <select
+                    onchange="updateStatus(
+                        423,
+                        this.value
+                    )"
+                >
+
+                    
+                <option value="NEW" selected>
+                    NEW
+                </option>
+            
+                <option value="INTERESTED" >
+                    INTERESTED
+                </option>
+            
+                <option value="APPLIED" >
+                    APPLIED
+                </option>
+            
+                <option value="INTERVIEW" >
+                    INTERVIEW
+                </option>
+            
+                <option value="REJECTED" >
+                    REJECTED
+                </option>
+            
+                <option value="ACCEPTED" >
+                    ACCEPTED
+                </option>
+            
+                <option value="DISCARDED" >
+                    DISCARDED
+                </option>
+            
+
+                </select>
+
+            </td>
+
+
+            <td>
+
+                <a
+                    href="https://meupadrinho.com.br/vaga/BPm82GOQ"
+                    target="_blank"
+                >
+                    Open
+                </a>
+
+            </td>
+
+
+        </tr>
+
+        
+
+        <tr>
+
+            <td class="score">
+                80
+            </td>
+
+
+            <td>
+                25 de julho de 2026
+            </td>
+
+
+            <td>
+                QA
+            </td>
+
+
+            <td>
+                ANALISTA DE TESTES DE SOFTWARE - RS
+            </td>
+
+
+            <td>
+                Win Carreira
+            </td>
+
+
+            <td>
+                Passo Fundo, RS
+            </td>
+
+
+            <td>
+                Pleno
+            </td>
+
+
+            <td>
+                NO
+            </td>
+
+
+            <td>
+                FOUND
+            </td>
+
+
+            <td>
+
+                <select
+                    onchange="updateStatus(
+                        425,
+                        this.value
+                    )"
+                >
+
+                    
+                <option value="NEW" selected>
+                    NEW
+                </option>
+            
+                <option value="INTERESTED" >
+                    INTERESTED
+                </option>
+            
+                <option value="APPLIED" >
+                    APPLIED
+                </option>
+            
+                <option value="INTERVIEW" >
+                    INTERVIEW
+                </option>
+            
+                <option value="REJECTED" >
+                    REJECTED
+                </option>
+            
+                <option value="ACCEPTED" >
+                    ACCEPTED
+                </option>
+            
+                <option value="DISCARDED" >
+                    DISCARDED
+                </option>
+            
+
+                </select>
+
+            </td>
+
+
+            <td>
+
+                <a
+                    href="https://meupadrinho.com.br/vaga/EeXDOywP"
+                    target="_blank"
+                >
+                    Open
+                </a>
+
+            </td>
+
+
+        </tr>
+
+        
+
+        <tr>
+
+            <td class="score">
+                75
+            </td>
+
+
+            <td>
+                25 de julho de 2026
+            </td>
+
+
+            <td>
+                QA
+            </td>
+
+
+            <td>
+                Analista de Qualidade (QA) - 153315
+            </td>
+
+
+            <td>
+                Agenda Assessoria
+            </td>
+
+
+            <td>
+                Cuiabá
+            </td>
+
+
+            <td>
+                Pleno
+            </td>
+
+
+            <td>
+                NO
+            </td>
+
+
+            <td>
+                FOUND
+            </td>
+
+
+            <td>
+
+                <select
+                    onchange="updateStatus(
+                        419,
+                        this.value
+                    )"
+                >
+
+                    
+                <option value="NEW" selected>
+                    NEW
+                </option>
+            
+                <option value="INTERESTED" >
+                    INTERESTED
+                </option>
+            
+                <option value="APPLIED" >
+                    APPLIED
+                </option>
+            
+                <option value="INTERVIEW" >
+                    INTERVIEW
+                </option>
+            
+                <option value="REJECTED" >
+                    REJECTED
+                </option>
+            
+                <option value="ACCEPTED" >
+                    ACCEPTED
+                </option>
+            
+                <option value="DISCARDED" >
+                    DISCARDED
+                </option>
+            
+
+                </select>
+
+            </td>
+
+
+            <td>
+
+                <a
+                    href="https://meupadrinho.com.br/vaga/A1CD0k6g"
+                    target="_blank"
+                >
+                    Open
+                </a>
+
+            </td>
+
+
+        </tr>
+
+        
+
+        <tr>
+
+            <td class="score">
+                55
+            </td>
+
+
+            <td>
+                25 de julho de 2026
+            </td>
+
+
+            <td>
+                OTHER
+            </td>
+
+
+            <td>
+                Analista de Qualidade e Processos
+            </td>
+
+
+            <td>
+                Eletro Equip
+            </td>
+
+
+            <td>
+                Barueri, SP
+            </td>
+
+
+            <td>
+                Pleno
+            </td>
+
+
+            <td>
+                NO
+            </td>
+
+
+            <td>
+                FOUND
+            </td>
+
+
+            <td>
+
+                <select
+                    onchange="updateStatus(
+                        404,
+                        this.value
+                    )"
+                >
+
+                    
+                <option value="NEW" selected>
+                    NEW
+                </option>
+            
+                <option value="INTERESTED" >
+                    INTERESTED
+                </option>
+            
+                <option value="APPLIED" >
+                    APPLIED
+                </option>
+            
+                <option value="INTERVIEW" >
+                    INTERVIEW
+                </option>
+            
+                <option value="REJECTED" >
+                    REJECTED
+                </option>
+            
+                <option value="ACCEPTED" >
+                    ACCEPTED
+                </option>
+            
+                <option value="DISCARDED" >
+                    DISCARDED
+                </option>
+            
+
+                </select>
+
+            </td>
+
+
+            <td>
+
+                <a
+                    href="https://meupadrinho.com.br/vaga/DpIPn6ah"
+                    target="_blank"
+                >
+                    Open
+                </a>
+
+            </td>
+
+
+        </tr>
+
+        
+
+        <tr>
+
+            <td class="score">
+                55
+            </td>
+
+
+            <td>
+                25 de julho de 2026
+            </td>
+
+
+            <td>
+                QA
+            </td>
+
+
+            <td>
+                SAP S/4HANA Quality Assurance Specialist
+            </td>
+
+
+            <td>
+                Stefanini North America and APAC
+            </td>
+
+
+            <td>
+                São Paulo, SP
+            </td>
+
+
+            <td>
+                Especialista
+            </td>
+
+
+            <td>
+                NO
+            </td>
+
+
+            <td>
+                FOUND
+            </td>
+
+
+            <td>
+
+                <select
+                    onchange="updateStatus(
+                        408,
+                        this.value
+                    )"
+                >
+
+                    
+                <option value="NEW" selected>
+                    NEW
+                </option>
+            
+                <option value="INTERESTED" >
+                    INTERESTED
+                </option>
+            
+                <option value="APPLIED" >
+                    APPLIED
+                </option>
+            
+                <option value="INTERVIEW" >
+                    INTERVIEW
+                </option>
+            
+                <option value="REJECTED" >
+                    REJECTED
+                </option>
+            
+                <option value="ACCEPTED" >
+                    ACCEPTED
+                </option>
+            
+                <option value="DISCARDED" >
+                    DISCARDED
+                </option>
+            
+
+                </select>
+
+            </td>
+
+
+            <td>
+
+                <a
+                    href="https://meupadrinho.com.br/vaga/jbtr6r6i"
+                    target="_blank"
+                >
+                    Open
+                </a>
+
+            </td>
+
+
+        </tr>
+
+        
+
+        <tr>
+
+            <td class="score">
+                55
+            </td>
+
+
+            <td>
+                25 de julho de 2026
+            </td>
+
+
+            <td>
+                OTHER
+            </td>
+
+
+            <td>
+                Analista de Qualidade Pleno
+            </td>
+
+
+            <td>
+                ENGEMON
+            </td>
+
+
+            <td>
+                Santana de Parnaíba
+            </td>
+
+
+            <td>
+                Pleno
+            </td>
+
+
+            <td>
+                NO
+            </td>
+
+
+            <td>
+                FOUND
+            </td>
+
+
+            <td>
+
+                <select
+                    onchange="updateStatus(
+                        418,
+                        this.value
+                    )"
+                >
+
+                    
+                <option value="NEW" selected>
+                    NEW
+                </option>
+            
+                <option value="INTERESTED" >
+                    INTERESTED
+                </option>
+            
+                <option value="APPLIED" >
+                    APPLIED
+                </option>
+            
+                <option value="INTERVIEW" >
+                    INTERVIEW
+                </option>
+            
+                <option value="REJECTED" >
+                    REJECTED
+                </option>
+            
+                <option value="ACCEPTED" >
+                    ACCEPTED
+                </option>
+            
+                <option value="DISCARDED" >
+                    DISCARDED
+                </option>
+            
+
+                </select>
+
+            </td>
+
+
+            <td>
+
+                <a
+                    href="https://meupadrinho.com.br/vaga/gBl8xVsK"
+                    target="_blank"
+                >
+                    Open
+                </a>
+
+            </td>
+
+
+        </tr>
+
+        
+
+        <tr>
+
+            <td class="score">
+                40
+            </td>
+
+
+            <td>
+                25 de julho de 2026
+            </td>
+
+
+            <td>
+                OTHER
+            </td>
+
+
+            <td>
+                Técnico(a) de Garantia de Qualidade PET I - Campinas/SP
+            </td>
+
+
+            <td>
+                MBRF
+            </td>
+
+
+            <td>
+                
+            </td>
+
+
+            <td>
+                
+            </td>
+
+
+            <td>
+                NO
+            </td>
+
+
+            <td>
+                FOUND
+            </td>
+
+
+            <td>
+
+                <select
+                    onchange="updateStatus(
+                        413,
+                        this.value
+                    )"
+                >
+
+                    
+                <option value="NEW" selected>
+                    NEW
+                </option>
+            
+                <option value="INTERESTED" >
+                    INTERESTED
+                </option>
+            
+                <option value="APPLIED" >
+                    APPLIED
+                </option>
+            
+                <option value="INTERVIEW" >
+                    INTERVIEW
+                </option>
+            
+                <option value="REJECTED" >
+                    REJECTED
+                </option>
+            
+                <option value="ACCEPTED" >
+                    ACCEPTED
+                </option>
+            
+                <option value="DISCARDED" >
+                    DISCARDED
+                </option>
+            
+
+                </select>
+
+            </td>
+
+
+            <td>
+
+                <a
+                    href="https://meupadrinho.com.br/vaga/DDDQ_38B)"
+                    target="_blank"
+                >
+                    Open
+                </a>
+
+            </td>
+
+
+        </tr>
+
+        
+
+        <tr>
+
+            <td class="score">
+                40
+            </td>
+
+
+            <td>
+                25 de julho de 2026
+            </td>
+
+
+            <td>
+                QA
+            </td>
+
+
+            <td>
+                Analista de Testes Sênior
+            </td>
+
+
+            <td>
+                Radartec
+            </td>
+
+
+            <td>
+                São Paulo, SP
+            </td>
+
+
+            <td>
+                Senior
+            </td>
+
+
+            <td>
+                NO
+            </td>
+
+
+            <td>
+                FOUND
+            </td>
+
+
+            <td>
+
+                <select
+                    onchange="updateStatus(
+                        414,
+                        this.value
+                    )"
+                >
+
+                    
+                <option value="NEW" selected>
+                    NEW
+                </option>
+            
+                <option value="INTERESTED" >
+                    INTERESTED
+                </option>
+            
+                <option value="APPLIED" >
+                    APPLIED
+                </option>
+            
+                <option value="INTERVIEW" >
+                    INTERVIEW
+                </option>
+            
+                <option value="REJECTED" >
+                    REJECTED
+                </option>
+            
+                <option value="ACCEPTED" >
+                    ACCEPTED
+                </option>
+            
+                <option value="DISCARDED" >
+                    DISCARDED
+                </option>
+            
+
+                </select>
+
+            </td>
+
+
+            <td>
+
+                <a
+                    href="https://meupadrinho.com.br/vaga/b_kSTDMk"
+                    target="_blank"
+                >
+                    Open
+                </a>
+
+            </td>
+
+
+        </tr>
+
+        
+
+        <tr>
+
+            <td class="score">
+                35
+            </td>
+
+
+            <td>
+                25 de julho de 2026
+            </td>
+
+
+            <td>
+                OTHER
+            </td>
+
+
+            <td>
+                ANALISTA DA QUALIDADE
+            </td>
+
+
+            <td>
+                Ferrosider Componentes
+            </td>
+
+
+            <td>
+                Contagem, MG
+            </td>
+
+
+            <td>
+                Pleno
+            </td>
+
+
+            <td>
+                NO
+            </td>
+
+
+            <td>
+                FOUND
+            </td>
+
+
+            <td>
+
+                <select
+                    onchange="updateStatus(
+                        405,
+                        this.value
+                    )"
+                >
+
+                    
+                <option value="NEW" selected>
+                    NEW
+                </option>
+            
+                <option value="INTERESTED" >
+                    INTERESTED
+                </option>
+            
+                <option value="APPLIED" >
+                    APPLIED
+                </option>
+            
+                <option value="INTERVIEW" >
+                    INTERVIEW
+                </option>
+            
+                <option value="REJECTED" >
+                    REJECTED
+                </option>
+            
+                <option value="ACCEPTED" >
+                    ACCEPTED
+                </option>
+            
+                <option value="DISCARDED" >
+                    DISCARDED
+                </option>
+            
+
+                </select>
+
+            </td>
+
+
+            <td>
+
+                <a
+                    href="https://meupadrinho.com.br/vaga/MAZrU1M4"
+                    target="_blank"
+                >
+                    Open
+                </a>
+
+            </td>
+
+
+        </tr>
+
+        
+
+        <tr>
+
+            <td class="score">
+                25
+            </td>
+
+
+            <td>
+                25 de julho de 2026
+            </td>
+
+
+            <td>
+                QA
+            </td>
+
+
+            <td>
+                QA Engineer - Produto de Benefícios (Cartão Bandeirado)
+            </td>
+
+
+            <td>
+                Evertec Brasil
+            </td>
+
+
+            <td>
+                
+            </td>
+
+
+            <td>
+                
+            </td>
+
+
+            <td>
+                YES
+            </td>
+
+
+            <td>
+                FOUND
+            </td>
+
+
+            <td>
+
+                <select
+                    onchange="updateStatus(
+                        415,
+                        this.value
+                    )"
+                >
+
+                    
+                <option value="NEW" selected>
+                    NEW
+                </option>
+            
+                <option value="INTERESTED" >
+                    INTERESTED
+                </option>
+            
+                <option value="APPLIED" >
+                    APPLIED
+                </option>
+            
+                <option value="INTERVIEW" >
+                    INTERVIEW
+                </option>
+            
+                <option value="REJECTED" >
+                    REJECTED
+                </option>
+            
+                <option value="ACCEPTED" >
+                    ACCEPTED
+                </option>
+            
+                <option value="DISCARDED" >
+                    DISCARDED
+                </option>
+            
+
+                </select>
+
+            </td>
+
+
+            <td>
+
+                <a
+                    href="https://meupadrinho.com.br/vaga/OH5Rgn_H)"
+                    target="_blank"
+                >
+                    Open
+                </a>
+
+            </td>
+
+
+        </tr>
+
+        
+
+        <tr>
+
+            <td class="score">
+                25
+            </td>
+
+
+            <td>
+                25 de julho de 2026
+            </td>
+
+
+            <td>
+                QA
+            </td>
+
+
+            <td>
+                Estagiário de QA (Qualidade de Software)
+            </td>
+
+
+            <td>
+                Nexti
+            </td>
+
+
+            <td>
+                Brasil
+            </td>
+
+
+            <td>
+                Estagio
+            </td>
+
+
+            <td>
+                YES
+            </td>
+
+
+            <td>
+                FOUND
+            </td>
+
+
+            <td>
+
+                <select
+                    onchange="updateStatus(
+                        420,
+                        this.value
+                    )"
+                >
+
+                    
+                <option value="NEW" selected>
+                    NEW
+                </option>
+            
+                <option value="INTERESTED" >
+                    INTERESTED
+                </option>
+            
+                <option value="APPLIED" >
+                    APPLIED
+                </option>
+            
+                <option value="INTERVIEW" >
+                    INTERVIEW
+                </option>
+            
+                <option value="REJECTED" >
+                    REJECTED
+                </option>
+            
+                <option value="ACCEPTED" >
+                    ACCEPTED
+                </option>
+            
+                <option value="DISCARDED" >
+                    DISCARDED
+                </option>
+            
+
+                </select>
+
+            </td>
+
+
+            <td>
+
+                <a
+                    href="https://meupadrinho.com.br/vaga/uLF_GKPx"
+                    target="_blank"
+                >
+                    Open
+                </a>
+
+            </td>
+
+
+        </tr>
+
+        
+
+        <tr>
+
+            <td class="score">
+                5
+            </td>
+
+
+            <td>
+                25 de julho de 2026
+            </td>
+
+
+            <td>
+                OTHER
+            </td>
+
+
+            <td>
+                Analista Gestão Qualidade SR
+            </td>
+
+
+            <td>
+                Siemens
+            </td>
+
+
+            <td>
+                
+            </td>
+
+
+            <td>
+                
+            </td>
+
+
+            <td>
+                NO
+            </td>
+
+
+            <td>
+                FOUND
+            </td>
+
+
+            <td>
+
+                <select
+                    onchange="updateStatus(
+                        406,
+                        this.value
+                    )"
+                >
+
+                    
+                <option value="NEW" selected>
+                    NEW
+                </option>
+            
+                <option value="INTERESTED" >
+                    INTERESTED
+                </option>
+            
+                <option value="APPLIED" >
+                    APPLIED
+                </option>
+            
+                <option value="INTERVIEW" >
+                    INTERVIEW
+                </option>
+            
+                <option value="REJECTED" >
+                    REJECTED
+                </option>
+            
+                <option value="ACCEPTED" >
+                    ACCEPTED
+                </option>
+            
+                <option value="DISCARDED" >
+                    DISCARDED
+                </option>
+            
+
+                </select>
+
+            </td>
+
+
+            <td>
+
+                <a
+                    href="https://meupadrinho.com.br/vaga/_450Q-tA)"
+                    target="_blank"
+                >
+                    Open
+                </a>
+
+            </td>
+
+
+        </tr>
+
+        
+
+        <tr>
+
+            <td class="score">
+                5
+            </td>
+
+
+            <td>
+                25 de julho de 2026
+            </td>
+
+
+            <td>
+                OTHER
+            </td>
+
+
+            <td>
+                Técnico de Qualidade Certificação - SP
+            </td>
+
+
+            <td>
+                Intersolid Software
+            </td>
+
+
+            <td>
+                Brasil
+            </td>
+
+
+            <td>
+                
+            </td>
+
+
+            <td>
+                YES
+            </td>
+
+
+            <td>
+                FOUND
+            </td>
+
+
+            <td>
+
+                <select
+                    onchange="updateStatus(
+                        410,
+                        this.value
+                    )"
+                >
+
+                    
+                <option value="NEW" selected>
+                    NEW
+                </option>
+            
+                <option value="INTERESTED" >
+                    INTERESTED
+                </option>
+            
+                <option value="APPLIED" >
+                    APPLIED
+                </option>
+            
+                <option value="INTERVIEW" >
+                    INTERVIEW
+                </option>
+            
+                <option value="REJECTED" >
+                    REJECTED
+                </option>
+            
+                <option value="ACCEPTED" >
+                    ACCEPTED
+                </option>
+            
+                <option value="DISCARDED" >
+                    DISCARDED
+                </option>
+            
+
+                </select>
+
+            </td>
+
+
+            <td>
+
+                <a
+                    href="https://meupadrinho.com.br/vaga/mZMIVydo"
+                    target="_blank"
+                >
+                    Open
+                </a>
+
+            </td>
+
+
+        </tr>
+
+        
+
+        <tr>
+
+            <td class="score">
+                5
+            </td>
+
+
+            <td>
+                25 de julho de 2026
+            </td>
+
+
+            <td>
+                OTHER
+            </td>
+
+
+            <td>
+                Assistente de Qualidade - SC
+            </td>
+
+
+            <td>
+                Zeus do Brasil
+            </td>
+
+
+            <td>
+                Blumenau, SC
+            </td>
+
+
+            <td>
+                
+            </td>
+
+
+            <td>
+                YES
+            </td>
+
+
+            <td>
+                FOUND
+            </td>
+
+
+            <td>
+
+                <select
+                    onchange="updateStatus(
+                        412,
+                        this.value
+                    )"
+                >
+
+                    
+                <option value="NEW" selected>
+                    NEW
+                </option>
+            
+                <option value="INTERESTED" >
+                    INTERESTED
+                </option>
+            
+                <option value="APPLIED" >
+                    APPLIED
+                </option>
+            
+                <option value="INTERVIEW" >
+                    INTERVIEW
+                </option>
+            
+                <option value="REJECTED" >
+                    REJECTED
+                </option>
+            
+                <option value="ACCEPTED" >
+                    ACCEPTED
+                </option>
+            
+                <option value="DISCARDED" >
+                    DISCARDED
+                </option>
+            
+
+                </select>
+
+            </td>
+
+
+            <td>
+
+                <a
+                    href="https://meupadrinho.com.br/vaga/MqDA7_N3"
+                    target="_blank"
+                >
+                    Open
+                </a>
+
+            </td>
+
+
+        </tr>
+
+        
+
+        <tr>
+
+            <td class="score">
+                5
+            </td>
+
+
+            <td>
+                25 de julho de 2026
+            </td>
+
+
+            <td>
+                OTHER
+            </td>
+
+
+            <td>
+                ANALISTA DA QUALIDADE - SP
+            </td>
+
+
+            <td>
+                IMPÉRIA
+            </td>
+
+
+            <td>
+                Araras, SP
+            </td>
+
+
+            <td>
+                
+            </td>
+
+
+            <td>
+                NO
+            </td>
+
+
+            <td>
+                FOUND
+            </td>
+
+
+            <td>
+
+                <select
+                    onchange="updateStatus(
+                        421,
+                        this.value
+                    )"
+                >
+
+                    
+                <option value="NEW" selected>
+                    NEW
+                </option>
+            
+                <option value="INTERESTED" >
+                    INTERESTED
+                </option>
+            
+                <option value="APPLIED" >
+                    APPLIED
+                </option>
+            
+                <option value="INTERVIEW" >
+                    INTERVIEW
+                </option>
+            
+                <option value="REJECTED" >
+                    REJECTED
+                </option>
+            
+                <option value="ACCEPTED" >
+                    ACCEPTED
+                </option>
+            
+                <option value="DISCARDED" >
+                    DISCARDED
+                </option>
+            
+
+                </select>
+
+            </td>
+
+
+            <td>
+
+                <a
+                    href="https://meupadrinho.com.br/vaga/MQtDcCVy"
+                    target="_blank"
+                >
+                    Open
+                </a>
+
+            </td>
+
+
+        </tr>
+
+        
+
+        <tr>
+
+            <td class="score">
+                0
+            </td>
+
+
+            <td>
+                25 de julho de 2026
+            </td>
+
+
+            <td>
+                OTHER
+            </td>
+
+
+            <td>
+                ANALISTA DE QUALIDADE JR - QUÍMICO
+            </td>
+
+
+            <td>
+                Condor Tecnologias Não Letais
+            </td>
+
+
+            <td>
+                Nova Iguaçu, RJ
+            </td>
+
+
+            <td>
+                Junior
+            </td>
+
+
+            <td>
+                NO
+            </td>
+
+
+            <td>
+                FOUND
+            </td>
+
+
+            <td>
+
+                <select
+                    onchange="updateStatus(
+                        409,
+                        this.value
+                    )"
+                >
+
+                    
+                <option value="NEW" selected>
+                    NEW
+                </option>
+            
+                <option value="INTERESTED" >
+                    INTERESTED
+                </option>
+            
+                <option value="APPLIED" >
+                    APPLIED
+                </option>
+            
+                <option value="INTERVIEW" >
+                    INTERVIEW
+                </option>
+            
+                <option value="REJECTED" >
+                    REJECTED
+                </option>
+            
+                <option value="ACCEPTED" >
+                    ACCEPTED
+                </option>
+            
+                <option value="DISCARDED" >
+                    DISCARDED
+                </option>
+            
+
+                </select>
+
+            </td>
+
+
+            <td>
+
+                <a
+                    href="https://meupadrinho.com.br/vaga/zLbbia29"
+                    target="_blank"
+                >
+                    Open
+                </a>
+
+            </td>
+
+
+        </tr>
+
+        
+
+        <tr>
+
+            <td class="score">
+                0
+            </td>
+
+
+            <td>
+                25 de julho de 2026
+            </td>
+
+
+            <td>
+                OTHER
+            </td>
+
+
+            <td>
+                Pessoa Analista Qualidade Assegurada JR - Fábrica Itu - VAGA AFIRMATIVA PARA PESSOAS ...
+            </td>
+
+
+            <td>
+                The HEINEKEN Company
+            </td>
+
+
+            <td>
+                Itu
+            </td>
+
+
+            <td>
+                Junior
+            </td>
+
+
+            <td>
+                NO
+            </td>
+
+
+            <td>
+                FOUND
+            </td>
+
+
+            <td>
+
+                <select
+                    onchange="updateStatus(
+                        411,
+                        this.value
+                    )"
+                >
+
+                    
+                <option value="NEW" selected>
+                    NEW
+                </option>
+            
+                <option value="INTERESTED" >
+                    INTERESTED
+                </option>
+            
+                <option value="APPLIED" >
+                    APPLIED
+                </option>
+            
+                <option value="INTERVIEW" >
+                    INTERVIEW
+                </option>
+            
+                <option value="REJECTED" >
+                    REJECTED
+                </option>
+            
+                <option value="ACCEPTED" >
+                    ACCEPTED
+                </option>
+            
+                <option value="DISCARDED" >
+                    DISCARDED
+                </option>
+            
+
+                </select>
+
+            </td>
+
+
+            <td>
+
+                <a
+                    href="https://meupadrinho.com.br/vaga/DYrj5j4f"
+                    target="_blank"
+                >
+                    Open
+                </a>
+
+            </td>
+
+
+        </tr>
+
+        
+
+        <tr>
+
+            <td class="score">
+                0
+            </td>
+
+
+            <td>
+                25 de julho de 2026
+            </td>
+
+
+            <td>
+                OTHER
+            </td>
+
+
+            <td>
+                Analista Qualidade Sr
+            </td>
+
+
+            <td>
+                Rede Américas
+            </td>
+
+
+            <td>
+                São Paulo
+            </td>
+
+
+            <td>
+                Senior
+            </td>
+
+
+            <td>
+                NO
+            </td>
+
+
+            <td>
+                FOUND
+            </td>
+
+
+            <td>
+
+                <select
+                    onchange="updateStatus(
+                        416,
+                        this.value
+                    )"
+                >
+
+                    
+                <option value="NEW" selected>
+                    NEW
+                </option>
+            
+                <option value="INTERESTED" >
+                    INTERESTED
+                </option>
+            
+                <option value="APPLIED" >
+                    APPLIED
+                </option>
+            
+                <option value="INTERVIEW" >
+                    INTERVIEW
+                </option>
+            
+                <option value="REJECTED" >
+                    REJECTED
+                </option>
+            
+                <option value="ACCEPTED" >
+                    ACCEPTED
+                </option>
+            
+                <option value="DISCARDED" >
+                    DISCARDED
+                </option>
+            
+
+                </select>
+
+            </td>
+
+
+            <td>
+
+                <a
+                    href="https://meupadrinho.com.br/vaga/K9xyOJTc"
+                    target="_blank"
+                >
+                    Open
+                </a>
+
+            </td>
+
+
+        </tr>
+
+        
+
+        <tr>
+
+            <td class="score">
+                0
+            </td>
+
+
+            <td>
+                25 de julho de 2026
+            </td>
+
+
+            <td>
+                OTHER
+            </td>
+
+
+            <td>
+                Analista de Melhoria Continua Sr (Qualidade/Processos)
+            </td>
+
+
+            <td>
+                MCassab Distribuição
+            </td>
+
+
+            <td>
+                Jarinu, SP
+            </td>
+
+
+            <td>
+                Senior
+            </td>
+
+
+            <td>
+                NO
+            </td>
+
+
+            <td>
+                FOUND
+            </td>
+
+
+            <td>
+
+                <select
+                    onchange="updateStatus(
+                        417,
+                        this.value
+                    )"
+                >
+
+                    
+                <option value="NEW" selected>
+                    NEW
+                </option>
+            
+                <option value="INTERESTED" >
+                    INTERESTED
+                </option>
+            
+                <option value="APPLIED" >
+                    APPLIED
+                </option>
+            
+                <option value="INTERVIEW" >
+                    INTERVIEW
+                </option>
+            
+                <option value="REJECTED" >
+                    REJECTED
+                </option>
+            
+                <option value="ACCEPTED" >
+                    ACCEPTED
+                </option>
+            
+                <option value="DISCARDED" >
+                    DISCARDED
+                </option>
+            
+
+                </select>
+
+            </td>
+
+
+            <td>
+
+                <a
+                    href="https://meupadrinho.com.br/vaga/wdYYPMVq"
+                    target="_blank"
+                >
+                    Open
+                </a>
+
+            </td>
+
+
+        </tr>
+
+        
+
+        <tr>
+
+            <td class="score">
+                0
+            </td>
+
+
+            <td>
+                25 de julho de 2026
+            </td>
+
+
+            <td>
+                OTHER
+            </td>
+
+
+            <td>
+                Analista de Qualidade Jr - SP
+            </td>
+
+
+            <td>
+                Garantia Real
+            </td>
+
+
+            <td>
+                São Paulo e Região
+            </td>
+
+
+            <td>
+                Junior
+            </td>
+
+
+            <td>
+                NO
+            </td>
+
+
+            <td>
+                FOUND
+            </td>
+
+
+            <td>
+
+                <select
+                    onchange="updateStatus(
+                        424,
+                        this.value
+                    )"
+                >
+
+                    
+                <option value="NEW" selected>
+                    NEW
+                </option>
+            
+                <option value="INTERESTED" >
+                    INTERESTED
+                </option>
+            
+                <option value="APPLIED" >
+                    APPLIED
+                </option>
+            
+                <option value="INTERVIEW" >
+                    INTERVIEW
+                </option>
+            
+                <option value="REJECTED" >
+                    REJECTED
+                </option>
+            
+                <option value="ACCEPTED" >
+                    ACCEPTED
+                </option>
+            
+                <option value="DISCARDED" >
+                    DISCARDED
+                </option>
+            
+
+                </select>
+
+            </td>
+
+
+            <td>
+
+                <a
+                    href="https://meupadrinho.com.br/vaga/pCwomS73"
+                    target="_blank"
+                >
+                    Open
+                </a>
+
+            </td>
+
+
+        </tr>
+
+        
+
+        <tr>
+
+            <td class="score">
+                95
+            </td>
+
+
+            <td>
+                26 de julho de 2026
+            </td>
+
+
+            <td>
+                QA
+            </td>
+
+
+            <td>
+                Professor(a) Graduação TDS (SP) - Compliance, Quality Assurance &amp; Tests
+            </td>
+
+
+            <td>
+                FIAP
+            </td>
+
+
+            <td>
+                São Paulo, SP
+            </td>
+
+
+            <td>
+                Pleno
+            </td>
+
+
+            <td>
+                NO
+            </td>
+
+
+            <td>
+                FOUND
+            </td>
+
+
+            <td>
+
+                <select
+                    onchange="updateStatus(
+                        396,
+                        this.value
+                    )"
+                >
+
+                    
+                <option value="NEW" selected>
+                    NEW
+                </option>
+            
+                <option value="INTERESTED" >
+                    INTERESTED
+                </option>
+            
+                <option value="APPLIED" >
+                    APPLIED
+                </option>
+            
+                <option value="INTERVIEW" >
+                    INTERVIEW
+                </option>
+            
+                <option value="REJECTED" >
+                    REJECTED
+                </option>
+            
+                <option value="ACCEPTED" >
+                    ACCEPTED
+                </option>
+            
+                <option value="DISCARDED" >
+                    DISCARDED
+                </option>
+            
+
+                </select>
+
+            </td>
+
+
+            <td>
+
+                <a
+                    href="https://meupadrinho.com.br/vaga/qDaRzraM"
+                    target="_blank"
+                >
+                    Open
+                </a>
+
+            </td>
+
+
+        </tr>
+
+        
+
+        <tr>
+
+            <td class="score">
+                70
+            </td>
+
+
+            <td>
+                26 de julho de 2026
+            </td>
+
+
+            <td>
+                QA
+            </td>
+
+
+            <td>
+                Lead Test Automation Engineer (Java)
+            </td>
+
+
+            <td>
+                EPAM Systems
+            </td>
+
+
+            <td>
+                Brasil
+            </td>
+
+
+            <td>
+                Techlead
+            </td>
+
+
+            <td>
+                YES
+            </td>
+
+
+            <td>
+                FOUND
+            </td>
+
+
+            <td>
+
+                <select
+                    onchange="updateStatus(
+                        400,
+                        this.value
+                    )"
+                >
+
+                    
+                <option value="NEW" selected>
+                    NEW
+                </option>
+            
+                <option value="INTERESTED" >
+                    INTERESTED
+                </option>
+            
+                <option value="APPLIED" >
+                    APPLIED
+                </option>
+            
+                <option value="INTERVIEW" >
+                    INTERVIEW
+                </option>
+            
+                <option value="REJECTED" >
+                    REJECTED
+                </option>
+            
+                <option value="ACCEPTED" >
+                    ACCEPTED
+                </option>
+            
+                <option value="DISCARDED" >
+                    DISCARDED
+                </option>
+            
+
+                </select>
+
+            </td>
+
+
+            <td>
+
+                <a
+                    href="https://meupadrinho.com.br/vaga/ldUU-dZC"
+                    target="_blank"
+                >
+                    Open
+                </a>
+
+            </td>
+
+
+        </tr>
+
+        
+
+        <tr>
+
+            <td class="score">
+                70
+            </td>
+
+
+            <td>
+                26 de julho de 2026
+            </td>
+
+
+            <td>
+                QA
+            </td>
+
+
+            <td>
+                Lead Test Automation Engineer (JavaScript/TypeScript)
+            </td>
+
+
+            <td>
+                EPAM Systems
+            </td>
+
+
+            <td>
+                Brasil
+            </td>
+
+
+            <td>
+                Techlead
+            </td>
+
+
+            <td>
+                YES
+            </td>
+
+
+            <td>
+                FOUND
+            </td>
+
+
+            <td>
+
+                <select
+                    onchange="updateStatus(
+                        401,
+                        this.value
+                    )"
+                >
+
+                    
+                <option value="NEW" selected>
+                    NEW
+                </option>
+            
+                <option value="INTERESTED" >
+                    INTERESTED
+                </option>
+            
+                <option value="APPLIED" >
+                    APPLIED
+                </option>
+            
+                <option value="INTERVIEW" >
+                    INTERVIEW
+                </option>
+            
+                <option value="REJECTED" >
+                    REJECTED
+                </option>
+            
+                <option value="ACCEPTED" >
+                    ACCEPTED
+                </option>
+            
+                <option value="DISCARDED" >
+                    DISCARDED
+                </option>
+            
+
+                </select>
+
+            </td>
+
+
+            <td>
+
+                <a
+                    href="https://meupadrinho.com.br/vaga/7cYglS-K"
+                    target="_blank"
+                >
+                    Open
+                </a>
+
+            </td>
+
+
+        </tr>
+
+        
+
+        <tr>
+
+            <td class="score">
+                60
+            </td>
+
+
+            <td>
+                26 de julho de 2026
+            </td>
+
+
+            <td>
+                QA
+            </td>
+
+
+            <td>
+                Senior Test Automation Engineer (JavaScript/TypeScript)
+            </td>
+
+
+            <td>
+                EPAM Systems
+            </td>
+
+
+            <td>
+                Brasil
+            </td>
+
+
+            <td>
+                Senior
+            </td>
+
+
+            <td>
+                YES
+            </td>
+
+
+            <td>
+                FOUND
+            </td>
+
+
+            <td>
+
+                <select
+                    onchange="updateStatus(
+                        402,
+                        this.value
+                    )"
+                >
+
+                    
+                <option value="NEW" selected>
+                    NEW
+                </option>
+            
+                <option value="INTERESTED" >
+                    INTERESTED
+                </option>
+            
+                <option value="APPLIED" >
+                    APPLIED
+                </option>
+            
+                <option value="INTERVIEW" >
+                    INTERVIEW
+                </option>
+            
+                <option value="REJECTED" >
+                    REJECTED
+                </option>
+            
+                <option value="ACCEPTED" >
+                    ACCEPTED
+                </option>
+            
+                <option value="DISCARDED" >
+                    DISCARDED
+                </option>
+            
+
+                </select>
+
+            </td>
+
+
+            <td>
+
+                <a
+                    href="https://meupadrinho.com.br/vaga/k7vuV-mA"
+                    target="_blank"
+                >
+                    Open
+                </a>
+
+            </td>
+
+
+        </tr>
+
+        
+
+        <tr>
+
+            <td class="score">
+                60
+            </td>
+
+
+            <td>
+                26 de julho de 2026
+            </td>
+
+
+            <td>
+                QA
+            </td>
+
+
+            <td>
+                Senior Test Automation Engineer (Java)
+            </td>
+
+
+            <td>
+                EPAM Systems
+            </td>
+
+
+            <td>
+                Brasil
+            </td>
+
+
+            <td>
+                Senior
+            </td>
+
+
+            <td>
+                YES
+            </td>
+
+
+            <td>
+                FOUND
+            </td>
+
+
+            <td>
+
+                <select
+                    onchange="updateStatus(
+                        403,
+                        this.value
+                    )"
+                >
+
+                    
+                <option value="NEW" selected>
+                    NEW
+                </option>
+            
+                <option value="INTERESTED" >
+                    INTERESTED
+                </option>
+            
+                <option value="APPLIED" >
+                    APPLIED
+                </option>
+            
+                <option value="INTERVIEW" >
+                    INTERVIEW
+                </option>
+            
+                <option value="REJECTED" >
+                    REJECTED
+                </option>
+            
+                <option value="ACCEPTED" >
+                    ACCEPTED
+                </option>
+            
+                <option value="DISCARDED" >
+                    DISCARDED
+                </option>
+            
+
+                </select>
+
+            </td>
+
+
+            <td>
+
+                <a
+                    href="https://meupadrinho.com.br/vaga/l9WagdrZ"
+                    target="_blank"
+                >
+                    Open
+                </a>
+
+            </td>
+
+
+        </tr>
+
+        
+
+        <tr>
+
+            <td class="score">
+                55
+            </td>
+
+
+            <td>
+                26 de julho de 2026
+            </td>
+
+
+            <td>
+                QA
+            </td>
+
+
+            <td>
+                QA Analyst Pleno
+            </td>
+
+
+            <td>
+                Cadastra
+            </td>
+
+
+            <td>
+                São Paulo
+            </td>
+
+
+            <td>
+                Pleno
+            </td>
+
+
+            <td>
+                NO
+            </td>
+
+
+            <td>
+                FOUND
+            </td>
+
+
+            <td>
+
+                <select
+                    onchange="updateStatus(
+                        394,
+                        this.value
+                    )"
+                >
+
+                    
+                <option value="NEW" selected>
+                    NEW
+                </option>
+            
+                <option value="INTERESTED" >
+                    INTERESTED
+                </option>
+            
+                <option value="APPLIED" >
+                    APPLIED
+                </option>
+            
+                <option value="INTERVIEW" >
+                    INTERVIEW
+                </option>
+            
+                <option value="REJECTED" >
+                    REJECTED
+                </option>
+            
+                <option value="ACCEPTED" >
+                    ACCEPTED
+                </option>
+            
+                <option value="DISCARDED" >
+                    DISCARDED
+                </option>
+            
+
+                </select>
+
+            </td>
+
+
+            <td>
+
+                <a
+                    href="https://meupadrinho.com.br/vaga/0E77XAYl"
+                    target="_blank"
+                >
+                    Open
+                </a>
+
+            </td>
+
+
+        </tr>
+
+        
+
+        <tr>
+
+            <td class="score">
+                55
+            </td>
+
+
+            <td>
+                26 de julho de 2026
+            </td>
+
+
+            <td>
+                QA
+            </td>
+
+
+            <td>
+                Analista de Testes - Presencial
+            </td>
+
+
+            <td>
+                ESSENTIA GROUP
+            </td>
+
+
+            <td>
+                Palhoça
+            </td>
+
+
+            <td>
+                Pleno
+            </td>
+
+
+            <td>
+                NO
+            </td>
+
+
+            <td>
+                FOUND
+            </td>
+
+
+            <td>
+
+                <select
+                    onchange="updateStatus(
+                        397,
+                        this.value
+                    )"
+                >
+
+                    
+                <option value="NEW" selected>
+                    NEW
+                </option>
+            
+                <option value="INTERESTED" >
+                    INTERESTED
+                </option>
+            
+                <option value="APPLIED" >
+                    APPLIED
+                </option>
+            
+                <option value="INTERVIEW" >
+                    INTERVIEW
+                </option>
+            
+                <option value="REJECTED" >
+                    REJECTED
+                </option>
+            
+                <option value="ACCEPTED" >
+                    ACCEPTED
+                </option>
+            
+                <option value="DISCARDED" >
+                    DISCARDED
+                </option>
+            
+
+                </select>
+
+            </td>
+
+
+            <td>
+
+                <a
+                    href="https://meupadrinho.com.br/vaga/NZCN5AjZ"
+                    target="_blank"
+                >
+                    Open
+                </a>
+
+            </td>
+
+
+        </tr>
+
+        
+
+        <tr>
+
+            <td class="score">
+                55
+            </td>
+
+
+            <td>
+                26 de julho de 2026
+            </td>
+
+
+            <td>
+                OTHER
+            </td>
+
+
+            <td>
+                Analista de Qualidade | Glória D'or
+            </td>
+
+
+            <td>
+                Rede D'Or
+            </td>
+
+
+            <td>
+                Rio de Janeiro
+            </td>
+
+
+            <td>
+                Pleno
+            </td>
+
+
+            <td>
+                NO
+            </td>
+
+
+            <td>
+                FOUND
+            </td>
+
+
+            <td>
+
+                <select
+                    onchange="updateStatus(
+                        399,
+                        this.value
+                    )"
+                >
+
+                    
+                <option value="NEW" selected>
+                    NEW
+                </option>
+            
+                <option value="INTERESTED" >
+                    INTERESTED
+                </option>
+            
+                <option value="APPLIED" >
+                    APPLIED
+                </option>
+            
+                <option value="INTERVIEW" >
+                    INTERVIEW
+                </option>
+            
+                <option value="REJECTED" >
+                    REJECTED
+                </option>
+            
+                <option value="ACCEPTED" >
+                    ACCEPTED
+                </option>
+            
+                <option value="DISCARDED" >
+                    DISCARDED
+                </option>
+            
+
+                </select>
+
+            </td>
+
+
+            <td>
+
+                <a
+                    href="https://meupadrinho.com.br/vaga/OC-m7NKk"
+                    target="_blank"
+                >
+                    Open
+                </a>
+
+            </td>
+
+
+        </tr>
+
+        
+
+        <tr>
+
+            <td class="score">
+                40
+            </td>
+
+
+            <td>
+                26 de julho de 2026
+            </td>
+
+
+            <td>
+                QA
+            </td>
+
+
+            <td>
+                Analista de Testes Sênior - Diversos benefícios
+            </td>
+
+
+            <td>
+                Caderno Nacional
+            </td>
+
+
+            <td>
+                São Paulo
+            </td>
+
+
+            <td>
+                Senior
+            </td>
+
+
+            <td>
+                NO
+            </td>
+
+
+            <td>
+                FOUND
+            </td>
+
+
+            <td>
+
+                <select
+                    onchange="updateStatus(
+                        398,
+                        this.value
+                    )"
+                >
+
+                    
+                <option value="NEW" selected>
+                    NEW
+                </option>
+            
+                <option value="INTERESTED" >
+                    INTERESTED
+                </option>
+            
+                <option value="APPLIED" >
+                    APPLIED
+                </option>
+            
+                <option value="INTERVIEW" >
+                    INTERVIEW
+                </option>
+            
+                <option value="REJECTED" >
+                    REJECTED
+                </option>
+            
+                <option value="ACCEPTED" >
+                    ACCEPTED
+                </option>
+            
+                <option value="DISCARDED" >
+                    DISCARDED
+                </option>
+            
+
+                </select>
+
+            </td>
+
+
+            <td>
+
+                <a
+                    href="https://meupadrinho.com.br/vaga/rYrQ96Jf"
+                    target="_blank"
+                >
+                    Open
+                </a>
+
+            </td>
+
+
+        </tr>
+
+        
+
+        <tr>
+
+            <td class="score">
+                100
+            </td>
+
+
+            <td>
+                27 de julho de 2026
+            </td>
+
+
+            <td>
+                QA
+            </td>
+
+
+            <td>
+                Analista de Testes PL - Automação
+            </td>
+
+
+            <td>
+                i4pro
+            </td>
+
+
+            <td>
+                
+            </td>
+
+
+            <td>
+                Pleno
+            </td>
+
+
+            <td>
+                NO
+            </td>
+
+
+            <td>
+                FOUND
+            </td>
+
+
+            <td>
+
+                <select
+                    onchange="updateStatus(
+                        386,
+                        this.value
+                    )"
+                >
+
+                    
+                <option value="NEW" selected>
+                    NEW
+                </option>
+            
+                <option value="INTERESTED" >
+                    INTERESTED
+                </option>
+            
+                <option value="APPLIED" >
+                    APPLIED
+                </option>
+            
+                <option value="INTERVIEW" >
+                    INTERVIEW
+                </option>
+            
+                <option value="REJECTED" >
+                    REJECTED
+                </option>
+            
+                <option value="ACCEPTED" >
+                    ACCEPTED
+                </option>
+            
+                <option value="DISCARDED" >
+                    DISCARDED
+                </option>
+            
+
+                </select>
+
+            </td>
+
+
+            <td>
+
+                <a
+                    href="https://meupadrinho.com.br/vaga/LUDnJDFN"
+                    target="_blank"
+                >
+                    Open
+                </a>
+
+            </td>
+
+
+        </tr>
+
+        
+
+        <tr>
+
+            <td class="score">
+                75
+            </td>
+
+
+            <td>
+                27 de julho de 2026
+            </td>
+
+
+            <td>
+                QA
+            </td>
+
+
+            <td>
+                Lead Automation Tester in JS
+            </td>
+
+
+            <td>
+                EPAM Systems
+            </td>
+
+
+            <td>
+                Brasil
+            </td>
+
+
+            <td>
+                Techlead
+            </td>
+
+
+            <td>
+                YES
+            </td>
+
+
+            <td>
+                FOUND
+            </td>
+
+
+            <td>
+
+                <select
+                    onchange="updateStatus(
+                        387,
+                        this.value
+                    )"
+                >
+
+                    
+                <option value="NEW" selected>
+                    NEW
+                </option>
+            
+                <option value="INTERESTED" >
+                    INTERESTED
+                </option>
+            
+                <option value="APPLIED" >
+                    APPLIED
+                </option>
+            
+                <option value="INTERVIEW" >
+                    INTERVIEW
+                </option>
+            
+                <option value="REJECTED" >
+                    REJECTED
+                </option>
+            
+                <option value="ACCEPTED" >
+                    ACCEPTED
+                </option>
+            
+                <option value="DISCARDED" >
+                    DISCARDED
+                </option>
+            
+
+                </select>
+
+            </td>
+
+
+            <td>
+
+                <a
+                    href="https://meupadrinho.com.br/vaga/eDNEqaWs"
+                    target="_blank"
+                >
+                    Open
+                </a>
+
+            </td>
+
+
+        </tr>
+
+        
+
+        <tr>
+
+            <td class="score">
+                65
+            </td>
+
+
+            <td>
+                27 de julho de 2026
+            </td>
+
+
+            <td>
+                QA
+            </td>
+
+
+            <td>
+                Senior Automation Tester in JS
+            </td>
+
+
+            <td>
+                EPAM Systems
+            </td>
+
+
+            <td>
+                Brasil
+            </td>
+
+
+            <td>
+                Senior
+            </td>
+
+
+            <td>
+                YES
+            </td>
+
+
+            <td>
+                FOUND
+            </td>
+
+
+            <td>
+
+                <select
+                    onchange="updateStatus(
+                        388,
+                        this.value
+                    )"
+                >
+
+                    
+                <option value="NEW" selected>
+                    NEW
+                </option>
+            
+                <option value="INTERESTED" >
+                    INTERESTED
+                </option>
+            
+                <option value="APPLIED" >
+                    APPLIED
+                </option>
+            
+                <option value="INTERVIEW" >
+                    INTERVIEW
+                </option>
+            
+                <option value="REJECTED" >
+                    REJECTED
+                </option>
+            
+                <option value="ACCEPTED" >
+                    ACCEPTED
+                </option>
+            
+                <option value="DISCARDED" >
+                    DISCARDED
+                </option>
+            
+
+                </select>
+
+            </td>
+
+
+            <td>
+
+                <a
+                    href="https://meupadrinho.com.br/vaga/wQlETErx"
+                    target="_blank"
+                >
+                    Open
+                </a>
+
+            </td>
+
+
+        </tr>
+
+        
+
+        <tr>
+
+            <td class="score">
+                55
+            </td>
+
+
+            <td>
+                27 de julho de 2026
+            </td>
+
+
+            <td>
+                OTHER
+            </td>
+
+
+            <td>
+                ANALISTA DE QUALIDADE E SISTEMAS
+            </td>
+
+
+            <td>
+                Grupo Alquimia
+            </td>
+
+
+            <td>
+                São Luís, MA
+            </td>
+
+
+            <td>
+                Pleno
+            </td>
+
+
+            <td>
+                NO
+            </td>
+
+
+            <td>
+                FOUND
+            </td>
+
+
+            <td>
+
+                <select
+                    onchange="updateStatus(
+                        391,
+                        this.value
+                    )"
+                >
+
+                    
+                <option value="NEW" selected>
+                    NEW
+                </option>
+            
+                <option value="INTERESTED" >
+                    INTERESTED
+                </option>
+            
+                <option value="APPLIED" >
+                    APPLIED
+                </option>
+            
+                <option value="INTERVIEW" >
+                    INTERVIEW
+                </option>
+            
+                <option value="REJECTED" >
+                    REJECTED
+                </option>
+            
+                <option value="ACCEPTED" >
+                    ACCEPTED
+                </option>
+            
+                <option value="DISCARDED" >
+                    DISCARDED
+                </option>
+            
+
+                </select>
+
+            </td>
+
+
+            <td>
+
+                <a
+                    href="https://meupadrinho.com.br/vaga/-iGrlJ7n"
+                    target="_blank"
+                >
+                    Open
+                </a>
+
+            </td>
+
+
+        </tr>
+
+        
+
+        <tr>
+
+            <td class="score">
+                55
+            </td>
+
+
+            <td>
+                27 de julho de 2026
+            </td>
+
+
+            <td>
+                QA
+            </td>
+
+
+            <td>
+                QA Analyst Pleno
+            </td>
+
+
+            <td>
+                CADASTRA
+            </td>
+
+
+            <td>
+                São Paulo
+            </td>
+
+
+            <td>
+                Pleno
+            </td>
+
+
+            <td>
+                NO
+            </td>
+
+
+            <td>
+                FOUND
+            </td>
+
+
+            <td>
+
+                <select
+                    onchange="updateStatus(
+                        392,
+                        this.value
+                    )"
+                >
+
+                    
+                <option value="NEW" selected>
+                    NEW
+                </option>
+            
+                <option value="INTERESTED" >
+                    INTERESTED
+                </option>
+            
+                <option value="APPLIED" >
+                    APPLIED
+                </option>
+            
+                <option value="INTERVIEW" >
+                    INTERVIEW
+                </option>
+            
+                <option value="REJECTED" >
+                    REJECTED
+                </option>
+            
+                <option value="ACCEPTED" >
+                    ACCEPTED
+                </option>
+            
+                <option value="DISCARDED" >
+                    DISCARDED
+                </option>
+            
+
+                </select>
+
+            </td>
+
+
+            <td>
+
+                <a
+                    href="https://meupadrinho.com.br/vaga/q9-Fykec"
+                    target="_blank"
+                >
+                    Open
+                </a>
+
+            </td>
+
+
+        </tr>
+
+        
+
+        <tr>
+
+            <td class="score">
+                35
+            </td>
+
+
+            <td>
+                27 de julho de 2026
+            </td>
+
+
+            <td>
+                QA
+            </td>
+
+
+            <td>
+                Analista de teste/QA
+            </td>
+
+
+            <td>
+                Ewave do Brasil
+            </td>
+
+
+            <td>
+                Indaiatuba, SP
+            </td>
+
+
+            <td>
+                
+            </td>
+
+
+            <td>
+                YES
+            </td>
+
+
+            <td>
+                FOUND
+            </td>
+
+
+            <td>
+
+                <select
+                    onchange="updateStatus(
+                        389,
+                        this.value
+                    )"
+                >
+
+                    
+                <option value="NEW" selected>
+                    NEW
+                </option>
+            
+                <option value="INTERESTED" >
+                    INTERESTED
+                </option>
+            
+                <option value="APPLIED" >
+                    APPLIED
+                </option>
+            
+                <option value="INTERVIEW" >
+                    INTERVIEW
+                </option>
+            
+                <option value="REJECTED" >
+                    REJECTED
+                </option>
+            
+                <option value="ACCEPTED" >
+                    ACCEPTED
+                </option>
+            
+                <option value="DISCARDED" >
+                    DISCARDED
+                </option>
+            
+
+                </select>
+
+            </td>
+
+
+            <td>
+
+                <a
+                    href="https://meupadrinho.com.br/vaga/xB6hGzAy"
+                    target="_blank"
+                >
+                    Open
+                </a>
+
+            </td>
+
+
+        </tr>
+
+        
+
+
+</tbody>
+
+
+</table>
+
+
+
+<script>
+
+
+function updateStatus(jobId, status) {
+
+    console.log(
+        "Update job:",
+        jobId,
+        status
+    );
+
+
+    /*
+        Future API:
+
+        fetch(
+            `/jobs/${jobId}/status`,
+            {
+                method:"PATCH",
+
+                headers:{
+                    "Content-Type":
+                    "application/json"
+                },
+
+                body: JSON.stringify({
+                    status:status
+                })
+            }
+        )
+
+    */
+
+}
+
+
+</script>
+
+
+</body>
+
+</html>
+

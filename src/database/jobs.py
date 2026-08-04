@@ -1,5 +1,24 @@
 from database.database import get_connection
 
+from database.database import get_connection
+
+
+# =========================================================
+# Constants
+# =========================================================
+
+DEFAULT_JOB_STATUS = "NEW"
+
+JOB_STATUSES = {
+    "NEW",
+    "INTERESTED",
+    "APPLIED",
+    "INTERVIEW",
+    "REJECTED",
+    "ACCEPTED",
+    "DISCARDED",
+}
+
 
 # =========================================================
 # Create
@@ -33,11 +52,13 @@ def insert_job(job: dict) -> int:
 
                 remote,
 
-                score
+                score,
+
+                status
 
             )
 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 job["telegram_hash"],
@@ -55,6 +76,8 @@ def insert_job(job: dict) -> int:
                 int(job["remote"]),
 
                 job["score"],
+
+                DEFAULT_JOB_STATUS,
             ),
         )
 
@@ -74,8 +97,11 @@ def job_exists(telegram_hash: str) -> bool:
         cursor = conn.execute(
             """
             SELECT 1
+
             FROM jobs
+
             WHERE telegram_hash = ?
+
             """,
             (telegram_hash,),
         )
@@ -94,13 +120,17 @@ def get_job(job_id: int):
         cursor = conn.execute(
             """
             SELECT *
+
             FROM jobs
+
             WHERE id = ?
+
             """,
             (job_id,),
         )
 
         return cursor.fetchone()
+
 
 
 def get_first_job():
@@ -117,42 +147,84 @@ def get_first_job():
                      created_at DESC
 
             LIMIT 1
+
             """
         )
 
         return cursor.fetchone()
 
 
+
 def get_all_jobs():
 
     with get_connection() as conn:
 
-        cursor = conn.execute("""
+        cursor = conn.execute(
+            """
             SELECT
 
                 id,
+
                 score,
+
                 category,
+
                 remote,
+
                 title,
+
                 company,
+
                 location,
+
                 contract,
+
                 level,
-                applied,
+
+                status,
+
                 link,
+
                 created_at
+
 
             FROM jobs
 
+
             ORDER BY score DESC,
                      created_at DESC
-        """)
+
+            """
+        )
 
         return cursor.fetchall()
 
 
-def get_jobs_by_status(status: str):
+
+def get_jobs_by_job_status(status: str):
+
+    with get_connection() as conn:
+
+        cursor = conn.execute(
+            """
+            SELECT *
+
+            FROM jobs
+
+            WHERE status = ?
+
+            ORDER BY score DESC,
+                     created_at DESC
+
+            """,
+            (status,),
+        )
+
+        return cursor.fetchall()
+
+
+
+def get_jobs_by_validation_status(status: str):
 
     with get_connection() as conn:
 
@@ -166,11 +238,13 @@ def get_jobs_by_status(status: str):
 
             ORDER BY score DESC,
                      created_at DESC
+
             """,
             (status,),
         )
 
         return cursor.fetchall()
+
 
 
 def get_meupadrinho_jobs(limit: int = 30):
@@ -183,22 +257,32 @@ def get_meupadrinho_jobs(limit: int = 30):
 
             FROM jobs j
 
+
             LEFT JOIN job_details jd
+
                 ON jd.job_id = j.id
 
+
             WHERE j.link LIKE '%meupadrinho%'
+
               AND j.validation_status = 'PENDING'
+
               AND jd.job_id IS NULL
+
 
             ORDER BY j.created_at DESC
 
+
             LIMIT ?
+
             """,
             (limit,),
         )
 
         return cursor.fetchall()
-    
+
+
+
 # =========================================================
 # Statistics
 # =========================================================
@@ -208,26 +292,74 @@ def get_statistics():
     with get_connection() as conn:
 
         total = conn.execute(
-            "SELECT COUNT(*) FROM jobs"
+            """
+            SELECT COUNT(*)
+
+            FROM jobs
+            """
         ).fetchone()[0]
+
 
         qa = conn.execute(
-            "SELECT COUNT(*) FROM jobs WHERE category='QA'"
+            """
+            SELECT COUNT(*)
+
+            FROM jobs
+
+            WHERE category='QA'
+
+            """
         ).fetchone()[0]
+
 
         remote = conn.execute(
-            "SELECT COUNT(*) FROM jobs WHERE remote=1"
+            """
+            SELECT COUNT(*)
+
+            FROM jobs
+
+            WHERE remote=1
+
+            """
         ).fetchone()[0]
+
 
         applied = conn.execute(
-            "SELECT COUNT(*) FROM jobs WHERE applied=1"
+            """
+            SELECT COUNT(*)
+
+            FROM jobs
+
+            WHERE status='APPLIED'
+
+            """
         ).fetchone()[0]
 
+
+        interviews = conn.execute(
+            """
+            SELECT COUNT(*)
+
+            FROM jobs
+
+            WHERE status='INTERVIEW'
+
+            """
+        ).fetchone()[0]
+
+
     return {
+
         "total": total,
+
         "qa": qa,
+
         "remote": remote,
+
         "applied": applied,
+
+        "interviews": interviews,
+
     }
 
 
@@ -247,13 +379,18 @@ def update_validation_status(
             UPDATE jobs
 
             SET
+
                 validation_status = ?,
+
                 validated_at = CURRENT_TIMESTAMP
 
+
             WHERE id = ?
+
             """,
             (
                 status,
+
                 job_id,
             ),
         )
@@ -261,7 +398,17 @@ def update_validation_status(
         conn.commit()
 
 
-def mark_as_applied(job_id: int):
+
+def update_job_status(
+    job_id: int,
+    status: str,
+):
+
+    if status not in JOB_STATUSES:
+        raise ValueError(
+            f"Invalid job status: {status}"
+        )
+
 
     with get_connection() as conn:
 
@@ -269,14 +416,20 @@ def mark_as_applied(job_id: int):
             """
             UPDATE jobs
 
-            SET applied = 1
+            SET status = ?
 
             WHERE id = ?
+
             """,
-            (job_id,),
+            (
+                status,
+
+                job_id,
+            ),
         )
 
         conn.commit()
+
 
 
 def update_notes(
@@ -293,14 +446,17 @@ def update_notes(
             SET notes = ?
 
             WHERE id = ?
+
             """,
             (
                 notes,
+
                 job_id,
             ),
         )
 
         conn.commit()
+
 
 
 # =========================================================
@@ -316,6 +472,7 @@ def delete_job(job_id: int):
             DELETE FROM jobs
 
             WHERE id = ?
+
             """,
             (job_id,),
         )

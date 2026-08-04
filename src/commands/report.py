@@ -1,6 +1,10 @@
-#report.py
-from agents.report_agent import run as report
+from services.html_service import generate_dashboard
 
 
 def run():
-    print("Report command")
+
+    file = generate_dashboard()
+
+    print(
+        f"Dashboard generated: {file}"
+    )
