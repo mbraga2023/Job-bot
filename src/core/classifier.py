@@ -1,7 +1,7 @@
 ##classifier.py
 def classify(job):
 
-    title = job["title"].lower()
+    title = (job.get("title") or "").lower()
 
     if "qa" in title:
         return "QA"

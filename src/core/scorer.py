@@ -78,41 +78,37 @@ def score_job(job):
 
     score = 0
 
-    # Join all fields safely
-    text = " ".join(
-        str(value)
-        for value in job.values()
-        if value
-    ).lower()
+    # Join all fields safely while ignoring URL/hash noise.
+    text_parts = []
+    for key, value in job.items():
+        if key in {"link", "telegram_hash"} or value is None or value == "":
+            continue
+        text_parts.append(str(value))
 
+    text = " ".join(text_parts).lower()
 
     # Technologies
     for keyword, weight in TECH_WEIGHTS.items():
         if keyword in text:
             score += weight
 
-
     # Location
     for keyword, weight in LOCATION_WEIGHTS.items():
         if keyword in text:
             score += weight
-
 
     # Level
     for keyword, weight in LEVEL_WEIGHTS.items():
         if keyword in text:
             score += weight
 
-
     # Work model
     for keyword, weight in WORK_MODEL_WEIGHTS.items():
         if keyword in text:
             score += weight
 
-
     # Link bonus
     if job.get("link"):
         score += 5
 
-
-    return max(score, 0)
+    return max(0, min(100, score))

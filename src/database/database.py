@@ -1,15 +1,14 @@
 #database.py
 import sqlite3
-from pathlib import Path
+
+from config import DATABASE
 
 # ---------------------------------------------------------
 # Database configuration
 # ---------------------------------------------------------
 
-DB_FOLDER = Path("database")
-DB_FOLDER.mkdir(exist_ok=True)
-
-DB_PATH = DB_FOLDER / "jobs.db"
+DATABASE.parent.mkdir(exist_ok=True)
+DB_PATH = DATABASE
 
 
 # ---------------------------------------------------------

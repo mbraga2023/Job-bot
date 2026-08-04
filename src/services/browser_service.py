@@ -4,13 +4,14 @@ from playwright.async_api import async_playwright
 from config import TIMEOUT
 
 
-async def open_page(url: str, headless: bool = True):
+async def open_page(url: str, headless: bool = True, playwright=None, browser=None):
+    if playwright is None:
+        playwright = await async_playwright().start()
 
-    playwright = await async_playwright().start()
-
-    browser = await playwright.chromium.launch(
-        headless=headless
-    )
+    if browser is None:
+        browser = await playwright.chromium.launch(
+            headless=headless
+        )
 
     page = await browser.new_page()
 

@@ -109,16 +109,16 @@ def is_remote(job):
 
     text = " ".join(
         str(value)
-        for value in job.values()
-        if value
+        for key, value in job.items()
+        if value and key not in {"link", "telegram_hash"}
     ).lower()
 
     keywords = (
         "remoto",
+        "remota",
         "remote",
         "home office",
         "home-office",
-        "brasil",
     )
 
     return any(

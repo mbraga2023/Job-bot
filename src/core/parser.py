@@ -27,15 +27,6 @@ def extract(pattern: str, text: str) -> str:
     return clean(match.group(1))
 
 
-def extract_link(text: str) -> str:
-    match = re.search(r"https?://\S+", text)
-
-    if not match:
-        return ""
-
-    return match.group(0)
-
-
 def parse_job(text: str):
 
     return {
@@ -44,5 +35,4 @@ def parse_job(text: str):
         "location": extract(r"Local:\s*(.+)", text),
         "contract": extract(r"Contrato:\s*(.+)", text),
         "level": extract(r"Nível:\s*(.+)", text),
-        "link": extract_link(text),
     }

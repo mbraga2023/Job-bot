@@ -5,10 +5,29 @@ import os
 
 load_dotenv()
 
-API_ID = int(os.getenv("API_ID"))
-API_HASH = os.getenv("API_HASH")
 
-TELEGRAM_CHANNEL = os.getenv("TELEGRAM_CHANNEL")
+def require_env(name: str, cast=None):
+    value = os.getenv(name)
+    if value is None or value == "":
+        raise RuntimeError(
+            f"Missing required environment variable: {name}. "
+            "Set it in your shell or .env file before running the app."
+        )
+
+    if cast is None:
+        return value
+
+    try:
+        return cast(value)
+    except (TypeError, ValueError) as exc:
+        raise RuntimeError(
+            f"Invalid value for {name}: {value!r}"
+        ) from exc
+
+
+API_ID = require_env("API_ID", int)
+API_HASH = require_env("API_HASH")
+TELEGRAM_CHANNEL = require_env("TELEGRAM_CHANNEL")
 
 HEADLESS = True
 MAX_JOBS = 20

@@ -1,11 +1,11 @@
 #excel_service.py
-from pathlib import Path
 from datetime import datetime
 
 import pandas as pd
 
+from config import OUTPUT_FOLDER
 
-OUTPUT_FOLDER = Path("output")
+
 OUTPUT_FOLDER.mkdir(exist_ok=True)
 
 
@@ -25,26 +25,26 @@ def export_jobs(rows):
         "Link",
         "Created At",
     ]
-    
-    data = [
-    {
-        "ID": row["id"],
-        "Score": row["score"],
-        "Category": row["category"],
-        "Remote": row["remote"],
-        "Title": row["title"],
-        "Company": row["company"],
-        "Location": row["location"],
-        "Contract": row["contract"],
-        "Level": row["level"],
-        "Applied": row["applied"],
-        "Link": row["link"],
-        "Created At": row["created_at"],
-    }
-    for row in rows
-]
 
-    df = pd.DataFrame(rows, columns=columns)
+    data = [
+        {
+            "ID": row["id"],
+            "Score": row["score"],
+            "Category": row["category"],
+            "Remote": row["remote"],
+            "Title": row["title"],
+            "Company": row["company"],
+            "Location": row["location"],
+            "Contract": row["contract"],
+            "Level": row["level"],
+            "Applied": row["applied"],
+            "Link": row["link"],
+            "Created At": row["created_at"],
+        }
+        for row in rows
+    ]
+
+    df = pd.DataFrame(data, columns=columns)
 
     df["Remote"] = df["Remote"].map({
         1: "Yes",

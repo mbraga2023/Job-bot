@@ -1,4 +1,6 @@
-from config import HEADLESS
+from playwright.async_api import async_playwright
+
+from config import HEADLESS, OUTPUT_FOLDER
 
 from agents.analyzers.meupadrinho import MeuPadrinhoAnalyzer
 
@@ -26,85 +28,77 @@ async def run():
     print(f"Retrieved {len(jobs)} jobs from database.")
 
     analyzer = MeuPadrinhoAnalyzer()
-
+    playwright = None
+    browser = None
     validated = 0
     failed = 0
 
     total = len(jobs)
 
-    for index, job_data in enumerate(jobs, start=1):
+    try:
+        playwright = await async_playwright().start()
+        browser = await playwright.chromium.launch(headless=HEADLESS)
 
-        url = job_data["link"]
+        for index, job_data in enumerate(jobs, start=1):
+            url = job_data["link"]
+            print(f"\n[{index}/{total}] Processing: {url}")
+            page = None
 
-        print(f"\n[{index}/{total}] Processing: {url}")
+            try:
+                _, _, page = await open_page(
+                    url,
+                    headless=HEADLESS,
+                    playwright=playwright,
+                    browser=browser,
+                )
 
-        playwright = None
-        browser = None
-        page = None
+                details = await analyzer.analyze(page)
 
-        try:
+                insert_job_details(
+                    job_id=job_data["id"],
+                    details=details,
+                )
 
-            playwright, browser, page = await open_page(
-                url,
-                headless=HEADLESS,
-            )
+                update_validation_status(
+                    job_data["id"],
+                    "COMPLETED",
+                )
 
-            details = await analyzer.analyze(page)
+                details["source_data"] = {
+                    "id": job_data["id"],
+                    "original_title": job_data["title"],
+                    "original_company": job_data["company"],
+                    "score": job_data["score"],
+                    "link": job_data["link"],
+                    "created_at": job_data["created_at"],
+                }
 
-            # -----------------------------------------
-            # Save into database
-            # -----------------------------------------
+                append_analysis(details)
 
-            insert_job_details(
-                job_id=job_data["id"],
-                details=details,
-            )
+                validated += 1
 
-            update_validation_status(
-                job_data["id"],
-                "COMPLETED",
-            )
+                if details["page_not_found"]:
+                    print("⚠ Page not found")
+                else:
+                    print("✓ Validated")
 
-            # -----------------------------------------
-            # Optional JSON export
-            # -----------------------------------------
+            except Exception as error:
+                failed += 1
+                update_validation_status(
+                    job_data["id"],
+                    "FAILED",
+                )
+                print(f"✗ Failed: {error}")
 
-            details["source_data"] = {
-                "id": job_data["id"],
-                "original_title": job_data["title"],
-                "original_company": job_data["company"],
-                "score": job_data["score"],
-                "link": job_data["link"],
-                "created_at": job_data["created_at"],
-            }
+            finally:
+                if page:
+                    await page.close()
 
-            append_analysis(details)
-
-            validated += 1
-
-            if details["page_not_found"]:
-                print("⚠ Page not found")
-            else:
-                print("✓ Validated")
-
-        except Exception as error:
-
-            failed += 1
-
-            update_validation_status(
-                job_data["id"],
-                "FAILED",
-            )
-
-            print(f"✗ Failed: {error}")
-
-        finally:
-
-            if browser:
-                await browser.close()
-
-            if playwright:
-                await playwright.stop()
+    finally:
+        if browser:
+            await browser.close()
+        if playwright:
+            await playwright.stop()
 
     print("\n==============================")
     print("Validation finished")
@@ -114,6 +108,6 @@ async def run():
 
     if validated:
         print("Database       : job_details")
-        print("JSON Export    : output/job_analysis.json")
+        print(f"JSON Export    : {OUTPUT_FOLDER / 'job_analysis.json'}")
 
     print("==============================")
