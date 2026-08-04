@@ -56,21 +56,3 @@ def append_analysis(job):
             )
 
     return JSON_PATH
-
-
-def save_analysis(data):
-
-    with open(
-        JSON_PATH,
-        "w",
-        encoding="utf-8"
-    ) as file:
-
-        json.dump(
-            data,
-            file,
-            indent=4,
-            ensure_ascii=False
-        )
-
-    return JSON_PATH

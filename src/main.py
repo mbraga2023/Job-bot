@@ -19,9 +19,6 @@ COMMANDS = {
 
 def main():
 
-    # Create tables if they don't exist
-    create_database()
-
     parser = argparse.ArgumentParser(
         description="AI Job Search Assistant"
     )
@@ -32,6 +29,8 @@ def main():
     )
 
     args = parser.parse_args()
+        # Create tables if they don't exist
+    create_database()
 
     COMMANDS[args.command]()
 
