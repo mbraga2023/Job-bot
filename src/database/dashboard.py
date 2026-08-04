@@ -46,7 +46,7 @@ def get_dashboard_jobs():
                 ON jd.job_id = j.id
 
 
-            WHERE jd.page_not_found = 0
+            WHERE j.remote = 1 AND j.level IN ('Pleno', 'Junior', '')
 
 
             ORDER BY
