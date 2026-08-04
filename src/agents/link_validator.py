@@ -1,4 +1,3 @@
-#link_validator.py
 from config import HEADLESS
 
 from agents.analyzers.meupadrinho import MeuPadrinhoAnalyzer
@@ -8,7 +7,9 @@ from database.jobs import (
     update_validation_status,
 )
 
-from database.job_details import insert_job_details
+from database.job_details import (
+    insert_job_details,
+)
 
 from services.browser_service import open_page
 from services.json_service import append_analysis
@@ -16,17 +17,18 @@ from services.json_service import append_analysis
 
 async def run():
 
-    jobs = get_meupadrinho_jobs()
+    jobs = get_meupadrinho_jobs(limit=3)
 
     if not jobs:
-        print("No MeuPadrinho jobs found.")
+        print("No pending MeuPadrinho jobs found.")
         return
 
     print(f"Retrieved {len(jobs)} jobs from database.")
 
     analyzer = MeuPadrinhoAnalyzer()
 
-    results = []
+    validated = 0
+    failed = 0
 
     total = len(jobs)
 
@@ -36,18 +38,22 @@ async def run():
 
         print(f"\n[{index}/{total}] Processing: {url}")
 
-        playwright, browser, page = await open_page(
-            url,
-            headless=HEADLESS,
-        )
+        playwright = None
+        browser = None
+        page = None
 
         try:
 
+            playwright, browser, page = await open_page(
+                url,
+                headless=HEADLESS,
+            )
+
             details = await analyzer.analyze(page)
 
-            # -------------------------------------------------
+            # -----------------------------------------
             # Save into database
-            # -------------------------------------------------
+            # -----------------------------------------
 
             insert_job_details(
                 job_id=job_data["id"],
@@ -59,24 +65,22 @@ async def run():
                 "COMPLETED",
             )
 
-            # -------------------------------------------------
-            # Optional JSON export (debug/history)
-            # -------------------------------------------------
+            # -----------------------------------------
+            # Optional JSON export
+            # -----------------------------------------
 
             details["source_data"] = {
-
                 "id": job_data["id"],
                 "original_title": job_data["title"],
                 "original_company": job_data["company"],
                 "score": job_data["score"],
                 "link": job_data["link"],
                 "created_at": job_data["created_at"],
-
             }
 
             append_analysis(details)
 
-            results.append(details)
+            validated += 1
 
             if details["page_not_found"]:
                 print("⚠ Page not found")
@@ -84,6 +88,8 @@ async def run():
                 print("✓ Validated")
 
         except Exception as error:
+
+            failed += 1
 
             update_validation_status(
                 job_data["id"],
@@ -94,15 +100,19 @@ async def run():
 
         finally:
 
-            await browser.close()
-            await playwright.stop()
+            if browser:
+                await browser.close()
+
+            if playwright:
+                await playwright.stop()
 
     print("\n==============================")
     print("Validation finished")
-    print(f"Jobs retrieved : {total}")
-    print(f"Jobs validated : {len(results)}")
+    print(f"Jobs processed : {total}")
+    print(f"Validated      : {validated}")
+    print(f"Failed         : {failed}")
 
-    if results:
+    if validated:
         print("Database       : job_details")
         print("JSON Export    : output/job_analysis.json")
 

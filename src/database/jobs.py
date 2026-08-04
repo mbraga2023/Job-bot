@@ -179,14 +179,18 @@ def get_meupadrinho_jobs(limit: int = 30):
 
         cursor = conn.execute(
             """
-            SELECT *
+            SELECT j.*
 
-            FROM jobs
+            FROM jobs j
 
-            WHERE link LIKE '%meupadrinho%'
-              AND validation_status = 'PENDING'
+            LEFT JOIN job_details jd
+                ON jd.job_id = j.id
 
-            ORDER BY created_at DESC
+            WHERE j.link LIKE '%meupadrinho%'
+              AND j.validation_status = 'PENDING'
+              AND jd.job_id IS NULL
+
+            ORDER BY j.created_at DESC
 
             LIMIT ?
             """,
@@ -194,7 +198,7 @@ def get_meupadrinho_jobs(limit: int = 30):
         )
 
         return cursor.fetchall()
-
+    
 # =========================================================
 # Statistics
 # =========================================================

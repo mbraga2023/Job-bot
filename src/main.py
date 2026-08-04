@@ -1,3 +1,4 @@
+#main.py
 import argparse
 
 from database.schema import create_database
