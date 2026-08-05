@@ -1,21 +1,39 @@
 ##classifier.py
+QA_KEYWORDS = (
+
+    "qa",
+
+    "quality",
+
+    "qualidade",
+
+    "teste",
+    "testing",
+    "tester",
+
+    "software testing",
+
+    "software verification",
+
+    "quality assurance",
+
+    "sdet",
+
+    "playwright",
+    "cypress",
+    "selenium",
+)
+
+
 def classify(job):
 
-    title = (job.get("title") or "").lower()
+    text = (
+        job.get("raw_text")
+        or ""
+    ).lower()
 
-    if "qa" in title:
-        return "QA"
-
-    if "quality" in title:
-        return "QA"
-
-    if "teste" in title:
-        return "QA"
-
-    if "sdet" in title:
-        return "QA"
-
-    if "automation" in title:
-        return "QA"
+    for keyword in QA_KEYWORDS:
+        if keyword in text:
+            return "QA"
 
     return "OTHER"

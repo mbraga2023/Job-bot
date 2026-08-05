@@ -1,6 +1,6 @@
 #parser.py
-import re
 import html
+import re
 
 
 def clean(value: str) -> str:
@@ -12,14 +12,19 @@ def clean(value: str) -> str:
     # Remove Telegram markdown
     value = re.sub(r"[*_`#]", "", value)
 
-    # Collapse multiple spaces
+    # Collapse whitespace
     value = re.sub(r"\s+", " ", value)
 
     return value.strip()
 
 
 def extract(pattern: str, text: str) -> str:
-    match = re.search(pattern, text, re.IGNORECASE)
+
+    match = re.search(
+        pattern,
+        text,
+        re.IGNORECASE,
+    )
 
     if not match:
         return ""
@@ -29,10 +34,20 @@ def extract(pattern: str, text: str) -> str:
 
 def parse_job(text: str):
 
+    cleaned_text = clean(text)
+
     return {
-        "title": extract(r"Título:\s*(.+)", text),
-        "company": extract(r"Empresa:\s*(.+)", text),
-        "location": extract(r"Local:\s*(.+)", text),
-        "contract": extract(r"Contrato:\s*(.+)", text),
-        "level": extract(r"Nível:\s*(.+)", text),
+
+        "title": extract(r"Título:\s*(.+)", cleaned_text),
+
+        "company": extract(r"Empresa:\s*(.+)", cleaned_text),
+
+        "location": extract(r"Local:\s*(.+)", cleaned_text),
+
+        "contract": extract(r"Contrato:\s*(.+)", cleaned_text),
+
+        "level": extract(r"Nível:\s*(.+)", cleaned_text),
+
+        # Entire advertisement for scoring
+        "raw_text": cleaned_text,
     }

@@ -162,37 +162,21 @@ def get_all_jobs():
         cursor = conn.execute(
             """
             SELECT
-
-                id,
-
-                score,
-
-                category,
-
-                remote,
-
-                title,
-
-                company,
-
-                location,
-
-                contract,
-
-                level,
-
-                status,
-
-                link,
-
-                created_at
-
-
-            FROM jobs
-
-
-            ORDER BY score DESC,
-                     created_at DESC
+    id,
+    score,
+    category,
+    remote,
+    status,
+    title,
+    company,
+    location,
+    contract,
+    level,
+    link,
+    created_at
+FROM jobs
+ORDER BY score DESC,
+         created_at DESC;
 
             """
         )

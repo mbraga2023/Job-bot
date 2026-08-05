@@ -12,46 +12,41 @@ OUTPUT_FOLDER.mkdir(exist_ok=True)
 def export_jobs(rows):
 
     columns = [
-        "ID",
-        "Score",
-        "Category",
-        "Remote",
-        "Title",
-        "Company",
-        "Location",
-        "Contract",
-        "Level",
-        "Applied",
-        "Link",
-        "Created At",
-    ]
+    "ID",
+    "Score",
+    "Category",
+    "Remote",
+    "Status",
+    "Title",
+    "Company",
+    "Location",
+    "Contract",
+    "Level",
+    "Link",
+    "Created At",
+]
 
     data = [
         {
-            "ID": row["id"],
-            "Score": row["score"],
-            "Category": row["category"],
-            "Remote": row["remote"],
-            "Title": row["title"],
-            "Company": row["company"],
-            "Location": row["location"],
-            "Contract": row["contract"],
-            "Level": row["level"],
-            "Applied": row["applied"],
-            "Link": row["link"],
-            "Created At": row["created_at"],
-        }
+    "ID": row["id"],
+    "Score": row["score"],
+    "Category": row["category"],
+    "Remote": row["remote"],
+    "Status": row["status"],
+    "Title": row["title"],
+    "Company": row["company"],
+    "Location": row["location"],
+    "Contract": row["contract"],
+    "Level": row["level"],
+    "Link": row["link"],
+    "Created At": row["created_at"],
+}
         for row in rows
     ]
 
     df = pd.DataFrame(data, columns=columns)
 
     df["Remote"] = df["Remote"].map({
-        1: "Yes",
-        0: "No",
-    })
-
-    df["Applied"] = df["Applied"].map({
         1: "Yes",
         0: "No",
     })
