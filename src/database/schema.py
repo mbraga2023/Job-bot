@@ -12,8 +12,6 @@ def create_database():
     create_job_details_table()
     create_job_ai_analysis_table()
     create_resume_matches_table()
-    create_applications_table()
-
 
 # =========================================================
 # jobs
@@ -26,35 +24,35 @@ def create_jobs_table():
         conn.execute("""
         CREATE TABLE IF NOT EXISTS jobs (
 
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
 
-            telegram_hash TEXT NOT NULL UNIQUE,
+    telegram_hash TEXT NOT NULL UNIQUE,
 
-            title TEXT,
-            company TEXT,
-            location TEXT,
-            contract TEXT,
-            level TEXT,
+    title TEXT,
+    company TEXT,
+    location TEXT,
+    contract TEXT,
+    level TEXT,
 
-            link TEXT NOT NULL,
+    link TEXT NOT NULL,
 
-            category TEXT,
+    category TEXT,
 
-            remote INTEGER DEFAULT 0,
+    remote INTEGER DEFAULT 0,
 
-            score INTEGER DEFAULT 0,
+    score INTEGER DEFAULT 0,
 
-            applied INTEGER DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'NEW',
 
-            notes TEXT,
+    notes TEXT,
 
-            validation_status TEXT NOT NULL DEFAULT 'PENDING',
+    validation_status TEXT NOT NULL DEFAULT 'PENDING',
 
-            validated_at DATETIME,
+    validated_at DATETIME,
 
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 
-        )
+)
         """)
 
         conn.commit()
@@ -71,43 +69,48 @@ def create_job_details_table():
         conn.execute("""
         CREATE TABLE IF NOT EXISTS job_details (
 
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
 
-            job_id INTEGER NOT NULL UNIQUE,
+    job_id INTEGER NOT NULL UNIQUE,
 
-            page_not_found INTEGER DEFAULT 0,
+    page_not_found INTEGER DEFAULT 0,
 
-            published_date TEXT,
+    published_date TEXT,
 
-            title TEXT,
-            company TEXT,
-            location TEXT,
+    title TEXT,
+    company TEXT,
+    location TEXT,
 
-            remote INTEGER DEFAULT 0,
+    remote INTEGER DEFAULT 0,
 
-            level TEXT,
-            contract TEXT,
+    level TEXT,
+    contract TEXT,
 
-            source TEXT,
+    job_source TEXT,
 
-            description TEXT,
+    application_url TEXT,
 
-            technologies TEXT,
-            requirements TEXT,
-            differentials TEXT,
-            benefits TEXT,
+    application_source TEXT,
 
-            apply_button INTEGER DEFAULT 0,
+    description TEXT,
 
-            ai_status TEXT NOT NULL DEFAULT 'PENDING',
+    technologies TEXT,
 
-            validated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    requirements TEXT,
 
-            FOREIGN KEY(job_id)
-                REFERENCES jobs(id)
-                ON DELETE CASCADE
+    differentials TEXT,
 
-        )
+    benefits TEXT,
+
+    ai_status TEXT NOT NULL DEFAULT 'PENDING',
+
+    validated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY(job_id)
+        REFERENCES jobs(id)
+        ON DELETE CASCADE
+
+)
         """)
 
         conn.commit()
@@ -145,6 +148,7 @@ def create_job_ai_analysis_table():
             missing_skills TEXT,
 
             prompt_version TEXT,
+            analysis_version INTEGER DEFAULT 1,
 
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 
@@ -182,41 +186,6 @@ def create_resume_matches_table():
             missing_skills TEXT,
 
             recommendation TEXT,
-
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-
-            FOREIGN KEY(job_id)
-                REFERENCES jobs(id)
-                ON DELETE CASCADE
-
-        )
-        """)
-
-        conn.commit()
-
-
-# =========================================================
-# applications
-# =========================================================
-
-def create_applications_table():
-
-    with get_connection() as conn:
-
-        conn.execute("""
-        CREATE TABLE IF NOT EXISTS applications (
-
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-
-            job_id INTEGER NOT NULL,
-
-            applied_at DATETIME,
-
-            status TEXT,
-
-            notes TEXT,
-
-            follow_up_date DATETIME,
 
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 

@@ -1,8 +1,5 @@
 from database.database import get_connection
 
-from database.database import get_connection
-
-
 # =========================================================
 # Constants
 # =========================================================
@@ -237,28 +234,24 @@ def get_meupadrinho_jobs(limit: int = 30):
 
         cursor = conn.execute(
             """
-            SELECT j.*
+            SELECT
+                j.*
 
             FROM jobs j
 
-
             LEFT JOIN job_details jd
-
                 ON jd.job_id = j.id
 
-
             WHERE j.link LIKE '%meupadrinho%'
-
               AND j.validation_status = 'PENDING'
-
               AND jd.job_id IS NULL
 
-
-            ORDER BY j.created_at DESC
-
+            ORDER BY
+                j.created_at DESC,
+                j.remote DESC,
+                j.score DESC
 
             LIMIT ?
-
             """,
             (limit,),
         )

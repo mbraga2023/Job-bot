@@ -41,6 +41,60 @@ class ValidationFixesTests(unittest.TestCase):
             finally:
                 json_service.JSON_PATH = original_json
 
+    def test_job_details_schema_keys_are_compatible(self):
+        import database.database as database_module
+        from database.database import get_connection
+        from database.job_details import insert_job_details
+
+        details = {
+            "page_not_found": False,
+            "published_date": "2024-01-02",
+            "title": "Python Developer",
+            "company": "Acme",
+            "location": "Remote",
+            "remote": True,
+            "level": "Senior",
+            "contract": "CLT",
+            "job_source": "meupadrinho",
+            "application_url": "https://example.com/apply",
+            "application_source": "meupadrinho",
+            "description": "Build software",
+            "technologies": ["Python"],
+            "requirements": ["Testing"],
+            "differentials": ["AWS"],
+            "benefits": ["Health plan"],
+        }
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            temp_db = Path(tmpdir) / "test.db"
+            original_db_path = database_module.DB_PATH
+            database_module.DB_PATH = temp_db
+            try:
+                import config
+
+                config.DATABASE = temp_db
+                from database import schema
+
+                schema.create_database()
+                job_id = 1
+                with get_connection() as conn:
+                    conn.execute(
+                        "INSERT INTO jobs (id, telegram_hash, link) VALUES (?, ?, ?)",
+                        (job_id, "hash-1", "https://example.com/job"),
+                    )
+                    conn.commit()
+                row_id = insert_job_details(job_id, details)
+                self.assertGreater(row_id, 0)
+                saved = get_connection().execute(
+                    "SELECT job_source, application_url, application_source FROM job_details WHERE job_id = ?",
+                    (job_id,),
+                ).fetchone()
+                self.assertEqual(saved["job_source"], "meupadrinho")
+                self.assertEqual(saved["application_url"], "https://example.com/apply")
+                self.assertEqual(saved["application_source"], "meupadrinho")
+            finally:
+                database_module.DB_PATH = original_db_path
+
 
 if __name__ == "__main__":
     unittest.main()

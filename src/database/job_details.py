@@ -20,63 +20,46 @@ def insert_job_details(job_id: int, details: dict) -> int:
         cursor = conn.execute(
             """
             INSERT INTO job_details (
-
                 job_id,
-
                 page_not_found,
-
                 published_date,
-
                 title,
                 company,
                 location,
-
                 remote,
-
                 level,
                 contract,
-
-                source,
-
+                job_source,
+                application_url,
+                application_source,
                 description,
-
                 technologies,
                 requirements,
                 differentials,
-                benefits,
-
-                apply_button
-
+                benefits
             )
-
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+            )
             """,
             (
                 job_id,
-
-                int(details["page_not_found"]),
-
-                details["published_date"],
-
-                details["title"],
-                details["company"],
-                details["location"],
-
-                int(details["remote"]),
-
-                details["level"],
-                details["contract"],
-
-                details["source"],
-
-                details["description"],
-
-                json.dumps(details["technologies"], ensure_ascii=False),
-                json.dumps(details["requirements"], ensure_ascii=False),
-                json.dumps(details["differentials"], ensure_ascii=False),
-                json.dumps(details["benefits"], ensure_ascii=False),
-
-                int(details["apply_button"]),
+                int(bool(details.get("page_not_found", False))),
+                details.get("published_date") or "",
+                details.get("title") or "",
+                details.get("company") or "",
+                details.get("location") or "",
+                int(bool(details.get("remote", False))),
+                details.get("level") or "",
+                details.get("contract") or "",
+                details.get("job_source") or "",
+                details.get("application_url") or "",
+                details.get("application_source") or "",
+                details.get("description") or "",
+                json.dumps(details.get("technologies", []), ensure_ascii=False),
+                json.dumps(details.get("requirements", []), ensure_ascii=False),
+                json.dumps(details.get("differentials", []), ensure_ascii=False),
+                json.dumps(details.get("benefits", []), ensure_ascii=False),
             ),
         )
 

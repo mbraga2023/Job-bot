@@ -59,12 +59,12 @@ def extract_link(message):
     # -------------------------
 
     urls = re.findall(
-        r"https?://\S+",
+        r"https?://[^\s)]+",
         text
     )
 
     if urls:
-        return urls[0]
+        return urls[0].rstrip(".,]")
 
     # -------------------------
     # Hidden entities

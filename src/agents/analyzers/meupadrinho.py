@@ -78,26 +78,31 @@ class MeuPadrinhoAnalyzer:
                 "remote": False,
                 "level": "",
                 "contract": "",
-                "source": "",
+                "job_source": "meupadrinho",
+                "application_url": "",
+                "application_source": "",
                 "description": "",
                 "technologies": [],
                 "requirements": [],
                 "differentials": [],
                 "benefits": [],
-                "apply_button": False,
             }
 
         header_data = self.extract_header(lines)
 
+        application_url = await self.get_apply_button(page)
+
         return {
             "page_not_found": False,
             **header_data,
+            "job_source": header_data.get("job_source", "meupadrinho"),
+            "application_url": application_url or page.url,
+            "application_source": "meupadrinho",
             "description": self.extract_description(lines),
             "technologies": self.extract_section(lines, "Tecnologias"),
             "requirements": self.extract_section(lines, "Requisitos"),
             "differentials": self.extract_section(lines, "Diferenciais"),
             "benefits": self.extract_section(lines, "Benefícios"),
-            "apply_button": await self.get_apply_button(page),
         }
 
     # ---------------------------------------------------
@@ -142,8 +147,8 @@ class MeuPadrinhoAnalyzer:
 
         return lines
 
-    async def get_apply_button(self, page: Page) -> bool:
-        """Retorna bool, nunca um Locator."""
+    async def get_apply_button(self, page: Page) -> str:
+        """Returns the application URL from the CTA button/link when present."""
         selectors = (
             page.get_by_role(
                 "button",
@@ -159,13 +164,22 @@ class MeuPadrinhoAnalyzer:
         )
 
         for locator in selectors:
-            if await locator.count() > 0:
-                try:
-                    return await locator.first.is_visible()
-                except PlaywrightTimeoutError:
-                    return False
+            count = await locator.count()
+            if count == 0:
+                continue
 
-        return False
+            for index in range(count):
+                candidate = locator.nth(index)
+                try:
+                    if not await candidate.is_visible():
+                        continue
+                    href = await candidate.get_attribute("href")
+                    if href:
+                        return href
+                except PlaywrightTimeoutError:
+                    continue
+
+        return ""
 
     # ---------------------------------------------------
     # Helpers
@@ -234,7 +248,7 @@ class MeuPadrinhoAnalyzer:
             "remote": False,
             "level": "",
             "contract": "",
-            "source": "",
+            "job_source": "meupadrinho",
         }
 
         published_index = next(
@@ -294,7 +308,7 @@ class MeuPadrinhoAnalyzer:
             elif normalized in {self.normalize(item) for item in self.CONTRACTS}:
                 result["contract"] = value
             elif normalized in {self.normalize(item) for item in self.SOURCES}:
-                result["source"] = value
+                result["job_source"] = value
 
         return result
 
