@@ -42,3 +42,21 @@ def get_dashboard_jobs():
         )
 
         return cursor.fetchall()
+
+def get_job_statuses():
+
+    with get_connection() as conn:
+
+        cursor = conn.execute(
+            """
+            SELECT DISTINCT job_status
+
+            FROM job_details
+
+            WHERE job_status IS NOT NULL
+
+            ORDER BY job_status
+            """
+        )
+
+        return [row[0] for row in cursor.fetchall()]
