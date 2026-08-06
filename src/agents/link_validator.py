@@ -17,7 +17,7 @@ from services.json_service import append_analysis
 
 async def run():
 
-    jobs = get_meupadrinho_jobs(limit=50)
+    jobs = get_meupadrinho_jobs(limit=20)
 
     if not jobs:
         print("No pending MeuPadrinho jobs found.")
