@@ -8,24 +8,12 @@ def get_dashboard_jobs():
         cursor = conn.execute(
             """
             SELECT
-                j.id,
+                jd.job_id AS id,
                 j.category,
-                j.remote AS job_remote,
-                j.title AS job_title,
-                j.company AS job_company,
-                j.location AS job_location,
-                j.level AS job_level,
-                j.validation_status AS legacy_status,
-                j.link,
-                j.created_at,
-
-                jd.job_id,
-                jd.page_not_found,
-                jd.published_date,
+                jd.remote,
                 jd.title,
                 jd.company,
                 jd.location,
-                jd.remote,
                 jd.level,
                 jd.contract,
                 jd.job_source,
@@ -38,18 +26,18 @@ def get_dashboard_jobs():
                 jd.benefits,
                 jd.job_status,
                 jd.ai_status,
-                jd.validated_at
+                jd.validated_at,
+                jd.page_not_found,
+                jd.published_date,
+                j.link
 
-            FROM jobs AS j
-            LEFT JOIN job_details AS jd
-                ON jd.job_id = j.id
-
-            WHERE COALESCE(jd.remote, j.remote, 0) = 1
-              AND COALESCE(jd.level, j.level, '') IN ('Pleno', 'Junior', '')
+            FROM job_details AS jd
+            JOIN jobs AS j
+                ON j.id = jd.job_id
 
             ORDER BY
                 jd.published_date ASC NULLS LAST,
-                j.created_at DESC
+                jd.validated_at DESC
             """
         )
 

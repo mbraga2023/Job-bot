@@ -35,14 +35,12 @@ def generate_dashboard():
     rows = []
 
     for job in jobs:
-        # job_details is the validated source of truth. The jobs values are
-        # used as a fallback for records that do not have details yet.
-        title = job["title"] or job["job_title"]
-        company = job["company"] or job["job_company"]
-        location = job["location"] or job["job_location"]
-        level = job["level"] or job["job_level"]
-        remote_value = job["remote"] if job["remote"] is not None else job["job_remote"]
-        status = job["job_status"] or job["legacy_status"] or "NEW"
+        title = job["title"]
+        company = job["company"]
+        location = job["location"]
+        level = job["level"]
+        remote_value = job["remote"]
+        status = job["job_status"] or "NEW"
 
         page_status = "REMOVED" if job["page_not_found"] else "FOUND"
         application_url = job["application_url"] or job["link"]
