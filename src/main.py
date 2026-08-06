@@ -5,11 +5,13 @@ from commands.collect import run as collect
 from commands.report import run as report
 from commands.validate import run as validate
 from database.schema import create_database
+from commands.linkedin import run as linkedin
 
 
 COMMANDS = {
     "collect": collect,
     "validate": validate,
+    "linkedin": linkedin,
     "analyse": analyse,
     "report": report,
 }

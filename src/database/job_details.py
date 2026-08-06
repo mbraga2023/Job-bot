@@ -1,23 +1,10 @@
 import json
 
 from database.database import get_connection
-
-
-# =========================================================
-# Constants
-# =========================================================
-
-DEFAULT_JOB_STATUS = "NEW"
-
-JOB_STATUSES = {
-    "NEW",
-    "INTERESTED",
-    "APPLIED",
-    "INTERVIEW",
-    "REJECTED",
-    "ACCEPTED",
-    "DISCARDED",
-}
+from core.job_status import (
+    DEFAULT_JOB_STATUS,
+    JOB_STATUS,
+)
 
 
 # =========================================================
@@ -228,10 +215,41 @@ def get_all_job_details():
             """
         )
 
-        return [_deserialize(row) for row in cursor.fetchall()
+        return [_deserialize(row) for row in cursor.fetchall()]
 
 
-]
+def get_linkedin_jobs(limit: int = 100):
+    """
+    Returns validated jobs whose application URL is a LinkedIn Job page
+    and whose status is still NEW.
+    """
+
+    with get_connection() as conn:
+
+        cursor = conn.execute(
+            """
+            SELECT
+                jd.job_id,
+                jd.application_url,
+                jd.job_status,
+                jd.title,
+                jd.company
+
+            FROM job_details jd
+
+            WHERE
+                jd.application_url LIKE '%linkedin.com/jobs%'
+                AND jd.job_status = 'NEW'
+
+            ORDER BY
+                jd.validated_at DESC
+
+            LIMIT ?
+            """,
+            (limit,),
+        )
+
+        return cursor.fetchall()
 
 
 # =========================================================
@@ -267,7 +285,7 @@ def update_job_status(
     status: str,
 ):
 
-    if status not in JOB_STATUSES:
+    if status not in JOB_STATUS:
         raise ValueError(f"Invalid job status: {status}")
 
     with get_connection() as conn:

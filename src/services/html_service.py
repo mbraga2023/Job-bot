@@ -71,8 +71,11 @@ def generate_dashboard():
                 </select>
             </td>
             <td>
-                {link(job["link"], "Details")} |
-                {link(application_url, "Apply")}
+                <button>{link(job["link"], "Details")} 
+                </button>
+                <button>
+                    {link(application_url, "Apply")}
+                </button>
             </td>
             <td>
                 <details>
