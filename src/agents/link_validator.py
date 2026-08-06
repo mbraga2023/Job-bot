@@ -9,9 +9,7 @@ from database.jobs import (
     update_validation_status,
 )
 
-from database.job_details import (
-    insert_job_details,
-)
+from database.job_details import insert_job_details
 
 from services.browser_service import open_page
 from services.json_service import append_analysis
@@ -19,7 +17,7 @@ from services.json_service import append_analysis
 
 async def run():
 
-    jobs = get_meupadrinho_jobs(limit=2)
+    jobs = get_meupadrinho_jobs(limit=50)
 
     if not jobs:
         print("No pending MeuPadrinho jobs found.")
@@ -28,25 +26,36 @@ async def run():
     print(f"Retrieved {len(jobs)} jobs from database.")
 
     analyzer = MeuPadrinhoAnalyzer()
-    playwright = None
-    browser = None
+
     validated = 0
     failed = 0
-
     total = len(jobs)
 
+    playwright = None
+    browser = None
+
     try:
+
         playwright = await async_playwright().start()
-        browser = await playwright.chromium.launch(headless=HEADLESS)
+
+        browser = await playwright.chromium.launch(
+            headless=HEADLESS
+        )
 
         for index, job_data in enumerate(jobs, start=1):
-            url = job_data["link"]
-            print(f"\n[{index}/{total}] Processing: {url}")
+
             page = None
 
+            print(
+                f"\n[{index}/{total}] "
+                f"{job_data['company']} | "
+                f"{job_data['title']}"
+            )
+
             try:
+
                 _, _, page = await open_page(
-                    url,
+                    job_data["link"],
                     headless=HEADLESS,
                     playwright=playwright,
                     browser=browser,
@@ -64,12 +73,12 @@ async def run():
                     "COMPLETED",
                 )
 
+                # Optional JSON export
                 details["source_data"] = {
-                    "id": job_data["id"],
-                    "original_title": job_data["title"],
-                    "original_company": job_data["company"],
-                    "score": job_data["score"],
-                    "link": job_data["link"],
+                    "job_id": job_data["id"],
+                    "telegram_title": job_data["title"],
+                    "telegram_company": job_data["company"],
+                    "telegram_link": job_data["link"],
                     "created_at": job_data["created_at"],
                 }
 
@@ -83,25 +92,32 @@ async def run():
                     print("✓ Validated")
 
             except Exception as error:
+
                 failed += 1
+
                 update_validation_status(
                     job_data["id"],
                     "FAILED",
                 )
+
                 print(f"✗ Failed: {error}")
 
             finally:
+
                 if page:
                     await page.close()
 
     finally:
+
         if browser:
             await browser.close()
+
         if playwright:
             await playwright.stop()
 
     print("\n==============================")
-    print("Validation finished")
+    print("Validation Summary")
+    print("==============================")
     print(f"Jobs processed : {total}")
     print(f"Validated      : {validated}")
     print(f"Failed         : {failed}")

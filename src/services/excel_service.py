@@ -28,19 +28,19 @@ def export_jobs(rows):
 
     data = [
         {
-    "ID": row["id"],
-    "Score": row["score"],
-    "Category": row["category"],
-    "Remote": row["remote"],
-    "Status": row["status"],
-    "Title": row["title"],
-    "Company": row["company"],
-    "Location": row["location"],
-    "Contract": row["contract"],
-    "Level": row["level"],
-    "Link": row["link"],
-    "Created At": row["created_at"],
-}
+            "ID": row["id"],
+            "Score": row["score"] if "score" in row.keys() else None,
+            "Category": row["category"],
+            "Remote": row["remote"],
+            "Status": row["validation_status"],
+            "Title": row["title"],
+            "Company": row["company"],
+            "Location": row["location"],
+            "Contract": row["contract"],
+            "Level": row["level"],
+            "Link": row["link"],
+            "Created At": row["created_at"],
+        }
         for row in rows
     ]
 

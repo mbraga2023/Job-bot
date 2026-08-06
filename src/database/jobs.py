@@ -1,21 +1,5 @@
 from database.database import get_connection
 
-# =========================================================
-# Constants
-# =========================================================
-
-DEFAULT_JOB_STATUS = "NEW"
-
-JOB_STATUSES = {
-    "NEW",
-    "INTERESTED",
-    "APPLIED",
-    "INTERVIEW",
-    "REJECTED",
-    "ACCEPTED",
-    "DISCARDED",
-}
-
 
 # =========================================================
 # Create
@@ -23,7 +7,7 @@ JOB_STATUSES = {
 
 def insert_job(job: dict) -> int:
     """
-    Inserts a new job.
+    Inserts a new raw job collected from Telegram.
 
     Returns:
         Job ID.
@@ -47,15 +31,11 @@ def insert_job(job: dict) -> int:
 
                 category,
 
-                remote,
-
-                score,
-
-                status
+                remote
 
             )
 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 job["telegram_hash"],
@@ -71,10 +51,6 @@ def insert_job(job: dict) -> int:
                 job["category"],
 
                 int(job["remote"]),
-
-                job["score"],
-
-                DEFAULT_JOB_STATUS,
             ),
         )
 
@@ -98,9 +74,29 @@ def job_exists(telegram_hash: str) -> bool:
             FROM jobs
 
             WHERE telegram_hash = ?
-
             """,
             (telegram_hash,),
+        )
+
+        return cursor.fetchone() is not None
+
+
+def link_exists(link: str) -> bool:
+    """
+    Prevent duplicated jobs from different Telegram messages.
+    """
+
+    with get_connection() as conn:
+
+        cursor = conn.execute(
+            """
+            SELECT 1
+
+            FROM jobs
+
+            WHERE link = ?
+            """,
+            (link,),
         )
 
         return cursor.fetchone() is not None
@@ -121,13 +117,11 @@ def get_job(job_id: int):
             FROM jobs
 
             WHERE id = ?
-
             """,
             (job_id,),
         )
 
         return cursor.fetchone()
-
 
 
 def get_first_job():
@@ -140,16 +134,13 @@ def get_first_job():
 
             FROM jobs
 
-            ORDER BY score DESC,
-                     created_at DESC
+            ORDER BY created_at DESC
 
             LIMIT 1
-
             """
         )
 
         return cursor.fetchone()
-
 
 
 def get_all_jobs():
@@ -159,50 +150,26 @@ def get_all_jobs():
         cursor = conn.execute(
             """
             SELECT
-    id,
-    score,
-    category,
-    remote,
-    status,
-    title,
-    company,
-    location,
-    contract,
-    level,
-    link,
-    created_at
-FROM jobs
-ORDER BY score DESC,
-         created_at DESC;
 
-            """
-        )
-
-        return cursor.fetchall()
-
-
-
-def get_jobs_by_job_status(status: str):
-
-    with get_connection() as conn:
-
-        cursor = conn.execute(
-            """
-            SELECT *
+                id,
+                category,
+                remote,
+                validation_status,
+                title,
+                company,
+                location,
+                contract,
+                level,
+                link,
+                created_at
 
             FROM jobs
 
-            WHERE status = ?
-
-            ORDER BY score DESC,
-                     created_at DESC
-
-            """,
-            (status,),
+            ORDER BY created_at DESC
+            """
         )
 
         return cursor.fetchall()
-
 
 
 def get_jobs_by_validation_status(status: str):
@@ -217,15 +184,12 @@ def get_jobs_by_validation_status(status: str):
 
             WHERE validation_status = ?
 
-            ORDER BY score DESC,
-                     created_at DESC
-
+            ORDER BY created_at DESC
             """,
             (status,),
         )
 
         return cursor.fetchall()
-
 
 
 def get_meupadrinho_jobs(limit: int = 30):
@@ -247,9 +211,8 @@ def get_meupadrinho_jobs(limit: int = 30):
               AND jd.job_id IS NULL
 
             ORDER BY
-                j.created_at DESC,
                 j.remote DESC,
-                j.score DESC
+                j.created_at DESC
 
             LIMIT ?
             """,
@@ -257,7 +220,6 @@ def get_meupadrinho_jobs(limit: int = 30):
         )
 
         return cursor.fetchall()
-
 
 
 # =========================================================
@@ -276,18 +238,15 @@ def get_statistics():
             """
         ).fetchone()[0]
 
-
         qa = conn.execute(
             """
             SELECT COUNT(*)
 
             FROM jobs
 
-            WHERE category='QA'
-
+            WHERE category = 'QA'
             """
         ).fetchone()[0]
-
 
         remote = conn.execute(
             """
@@ -295,48 +254,14 @@ def get_statistics():
 
             FROM jobs
 
-            WHERE remote=1
-
+            WHERE remote = 1
             """
         ).fetchone()[0]
-
-
-        applied = conn.execute(
-            """
-            SELECT COUNT(*)
-
-            FROM jobs
-
-            WHERE status='APPLIED'
-
-            """
-        ).fetchone()[0]
-
-
-        interviews = conn.execute(
-            """
-            SELECT COUNT(*)
-
-            FROM jobs
-
-            WHERE status='INTERVIEW'
-
-            """
-        ).fetchone()[0]
-
 
     return {
-
         "total": total,
-
         "qa": qa,
-
         "remote": remote,
-
-        "applied": applied,
-
-        "interviews": interviews,
-
     }
 
 
@@ -356,84 +281,18 @@ def update_validation_status(
             UPDATE jobs
 
             SET
-
                 validation_status = ?,
-
                 validated_at = CURRENT_TIMESTAMP
 
-
             WHERE id = ?
-
             """,
             (
                 status,
-
                 job_id,
             ),
         )
 
         conn.commit()
-
-
-
-def update_job_status(
-    job_id: int,
-    status: str,
-):
-
-    if status not in JOB_STATUSES:
-        raise ValueError(
-            f"Invalid job status: {status}"
-        )
-
-
-    with get_connection() as conn:
-
-        conn.execute(
-            """
-            UPDATE jobs
-
-            SET status = ?
-
-            WHERE id = ?
-
-            """,
-            (
-                status,
-
-                job_id,
-            ),
-        )
-
-        conn.commit()
-
-
-
-def update_notes(
-    job_id: int,
-    notes: str,
-):
-
-    with get_connection() as conn:
-
-        conn.execute(
-            """
-            UPDATE jobs
-
-            SET notes = ?
-
-            WHERE id = ?
-
-            """,
-            (
-                notes,
-
-                job_id,
-            ),
-        )
-
-        conn.commit()
-
 
 
 # =========================================================
@@ -449,9 +308,27 @@ def delete_job(job_id: int):
             DELETE FROM jobs
 
             WHERE id = ?
-
             """,
             (job_id,),
         )
 
         conn.commit()
+        
+# =========================================================
+# Exists by link
+# =========================================================
+
+def job_exists_by_link(link: str) -> bool:
+
+    with get_connection() as conn:
+
+        cursor = conn.execute(
+            """
+            SELECT 1
+            FROM jobs
+            WHERE link = ?
+            """,
+            (link,),
+        )
+
+        return cursor.fetchone() is not None

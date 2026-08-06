@@ -7,53 +7,48 @@ def get_dashboard_jobs():
             """
             SELECT
 
-                j.id,
+    j.id,
 
-                j.score,
-                j.category,
-                j.remote,
+    j.score,
+    j.category,
+    j.remote,
 
-                j.title,
-                j.company,
-                j.location,
+    j.title,
+    j.company,
+    j.location,
 
-                j.level,
+    j.level,
 
-                j.status,
+    j.status,
 
-                j.link,
+    j.link,
 
-                j.created_at,
+    j.created_at,
 
+    jd.page_not_found,
 
-                jd.page_not_found,
+    jd.published_date,
 
-                jd.published_date,
+    jd.application_url,
 
-                jd.description,
+    jd.description,
 
+    jd.technologies,
 
-                jd.technologies,
+    jd.requirements,
+    jd.application_url
 
-                jd.requirements
+FROM jobs j
 
+LEFT JOIN job_details jd
+    ON jd.job_id = j.id
 
-            FROM jobs j
+WHERE j.remote = 1
+  AND j.level IN ('Pleno', 'Junior', '')
 
+ORDER BY
 
-            LEFT JOIN job_details jd
-
-                ON jd.job_id = j.id
-
-
-            WHERE j.remote = 1 AND j.level IN ('Pleno', 'Junior', '')
-
-
-            ORDER BY
-
-                jd.published_date ASC NULLS LAST,
-
-                j.score DESC
+    jd.published_date ASC NULLS LAST  
 
             """
         )

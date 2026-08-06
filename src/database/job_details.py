@@ -4,15 +4,29 @@ from database.database import get_connection
 
 
 # =========================================================
+# Constants
+# =========================================================
+
+DEFAULT_JOB_STATUS = "NEW"
+
+JOB_STATUSES = {
+    "NEW",
+    "INTERESTED",
+    "APPLIED",
+    "INTERVIEW",
+    "REJECTED",
+    "ACCEPTED",
+    "DISCARDED",
+}
+
+
+# =========================================================
 # Create
 # =========================================================
 
 def insert_job_details(job_id: int, details: dict) -> int:
     """
-    Saves Playwright analysis for a job.
-
-    Returns:
-        job_details ID.
+    Saves validated job details collected by Playwright.
     """
 
     with get_connection() as conn:
@@ -20,52 +34,122 @@ def insert_job_details(job_id: int, details: dict) -> int:
         cursor = conn.execute(
             """
             INSERT INTO job_details (
+
                 job_id,
+
                 page_not_found,
+
                 published_date,
+
                 title,
                 company,
                 location,
+
                 remote,
+
                 level,
                 contract,
+
                 job_source,
+
                 application_url,
+
                 application_source,
+
                 description,
+
                 technologies,
                 requirements,
                 differentials,
-                benefits
+                benefits,
+
+                job_status,
+
+                ai_status
+
             )
+
             VALUES (
-                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+
             )
             """,
             (
                 job_id,
-                int(bool(details.get("page_not_found", False))),
-                details.get("published_date") or "",
-                details.get("title") or "",
-                details.get("company") or "",
-                details.get("location") or "",
-                int(bool(details.get("remote", False))),
-                details.get("level") or "",
-                details.get("contract") or "",
-                details.get("job_source") or "",
-                details.get("application_url") or "",
-                details.get("application_source") or "",
-                details.get("description") or "",
-                json.dumps(details.get("technologies", []), ensure_ascii=False),
-                json.dumps(details.get("requirements", []), ensure_ascii=False),
-                json.dumps(details.get("differentials", []), ensure_ascii=False),
-                json.dumps(details.get("benefits", []), ensure_ascii=False),
+
+                int(details.get("page_not_found", False)),
+
+                details.get("published_date"),
+
+                details.get("title"),
+                details.get("company"),
+                details.get("location"),
+
+                int(details.get("remote", False)),
+
+                details.get("level"),
+                details.get("contract"),
+
+                details.get("job_source"),
+
+                details.get("application_url"),
+
+                details.get("application_source"),
+
+                details.get("description"),
+
+                json.dumps(
+                    details.get("technologies", []),
+                    ensure_ascii=False,
+                ),
+
+                json.dumps(
+                    details.get("requirements", []),
+                    ensure_ascii=False,
+                ),
+
+                json.dumps(
+                    details.get("differentials", []),
+                    ensure_ascii=False,
+                ),
+
+                json.dumps(
+                    details.get("benefits", []),
+                    ensure_ascii=False,
+                ),
+
+                DEFAULT_JOB_STATUS,
+
+                "PENDING",
             ),
         )
 
         conn.commit()
 
         return cursor.lastrowid
+
+
+# =========================================================
+# Exists
+# =========================================================
+
+def job_details_exists(job_id: int) -> bool:
+
+    with get_connection() as conn:
+
+        cursor = conn.execute(
+            """
+            SELECT 1
+
+            FROM job_details
+
+            WHERE job_id = ?
+            """,
+            (job_id,),
+        )
+
+        return cursor.fetchone() is not None
 
 
 # =========================================================
@@ -102,7 +186,12 @@ def get_pending_ai_jobs():
         cursor = conn.execute(
             """
             SELECT
-                j.*,
+
+                j.id,
+                j.telegram_hash,
+                j.link,
+                j.created_at,
+
                 jd.*
 
             FROM job_details jd
@@ -110,10 +199,15 @@ def get_pending_ai_jobs():
             INNER JOIN jobs j
                 ON j.id = jd.job_id
 
-            WHERE jd.ai_status = 'PENDING'
-              AND jd.page_not_found = 0
+            WHERE
 
-            ORDER BY jd.validated_at
+                jd.ai_status = 'PENDING'
+
+                AND jd.page_not_found = 0
+
+            ORDER BY
+
+                jd.validated_at
             """
         )
 
@@ -134,7 +228,10 @@ def get_all_job_details():
             """
         )
 
-        return [_deserialize(row) for row in cursor.fetchall()]
+        return [_deserialize(row) for row in cursor.fetchall()
+
+
+]
 
 
 # =========================================================
@@ -153,6 +250,33 @@ def update_ai_status(
             UPDATE job_details
 
             SET ai_status = ?
+
+            WHERE job_id = ?
+            """,
+            (
+                status,
+                job_id,
+            ),
+        )
+
+        conn.commit()
+
+
+def update_job_status(
+    job_id: int,
+    status: str,
+):
+
+    if status not in JOB_STATUSES:
+        raise ValueError(f"Invalid job status: {status}")
+
+    with get_connection() as conn:
+
+        conn.execute(
+            """
+            UPDATE job_details
+
+            SET job_status = ?
 
             WHERE job_id = ?
             """,

@@ -1,11 +1,9 @@
-#telegram_collector.py
 from telethon import TelegramClient
 
 from config import API_ID, API_HASH, TELEGRAM_CHANNEL
 
 from core.parser import parse_job
 from core.classifier import classify
-from core.scorer import score_job
 
 from services.telegram_service import (
     extract_link,
@@ -14,7 +12,7 @@ from services.telegram_service import (
 )
 
 from database.jobs import (
-    job_exists,
+    job_exists_by_link,
     insert_job,
     get_all_jobs,
 )
@@ -29,7 +27,7 @@ async def run():
     client = TelegramClient(
         "job_bot_session",
         API_ID,
-        API_HASH
+        API_HASH,
     )
 
     await client.start()
@@ -44,7 +42,7 @@ async def run():
 
     async for message in client.iter_messages(
         channel,
-        limit=500
+        limit=500,
     ):
 
         total_messages += 1
@@ -59,15 +57,21 @@ async def run():
 
         job["link"] = extract_link(message)
 
-        job["category"] = classify(job)
+        if not job["link"]:
+            continue
 
-        job["score"] = score_job(job)
+        job["category"] = classify(job)
 
         job["remote"] = is_remote(job)
 
+        # Keep the hash for traceability
         job["telegram_hash"] = generate_hash(message.text)
 
-        if job_exists(job["telegram_hash"]):
+        # -------------------------------------------------
+        # Skip duplicated job links
+        # -------------------------------------------------
+
+        if job_exists_by_link(job["link"]):
             duplicated_jobs += 1
             continue
 
@@ -76,8 +80,8 @@ async def run():
         new_jobs += 1
 
         print(
-            f"[{job['score']:03}] "
             f"{job['category']:<5} | "
+            f"{'REMOTE' if job['remote'] else 'ONSITE':<7} | "
             f"{job['company']} | "
             f"{job['title']}"
         )
@@ -87,7 +91,7 @@ async def run():
     export_jobs(rows)
 
     print("\n" + "=" * 60)
-    print("📊 SUMMARY")
+    print("📊 COLLECTION SUMMARY")
     print("=" * 60)
     print(f"Messages scanned : {total_messages}")
     print(f"New jobs         : {new_jobs}")

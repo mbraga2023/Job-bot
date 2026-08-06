@@ -35,6 +35,11 @@ def generate_dashboard():
             else "REMOVED"
         )
 
+        application_link = (
+            job["application_url"]
+            if job["application_url"]
+            else job["link"]
+        )
 
         options = ""
 
@@ -54,7 +59,6 @@ def generate_dashboard():
 
 
         rows += f"""
-
         <tr>
 
             <td class="score">
@@ -118,16 +122,19 @@ def generate_dashboard():
             </td>
 
 
-            <td>
+<td>
 
-                <a
-                    href="{job["link"]}"
-                    target="_blank"
-                >
-                    Open
-                </a>
+    <a href="{job['link']}" target="_blank">
+        Details
+    </a>
 
-            </td>
+    |
+
+    <a href="{application_link}" target="_blank">
+        Apply
+    </a>
+
+</td>
 
 
         </tr>

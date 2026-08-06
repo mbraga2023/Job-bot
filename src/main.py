@@ -1,12 +1,10 @@
-#main.py
 import argparse
 
-from database.schema import create_database
-
-from commands.collect import run as collect
-from commands.validate import run as validate
 from commands.analyse import run as analyse
+from commands.collect import run as collect
 from commands.report import run as report
+from commands.validate import run as validate
+from database.schema import create_database
 
 
 COMMANDS = {
@@ -25,13 +23,16 @@ def main():
 
     parser.add_argument(
         "command",
-        choices=COMMANDS.keys()
+        choices=COMMANDS.keys(),
+        help="Pipeline stage to execute",
     )
 
     args = parser.parse_args()
-        # Create tables if they don't exist
+
+    # Create database/tables if needed
     create_database()
 
+    # Execute selected command
     COMMANDS[args.command]()
 
 

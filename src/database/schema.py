@@ -13,8 +13,9 @@ def create_database():
     create_job_ai_analysis_table()
     create_resume_matches_table()
 
+
 # =========================================================
-# jobs
+# jobs (Stage 1 - Raw Telegram Data)
 # =========================================================
 
 def create_jobs_table():
@@ -24,42 +25,36 @@ def create_jobs_table():
         conn.execute("""
         CREATE TABLE IF NOT EXISTS jobs (
 
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
 
-    telegram_hash TEXT NOT NULL UNIQUE,
+            telegram_hash TEXT NOT NULL,
 
-    title TEXT,
-    company TEXT,
-    location TEXT,
-    contract TEXT,
-    level TEXT,
+            title TEXT,
+            company TEXT,
+            location TEXT,
+            contract TEXT,
+            level TEXT,
 
-    link TEXT NOT NULL,
+            link TEXT NOT NULL UNIQUE,
 
-    category TEXT,
+            category TEXT,
 
-    remote INTEGER DEFAULT 0,
+            remote INTEGER DEFAULT 0,
 
-    score INTEGER DEFAULT 0,
+            validation_status TEXT NOT NULL DEFAULT 'PENDING',
 
-    status TEXT NOT NULL DEFAULT 'NEW',
+            validated_at DATETIME,
 
-    notes TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 
-    validation_status TEXT NOT NULL DEFAULT 'PENDING',
-
-    validated_at DATETIME,
-
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-
-)
+        )
         """)
 
         conn.commit()
 
 
 # =========================================================
-# job_details
+# job_details (Stage 2 - Validated Job)
 # =========================================================
 
 def create_job_details_table():
@@ -69,55 +64,57 @@ def create_job_details_table():
         conn.execute("""
         CREATE TABLE IF NOT EXISTS job_details (
 
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
 
-    job_id INTEGER NOT NULL UNIQUE,
+            job_id INTEGER NOT NULL UNIQUE,
 
-    page_not_found INTEGER DEFAULT 0,
+            page_not_found INTEGER DEFAULT 0,
 
-    published_date TEXT,
+            published_date TEXT,
 
-    title TEXT,
-    company TEXT,
-    location TEXT,
+            title TEXT,
+            company TEXT,
+            location TEXT,
 
-    remote INTEGER DEFAULT 0,
+            remote INTEGER DEFAULT 0,
 
-    level TEXT,
-    contract TEXT,
+            level TEXT,
+            contract TEXT,
 
-    job_source TEXT,
+            job_source TEXT,
 
-    application_url TEXT,
+            application_url TEXT,
 
-    application_source TEXT,
+            application_source TEXT,
 
-    description TEXT,
+            description TEXT,
 
-    technologies TEXT,
+            technologies TEXT,
 
-    requirements TEXT,
+            requirements TEXT,
 
-    differentials TEXT,
+            differentials TEXT,
 
-    benefits TEXT,
+            benefits TEXT,
 
-    ai_status TEXT NOT NULL DEFAULT 'PENDING',
+            job_status TEXT NOT NULL DEFAULT 'NEW',
 
-    validated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            ai_status TEXT NOT NULL DEFAULT 'PENDING',
 
-    FOREIGN KEY(job_id)
-        REFERENCES jobs(id)
-        ON DELETE CASCADE
+            validated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 
-)
+            FOREIGN KEY(job_id)
+                REFERENCES jobs(id)
+                ON DELETE CASCADE
+
+        )
         """)
 
         conn.commit()
 
 
 # =========================================================
-# job_ai_analysis
+# job_ai_analysis (Stage 3 - AI Analysis)
 # =========================================================
 
 def create_job_ai_analysis_table():
@@ -129,7 +126,7 @@ def create_job_ai_analysis_table():
 
             id INTEGER PRIMARY KEY AUTOINCREMENT,
 
-            job_id INTEGER NOT NULL,
+            job_id INTEGER NOT NULL UNIQUE,
 
             model TEXT,
 
@@ -148,6 +145,7 @@ def create_job_ai_analysis_table():
             missing_skills TEXT,
 
             prompt_version TEXT,
+
             analysis_version INTEGER DEFAULT 1,
 
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -163,7 +161,7 @@ def create_job_ai_analysis_table():
 
 
 # =========================================================
-# resume_matches
+# resume_matches (Stage 4 - Resume Matching)
 # =========================================================
 
 def create_resume_matches_table():
