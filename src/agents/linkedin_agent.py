@@ -33,6 +33,7 @@ async def run():
     checked = 0
     opened = 0
     closed = 0
+    not_remote = 0
     failed = 0
 
     total = len(jobs)
@@ -128,6 +129,14 @@ async def run():
                         "⚠ Job is CLOSED"
                     )
 
+                elif new_status == "NOT_REMOTE":
+
+                    not_remote += 1
+
+                    print(
+                        "⚠ Job is NOT REMOTE"
+                    )
+
                 else:
 
                     print(
@@ -164,5 +173,6 @@ async def run():
     print(f"Jobs checked   : {checked}")
     print(f"Jobs OPEN      : {opened}")
     print(f"Jobs CLOSED    : {closed}")
+    print(f"Not remote     : {not_remote}")
     print(f"Failed         : {failed}")
     print("=============================")

@@ -12,4 +12,5 @@ JOB_STATUS = {
     "REJECTED",      # Rejected by company
     "ACCEPTED",      # Offer accepted
     "DISCARDED",     # Ignored by user
+    "NOT_REMOTE"
 }
