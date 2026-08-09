@@ -16,6 +16,7 @@ class LinkedInAnalyzer:
                 "no longer accepting applications",
                 "não está mais aceitando candidaturas",
                 "não aceita mais candidaturas",
+                "No longer accepting applications"
             )
         )
 

@@ -18,11 +18,11 @@ async def run():
     jobs = get_linkedin_jobs(limit=100)
 
     if not jobs:
-        print("No LinkedIn jobs found.")
+        print("No pending LinkedIn jobs found.")
         return
 
     print(
-        f"Retrieved {len(jobs)} LinkedIn jobs."
+        f"Retrieved {len(jobs)} pending LinkedIn jobs."
     )
 
     analyzer = LinkedInAnalyzer()
@@ -31,6 +31,7 @@ async def run():
     browser = None
 
     checked = 0
+    opened = 0
     closed = 0
     failed = 0
 
@@ -67,28 +68,18 @@ async def run():
                 # -----------------------------------------
                 # Safety check
                 # -----------------------------------------
-                # Normally these won't be returned by
-                # get_linkedin_jobs(), but this protects
-                # against a status changing between the
-                # SELECT and this point.
-                # -----------------------------------------
 
-                current_status = job["job_status"]
-
-                if current_status in {
-                    "CLOSED",
-                    "DISCARDED",
-                }:
+                if job["job_status"] != "NEW":
 
                     print(
                         f"→ Skipped "
-                        f"({current_status})"
+                        f"({job['job_status']})"
                     )
 
                     continue
 
                 # -----------------------------------------
-                # Open LinkedIn page
+                # Open LinkedIn
                 # -----------------------------------------
 
                 _, _, page = await open_page(
@@ -99,17 +90,15 @@ async def run():
                 )
 
                 # -----------------------------------------
-                # Analyze page
+                # Analyze
                 # -----------------------------------------
 
-                result = await analyzer.analyze(
-                    page
-                )
+                result = await analyzer.analyze(page)
 
                 new_status = result["job_status"]
 
                 # -----------------------------------------
-                # Persist status
+                # Update database
                 # -----------------------------------------
 
                 update_job_status(
@@ -117,11 +106,21 @@ async def run():
                     new_status,
                 )
 
+                checked += 1
+
                 # -----------------------------------------
-                # Statistics
+                # Result
                 # -----------------------------------------
 
-                if new_status == "CLOSED":
+                if new_status == "OPEN":
+
+                    opened += 1
+
+                    print(
+                        "✓ Job is OPEN"
+                    )
+
+                elif new_status == "CLOSED":
 
                     closed += 1
 
@@ -129,19 +128,12 @@ async def run():
                         "⚠ Job is CLOSED"
                     )
 
-                elif new_status == "DISCARDED":
-
-                    print(
-                        "⚠ Job is DISCARDED"
-                    )
-
                 else:
 
                     print(
-                        f"✓ {new_status}"
+                        f"⚠ Unexpected status: "
+                        f"{new_status}"
                     )
-
-                checked += 1
 
             except Exception as error:
 
@@ -168,7 +160,9 @@ async def run():
     print("=============================")
     print("LinkedIn validation finished")
     print("=============================")
-    print(f"Jobs checked : {checked}")
-    print(f"Jobs closed  : {closed}")
-    print(f"Failed       : {failed}")
+    print(f"Jobs retrieved : {total}")
+    print(f"Jobs checked   : {checked}")
+    print(f"Jobs OPEN      : {opened}")
+    print(f"Jobs CLOSED    : {closed}")
+    print(f"Failed         : {failed}")
     print("=============================")
