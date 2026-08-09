@@ -53,7 +53,7 @@ def get_job_statuses():
 
             FROM job_details
 
-            WHERE job_status IS NOT NULL
+            WHERE job_status IS 'NEW'
 
             ORDER BY job_status
             """

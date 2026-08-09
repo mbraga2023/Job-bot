@@ -1,3 +1,4 @@
+#agents/link_validator.py
 from playwright.async_api import async_playwright
 
 from config import HEADLESS, OUTPUT_FOLDER
@@ -9,10 +10,33 @@ from database.jobs import (
     update_validation_status,
 )
 
-from database.job_details import insert_job_details
+from database.job_details import (
+    insert_job_details,
+    update_job_status,
+)
 
 from services.browser_service import open_page
 from services.json_service import append_analysis
+
+
+def should_discard(details: dict) -> bool:
+    """
+    Apply job filtering rules.
+
+    Senior positions are discarded because
+    the target level is Pleno.
+    """
+
+    level = (
+        details.get("level", "")
+        .strip()
+        .lower()
+    )
+
+    return level in {
+        "senior",
+        "sênior",
+    }
 
 
 async def run():
@@ -23,12 +47,16 @@ async def run():
         print("No pending MeuPadrinho jobs found.")
         return
 
-    print(f"Retrieved {len(jobs)} jobs from database.")
+    print(
+        f"Retrieved {len(jobs)} jobs from database."
+    )
 
     analyzer = MeuPadrinhoAnalyzer()
 
     validated = 0
     failed = 0
+    discarded = 0
+
     total = len(jobs)
 
     playwright = None
@@ -42,7 +70,10 @@ async def run():
             headless=HEADLESS
         )
 
-        for index, job_data in enumerate(jobs, start=1):
+        for index, job_data in enumerate(
+            jobs,
+            start=1
+        ):
 
             page = None
 
@@ -63,17 +94,57 @@ async def run():
 
                 details = await analyzer.analyze(page)
 
+                # -----------------------------------------
+                # Determine job status
+                # -----------------------------------------
+
+                if details.get("page_not_found"):
+
+                    details["job_status"] = "CLOSED"
+
+                elif should_discard(details):
+
+                    details["job_status"] = "DISCARDED"
+
+                elif details.get("job_status") == "CLOSED":
+
+                    details["job_status"] = "CLOSED"
+
+                else:
+
+                    details["job_status"] = "NEW"
+
+                # -----------------------------------------
+                # Save job details
+                # -----------------------------------------
+
                 insert_job_details(
                     job_id=job_data["id"],
                     details=details,
                 )
+
+                # -----------------------------------------
+                # Update job status
+                # -----------------------------------------
+
+                update_job_status(
+                    job_data["id"],
+                    details["job_status"],
+                )
+
+                # -----------------------------------------
+                # Validation completed
+                # -----------------------------------------
 
                 update_validation_status(
                     job_data["id"],
                     "COMPLETED",
                 )
 
+                # -----------------------------------------
                 # Optional JSON export
+                # -----------------------------------------
+
                 details["source_data"] = {
                     "job_id": job_data["id"],
                     "telegram_title": job_data["title"],
@@ -86,10 +157,30 @@ async def run():
 
                 validated += 1
 
+                # -----------------------------------------
+                # Console output
+                # -----------------------------------------
+
                 if details["page_not_found"]:
-                    print("⚠ Page not found")
+
+                    print("⚠ Page not found → CLOSED")
+
+                elif details["job_status"] == "DISCARDED":
+
+                    discarded += 1
+
+                    print(
+                        f"⚠ Discarded → "
+                        f"Level: {details.get('level', '')}"
+                    )
+
+                elif details["job_status"] == "CLOSED":
+
+                    print("⚠ Job closed")
+
                 else:
-                    print("✓ Validated")
+
+                    print("✓ Validated → NEW")
 
             except Exception as error:
 
@@ -100,7 +191,9 @@ async def run():
                     "FAILED",
                 )
 
-                print(f"✗ Failed: {error}")
+                print(
+                    f"✗ Failed: {error}"
+                )
 
             finally:
 
@@ -120,10 +213,14 @@ async def run():
     print("==============================")
     print(f"Jobs processed : {total}")
     print(f"Validated      : {validated}")
+    print(f"Discarded      : {discarded}")
     print(f"Failed         : {failed}")
 
     if validated:
         print("Database       : job_details")
-        print(f"JSON Export    : {OUTPUT_FOLDER / 'job_analysis.json'}")
+        print(
+            f"JSON Export    : "
+            f"{OUTPUT_FOLDER / 'job_analysis.json'}"
+        )
 
     print("==============================")

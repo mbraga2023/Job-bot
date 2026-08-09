@@ -220,8 +220,10 @@ def get_all_job_details():
 
 def get_linkedin_jobs(limit: int = 100):
     """
-    Returns validated jobs whose application URL is a LinkedIn Job page
-    and whose status is still NEW.
+    Returns LinkedIn jobs that still need LinkedIn validation.
+
+    Only NEW jobs are checked.
+    CLOSED and DISCARDED jobs are automatically skipped.
     """
 
     with get_connection() as conn:
