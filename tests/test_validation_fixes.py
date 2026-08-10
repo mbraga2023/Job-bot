@@ -95,6 +95,86 @@ class ValidationFixesTests(unittest.TestCase):
             finally:
                 database_module.DB_PATH = original_db_path
 
+    def test_technology_agent_counts_technology_frequency_from_database(self):
+        import database.database as database_module
+        from database.database import get_connection
+        from database import schema
+        from agents.technology_agent import TechnologyAgent
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            temp_db = Path(tmpdir) / "test.db"
+            original_db_path = database_module.DB_PATH
+            database_module.DB_PATH = temp_db
+            try:
+                import config
+
+                config.DATABASE = temp_db
+                schema.create_database()
+
+                with get_connection() as conn:
+                    conn.execute(
+                        "INSERT INTO jobs (id, telegram_hash, link, title, company, category) VALUES (?, ?, ?, ?, ?, ?)",
+                        (1, "hash-a", "https://example.com/a", "QA Engineer", "Acme", "QA"),
+                    )
+                    conn.execute(
+                        "INSERT INTO jobs (id, telegram_hash, link, title, company, category) VALUES (?, ?, ?, ?, ?, ?)",
+                        (2, "hash-b", "https://example.com/b", "QA Analyst", "Acme", "QA"),
+                    )
+                    conn.execute(
+                        "INSERT INTO job_details (job_id, page_not_found, title, company, location, remote, level, contract, job_source, application_url, application_source, description, technologies, requirements, differentials, benefits, job_status, ai_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                        (
+                            1,
+                            0,
+                            "QA Engineer",
+                            "Acme",
+                            "Remote",
+                            1,
+                            "Junior",
+                            "CLT",
+                            "meupadrinho",
+                            "https://example.com/apply/1",
+                            "meupadrinho",
+                            "Build software",
+                            '["Playwright", "Python", "Playwright"]',
+                            '[]',
+                            '[]',
+                            '[]',
+                            'NEW',
+                            'PENDING',
+                        ),
+                    )
+                    conn.execute(
+                        "INSERT INTO job_details (job_id, page_not_found, title, company, location, remote, level, contract, job_source, application_url, application_source, description, technologies, requirements, differentials, benefits, job_status, ai_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                        (
+                            2,
+                            0,
+                            "QA Analyst",
+                            "Acme",
+                            "Remote",
+                            1,
+                            "Pleno",
+                            "CLT",
+                            "meupadrinho",
+                            "https://example.com/apply/2",
+                            "meupadrinho",
+                            "Test software",
+                            '["Python", "Java"]',
+                            '[]',
+                            '[]',
+                            '[]',
+                            'NEW',
+                            'PENDING',
+                        ),
+                    )
+                    conn.commit()
+
+                result = TechnologyAgent().analyze()
+                self.assertEqual(result["jobs_with_technologies"], 2)
+                self.assertEqual(result["technologies"]["PLAYWRIGHT"], 2)
+                self.assertEqual(result["technologies"]["PYTHON"], 2)
+            finally:
+                database_module.DB_PATH = original_db_path
+
 
 if __name__ == "__main__":
     unittest.main()

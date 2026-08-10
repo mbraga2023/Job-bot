@@ -1,11 +1,16 @@
 import argparse
 
+from commands.ai_analysis import run as ai_analysis
 from commands.analyse import run as analyse
 from commands.collect import run as collect
+from commands.linkedin import run as linkedin
+from commands.normalize import run as normalize
 from commands.report import run as report
+from commands.resume_match import run as resume_match
+from commands.score import run as score
+from commands.tech_report import run as tech_report
 from commands.validate import run as validate
 from database.schema import create_database
-from commands.linkedin import run as linkedin
 
 
 COMMANDS = {
@@ -13,6 +18,11 @@ COMMANDS = {
     "validate": validate,
     "linkedin": linkedin,
     "analyse": analyse,
+    "normalize": normalize,
+    "tech-report": tech_report,
+    "score": score,
+    "ai-analysis": ai_analysis,
+    "resume-match": resume_match,
     "report": report,
 }
 

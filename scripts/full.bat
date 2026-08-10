@@ -1,5 +1,7 @@
 @echo off
 
+call .venv\Scripts\activate
+
 echo =====================================
 echo Stage 1 - Collect Telegram Jobs
 echo =====================================
@@ -19,7 +21,7 @@ python src/main.py linkedin
 
 echo.
 echo =====================================
-echo Stage 3 - AI Analysis
+echo Stage 3 - Job Analysis
 echo =====================================
 python src/main.py analyse
 

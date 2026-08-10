@@ -12,3 +12,4 @@ output/*.xlsx
 output/*.ods
 output/*.json
 node_modules/*
+*.db
