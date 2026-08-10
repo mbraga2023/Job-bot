@@ -48,8 +48,9 @@ class TechnologyAgent:
                 FROM job_details
 
                 WHERE
-                    LOWER(COALESCE(level, '')) IN ('junior', 'pleno')
-
+    level IS NULL
+    OR TRIM(level) = ''
+    OR LOWER(COALESCE(TRIM(level), '')) IN ('junior', 'pleno', 'estagio', 'especialista')
                     AND page_not_found = 0
 
                 ORDER BY
