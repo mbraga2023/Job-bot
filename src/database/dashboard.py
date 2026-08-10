@@ -34,7 +34,8 @@ def get_dashboard_jobs():
             FROM job_details AS jd
             JOIN jobs AS j
                 ON j.id = jd.job_id
-
+            WHERE
+                jd.job_status IS 'NEW' OR jd.job_status IS 'OPEN'
             ORDER BY
                 jd.published_date ASC NULLS LAST,
                 jd.validated_at DESC
