@@ -10,6 +10,7 @@ from commands.resume_match import run as resume_match
 from commands.score import run as score
 from commands.tech_report import run as tech_report
 from commands.validate import run as validate
+
 from database.schema import create_database
 
 
@@ -17,12 +18,16 @@ COMMANDS = {
     "collect": collect,
     "validate": validate,
     "linkedin": linkedin,
+
     "analyse": analyse,
+
     "normalize": normalize,
     "tech-report": tech_report,
     "score": score,
+
     "ai-analysis": ai_analysis,
     "resume-match": resume_match,
+
     "report": report,
 }
 
@@ -41,10 +46,8 @@ def main():
 
     args = parser.parse_args()
 
-    # Create database/tables if needed
     create_database()
 
-    # Execute selected command
     COMMANDS[args.command]()
 
 

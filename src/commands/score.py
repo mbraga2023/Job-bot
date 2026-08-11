@@ -1,17 +1,13 @@
-"""Stage 3.3 entry point for the scoring heuristic."""
+"""Stage 3.3 entry point for job scoring."""
 
-from core.scorer import score_job
-
-
-def score(job: dict):
-    return score_job(job)
+from agents.scoring_agent import ScoringAgent
 
 
-def run(job: dict | None = None):
-    if job is None:
-        print("Stage 3.3 - scoring is handled by core.scorer.score_job().")
-        return None
-    return score(job)
+def run():
+
+    agent = ScoringAgent()
+
+    agent.print_report()
 
 
 if __name__ == "__main__":

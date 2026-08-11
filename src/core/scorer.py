@@ -1,140 +1,333 @@
-# scorer.py
+class JobScorer:
 
-TECH_WEIGHTS = {
+    def score(self, job: dict) -> tuple[int, list[str]]:
 
-    # QA
+        score = 0
+        reasons = []
 
-    "qa": 20,
-    "quality": 15,
-    "qualidade": 20,
+        title = (job.get("title") or "").lower()
+        company = (job.get("company") or "").lower()
+        location = (job.get("location") or "").lower()
+        level = (job.get("level") or "").lower()
 
-    "quality assurance": 20,
+        technologies = job.get("technologies") or []
+        technologies = [
+            str(technology).lower().strip()
+            for technology in technologies
+        ]
 
-    "analista de qualidade": 20,
-    "engenheiro de qualidade": 20,
-    "controle de qualidade": 20,
+        remote = bool(job.get("remote", False))
 
-    "quality analyst": 20,
-    "quality engineer": 20,
+        # =====================================================
+        # REMOTE
+        # =====================================================
 
-    "teste": 20,
-    "testes": 20,
-    "testing": 20,
-    "tester": 20,
+        if remote:
+            score += 60
+            reasons.append("+60 Remote")
 
-    "software testing": 20,
-    "software tester": 20,
-    "software verification": 20,
-    "verification": 15,
+        # =====================================================
+        # BRAZIL REMOTE
+        # =====================================================
 
-    "sdet": 25,
+        if remote and any(
+            country in location
+            for country in (
+                "brasil",
+                "brazil",
+            )
+        ):
+            score += 30
+            reasons.append("+30 Brazil Remote")
 
-    # Automation
+        # =====================================================
+        # PREFERRED CITY
+        # =====================================================
 
-    "automação": 20,
-    "automation": 20,
-    "automatizado": 20,
-    "automatização": 20,
+        if "limeira" in location:
+            score += 40
+            reasons.append("+40 Limeira")
 
-    "playwright": 30,
-    "cypress": 25,
-    "selenium": 20,
-    "robot framework": 20,
-    "robot": 15,
+        elif "campinas" in location:
+            score += 30
+            reasons.append("+30 Campinas")
 
-    # API
+        elif "americana" in location:
+            score += 30
+            reasons.append("+30 Americana")
 
-    "api": 20,
-    "rest": 15,
-    "soap": 15,
-    "postman": 15,
-    "restassured": 15,
+        elif "piracicaba" in location:
+            score += 25
+            reasons.append("+25 Piracicaba")
 
-    # Languages
+        # =====================================================
+        # LEVEL
+        # =====================================================
 
-    "java": 15,
-    "python": 10,
-    ".net": 10,
-    "c#": 10,
+        if "pleno" in level or "mid" in level:
+            score += 45
+            reasons.append("+45 Pleno")
 
-}
+        elif (
+            "junior" in level
+            or "júnior" in level
+            or "entry" in level
+        ):
+            score += 15
+            reasons.append("+15 Junior")
 
+        elif (
+            "senior" in level
+            or "sênior" in level
+            or "sr." in level
+            or "sr " in level
+        ):
+            score -= 35
+            reasons.append("-35 Senior")
 
-LOCATION_WEIGHTS = {
+        # =====================================================
+        # QA / QUALITY
+        # =====================================================
 
-    "limeira": 40,
-    "campinas": 35,
-    "americana": 35,
-    "piracicaba": 30,
+        if (
+            "qa" in title
+            or "quality assurance" in title
+            or "quality engineer" in title
+            or "tester" in title
+            or "test engineer" in title
+        ):
+            score += 25
+            reasons.append("+25 QA / Testing")
 
-    "remote": 35,
-    "remoto": 35,
+        # =====================================================
+        # AUTOMATION
+        # =====================================================
 
-    "home office": 35,
-    "home-office": 35,
+        if (
+            "automation" in title
+            or any(
+                "automation" in technology
+                for technology in technologies
+            )
+        ):
+            score += 30
+            reasons.append("+30 Automation")
 
-    "100% remoto": 35,
-    "100% remote": 35,
+        # =====================================================
+        # PLAYWRIGHT
+        # =====================================================
 
-    "brasil remoto": 30,
-    "brazil remote": 30,
-    "anywhere in brazil": 30,
+        if any(
+            "playwright" in technology
+            for technology in technologies
+        ):
+            score += 40
+            reasons.append("+40 Playwright")
 
-    "international": 50,
-}
+        # =====================================================
+        # CYPRESS
+        # =====================================================
 
+        if any(
+            "cypress" in technology
+            for technology in technologies
+        ):
+            score += 35
+            reasons.append("+35 Cypress")
 
-LEVEL_WEIGHTS = {
+        # =====================================================
+        # CUCUMBER / BDD
+        # =====================================================
 
-    "pleno": 30,
+        if any(
+            "cucumber" in technology
+            or "bdd" in technology
+            for technology in technologies
+        ):
+            score += 20
+            reasons.append("+20 Cucumber / BDD")
 
-    "mid": 25,
-    "middle": 25,
+        # =====================================================
+        # SELENIUM
+        # =====================================================
 
-    "senior": 5,
-    "sr": 5,
+        if any(
+            "selenium" in technology
+            for technology in technologies
+        ):
+            score += 15
+            reasons.append("+15 Selenium")
 
-    "junior": -20,
-    "jr": -20,
-}
+        # =====================================================
+        # API TESTING
+        # =====================================================
 
+        if any(
+            technology in (
+                "api",
+                "rest",
+                "rest api",
+                "rest assured",
+            )
+            or "api testing" in technology
+            for technology in technologies
+        ):
+            score += 25
+            reasons.append("+25 API Testing")
 
-WORK_MODEL_WEIGHTS = {
+        # =====================================================
+        # POSTMAN
+        # =====================================================
 
-    "hybrid": 5,
-    "híbrido": 5,
+        if any(
+            "postman" in technology
+            for technology in technologies
+        ):
+            score += 20
+            reasons.append("+20 Postman")
 
-    "presencial": -25,
-    "on-site": -25,
-}
+        # =====================================================
+        # JAVA
+        # =====================================================
 
+        if any(
+            technology == "java"
+            for technology in technologies
+        ):
+            score += 20
+            reasons.append("+20 Java")
 
-def score_job(job):
+        # =====================================================
+        # JAVASCRIPT
+        # =====================================================
 
-    score = 0
+        if any(
+            technology in (
+                "javascript",
+                "java script",
+                "js",
+            )
+            for technology in technologies
+        ):
+            score += 20
+            reasons.append("+20 JavaScript")
 
-    text = (
-        job.get("raw_text")
-        or ""
-    ).lower()
+        # =====================================================
+        # TYPESCRIPT
+        # =====================================================
 
-    for keyword, weight in TECH_WEIGHTS.items():
-        if keyword in text:
-            score += weight
+        if any(
+            technology in (
+                "typescript",
+                "type script",
+                "ts",
+            )
+            for technology in technologies
+        ):
+            score += 20
+            reasons.append("+20 TypeScript")
 
-    for keyword, weight in LOCATION_WEIGHTS.items():
-        if keyword in text:
-            score += weight
+        # =====================================================
+        # PYTHON
+        # =====================================================
 
-    for keyword, weight in LEVEL_WEIGHTS.items():
-        if keyword in text:
-            score += weight
+        if any(
+            technology == "python"
+            for technology in technologies
+        ):
+            score += 10
+            reasons.append("+10 Python")
 
-    for keyword, weight in WORK_MODEL_WEIGHTS.items():
-        if keyword in text:
-            score += weight
+        # =====================================================
+        # CI/CD
+        # =====================================================
 
-    if job.get("link"):
-        score += 5
+        if any(
+            technology in (
+                "jenkins",
+                "ci/cd",
+                "ci cd",
+                "cicd",
+            )
+            for technology in technologies
+        ):
+            score += 15
+            reasons.append("+15 CI/CD")
 
-    return min(score, 100)
+        # =====================================================
+        # JIRA
+        # =====================================================
+
+        if any(
+            "jira" in technology
+            for technology in technologies
+        ):
+            score += 10
+            reasons.append("+10 Jira")
+
+        # =====================================================
+        # BROWSERSTACK
+        # =====================================================
+
+        if any(
+            "browserstack" in technology
+            for technology in technologies
+        ):
+            score += 10
+            reasons.append("+10 BrowserStack")
+
+        # =====================================================
+        # DATABASE / SQL
+        # =====================================================
+
+        if any(
+            technology in (
+                "sql",
+                "oracle",
+                "postgres",
+                "postgresql",
+                "mysql",
+                "mariadb",
+            )
+            for technology in technologies
+        ):
+            score += 10
+            reasons.append("+10 Database / SQL")
+
+        # =====================================================
+        # MANUAL ONLY
+        # =====================================================
+
+        if (
+            "manual" in title
+            and "automation" not in title
+        ):
+            score -= 20
+            reasons.append("-20 Manual Testing")
+
+        # =====================================================
+        # HYBRID
+        # =====================================================
+
+        if (
+            "hybrid" in location
+            or "híbrido" in location
+            or "hibrido" in location
+        ):
+            score -= 25
+            reasons.append("-25 Hybrid")
+
+        # =====================================================
+        # ON-SITE
+        # =====================================================
+
+        if (
+            "on-site" in location
+            or "onsite" in location
+            or "on site" in location
+            or "presencial" in location
+        ):
+            score -= 50
+            reasons.append("-50 On-site")
+
+        return score, reasons

@@ -1,3 +1,4 @@
+#tech_report.py
 """Stage 3.2 entry point for technology frequency reporting."""
 
 from agents.technology_agent import TechnologyAgent
