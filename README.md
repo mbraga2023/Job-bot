@@ -133,10 +133,13 @@ The main CLI dispatches to the commands under `src/commands`.
   Minimal Node metadata. It is not used as the main runtime tool, but keeps the `sqlite3` dependency metadata in a standard package file.
 
 - `requirements.txt`  
-  Lists the Python dependencies required by the app, including Telegram, Playwright, and data libraries.
+  Lists the Python dependencies required by the app, including Telegram, Playwright, pandas, OpenAI, and data libraries.
 
 - `job_bot_session.session`  
   Telethon session cache used to persist the Telegram login state.
+
+- `README.md`  
+  Project documentation and setup guide.
 
 ### `src/main.py`
 
@@ -165,7 +168,10 @@ Central configuration file. It loads environment variables from `.env` and defin
   Gives a weighted score based on relevant keywords and remote/location preferences. It is a heuristic ranking system.
 
 - `job_status.py`  
-  Contains the accepted values used to track the lifecycle of each job, such as `NEW`, `OPEN`, `APPLIED`, `INTERVIEW`, `REJECTED`, and `ACCEPTED`.
+  Contains the accepted values used to track the lifecycle of each job, such as `NEW`, `OPEN`, `APPLIED`, `INTERVIEW`, `REJECTED`, `ACCEPTED`, `INTERESTED`, and `DISCARDED`.
+
+- `technology_catalog.py`  
+  Maintains a comprehensive catalog of technologies, frameworks, and tools used in the job market. Provides matching and classification utilities for technology extraction from job descriptions.
 
 ### `src/services`
 
@@ -227,6 +233,21 @@ Central configuration file. It loads environment variables from `.env` and defin
 - `report.py`  
   Generates the dashboard report HTML file.
 
+- `ai_analysis.py`  
+  Entry point for AI-based job analysis using language models. Analyzes job descriptions and requirements.
+
+- `normalize.py`  
+  Normalizes and standardizes job data fields like title, company, and location across different sources.
+
+- `resume_match.py`  
+  Matches collected jobs against a resume to identify relevant opportunities.
+
+- `score.py`  
+  Wrapper for job scoring functionality, integrating keyword-based ranking and relevance calculations.
+
+- `tech_report.py`  
+  Generates technology-focused reports and analysis from the collected job data.
+
 ### `src/agents`
 
 - `telegram_collector.py`  
@@ -279,6 +300,21 @@ These are convenience batch files for running the main stages from Windows:
 
 - `test_validation_fixes.py`  
   Regression tests covering parser behavior, remote detection, score cap logic, duplicate JSON handling, and schema compatibility.
+
+### `output/`
+
+Generated output files from the pipeline runs:
+
+- `dashboard.html`  
+  Interactive HTML dashboard displaying all collected and validated jobs. Includes filtering, sorting, and job status tracking features.
+
+- `job_analysis.json`  
+  Exported JSON file containing analysis results, job metadata, AI insights, and validation data for programmatic access.
+
+### `database/`
+
+- `jobs.db`  
+  SQLite database file created automatically on first run. Contains all job data, validation results, analysis records, and application tracking information. Not included in version control.
 
 ---
 

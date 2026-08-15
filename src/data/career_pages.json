@@ -1,0 +1,186 @@
+[
+    {
+        "company": "CWI Software",
+        "careers_url": "https://cwi.com.br/talentos/oportunidades/"
+    },
+    {
+        "company": "AllianceIT Inc",
+        "careers_url": "https://allianceit.com/careers/",
+        "verify": true
+    },
+    {
+        "company": "Talent Group",
+        "careers_url": "https://talentgroup.com.br/vagas/"
+    },
+    {
+        "company": "UltraCon Consultoria",
+        "careers_url": "https://pco.ultracon.com.br/jobs/Careers"
+    },
+    {
+        "company": "Elumini Outdoing IT",
+        "careers_url": "https://elumini.enter.jobs/"
+    },
+    {
+        "company": "PSM Company",
+        "careers_url": "https://psmcompany.com.br/",
+        "notes": "Navigate to Trabalhe Conosco"
+    },
+    {
+        "company": "Abc Technology Group",
+        "careers_url": "https://abctechglobal.com/"
+    },
+    {
+        "company": "AllEasy",
+        "careers_url": "https://alleasy.com.br/vagas/"
+    },
+    {
+        "company": "Stefanini LATAM",
+        "careers_url": "https://stefanililatam.gupy.io/"
+    },
+    {
+        "company": "SysManager",
+        "careers_url": "https://sysmanager.com.br/vagas/"
+    },
+    {
+        "company": "Topaz",
+        "careers_url": "https://topazbrasil.gupy.io/"
+    },
+    {
+        "company": "Prezensa People Tech",
+        "careers_url": "https://prezensa.com/vagas"
+    },
+    {
+        "company": "HBR Energy",
+        "careers_url": "https://hbraviacao.com.br/",
+        "notes": "No dedicated careers page found"
+    },
+    {
+        "company": "Unimed CNU",
+        "careers_url": "https://un.unimed.coop.br/site/fale-conosco/trabalhe-conosco"
+    },
+    {
+        "company": "Furk.Tech",
+        "careers_url": "https://furk.tech/",
+        "notes": "No careers page found"
+    },
+    {
+        "company": "Porto Vale Consórcio",
+        "careers_url": "https://portovaleconsorcio.com.br/trabalhe-conosco"
+    },
+    {
+        "company": "ProjecTI Consultoria",
+        "careers_url": "https://projecti.com.br/category/vagas/"
+    },
+    {
+        "company": "Aubay Portugal",
+        "careers_url": "https://aubay.pt/carreira"
+    },
+    {
+        "company": "Grupo Biodinâmica",
+        "careers_url": "https://biodinamica.com.br/en/work-with-us/"
+    },
+    {
+        "company": "Code Group",
+        "careers_url": "https://codegroup.pandape.com.br/"
+    },
+    {
+        "company": "BA Global Talent",
+        "careers_url": "https://careers.baglobaltalent.com/"
+    },
+    {
+        "company": "Muralha Digital Sentry",
+        "careers_url": "https://sentry.com.br/contato/",
+        "notes": "No careers page found. Recruitment email available."
+    },
+    {
+        "company": "Longitude Incorporadora",
+        "careers_url": "https://longitude.com.br/trabalhe-conosco"
+    },
+    {
+        "company": "LINCROS",
+        "careers_url": "https://jobs.kenoby.com/lincros"
+    },
+    {
+        "company": "Bluesix Consultoria",
+        "careers_url": "https://bluesix.com.br/",
+        "notes": "No dedicated careers page found"
+    },
+    {
+        "company": "Insightful Consulting",
+        "careers_url": "https://insightful.com.br/"
+    },
+    {
+        "company": "ICL América do Sul",
+        "careers_url": "https://trabalheconosco.vagas.com.br/iclamericadosul"
+    },
+    {
+        "company": "Conquest One",
+        "careers_url": "https://jobs.conquestone.com"
+    },
+    {
+        "company": "Aurum Data Solutions Inc.",
+        "careers_url": "https://aurumdatasolutions.com/careers/"
+    },
+    {
+        "company": "Nectar (Sistemas)",
+        "careers_url": "https://nectarsistemas.com.br/fale-conosco/trabalhe-conosco/"
+    },
+    {
+        "company": "ZigZag QA",
+        "careers_url": "https://zigzagqa.com/careers/"
+    },
+    {
+        "company": "Upda",
+        "careers_url": null,
+        "verify": true,
+        "notes": "Unclear/unverified match"
+    },
+    {
+        "company": "Pocket FM",
+        "careers_url": "https://www.linkedin.com/company/pocket-fm/jobs/",
+        "notes": "No clear official careers careers_URL"
+    },
+    {
+        "company": "Latino Legends",
+        "careers_url": "https://talent.latinolegends.com/jobs"
+    },
+    {
+        "company": "M-Tech (Systems)",
+        "careers_url": "https://mtechsystems.io/careers/"
+    },
+    {
+        "company": "Georgia IT, Inc.",
+        "careers_url": "https://georgiait.com/",
+        "verify": true,
+        "notes": "Careers subpage unconfirmed"
+    },
+    {
+        "company": "GeorgiaTEK Systems Inc.",
+        "careers_url": "https://georgiatek.com/careers"
+    },
+    {
+        "company": "Webmotors",
+        "careers_url": "https://99jobs.com/webmotors"
+    },
+    {
+        "company": "NOUS LATAM",
+        "careers_url": "https://jobs.quickin.io/nouslatam/jobs"
+    },
+    {
+        "company": "Ahoy by Belago",
+        "careers_url": "https://www.linkedin.com/company/ahoybr/",
+        "notes": "No dedicated site found"
+    },
+    {
+        "company": "EnviaCurriculo",
+        "careers_url": "https://enviacurriculo.com.br/empresa"
+    },
+    {
+        "company": "J&T Express Brasil",
+        "careers_url": "https://jtexpressbr.gupy.io/"
+    },
+    {
+        "company": "Blite Tecnologia",
+        "careers_url": "https://vagas.blite.com.br/jobs"
+    }
+]

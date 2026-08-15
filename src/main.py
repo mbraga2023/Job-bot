@@ -10,6 +10,8 @@ from commands.resume_match import run as resume_match
 from commands.score import run as score
 from commands.tech_report import run as tech_report
 from commands.validate import run as validate
+from commands.careers import run as careers
+from commands.import_careers import run as import_careers
 
 from database.schema import create_database
 
@@ -17,6 +19,7 @@ from database.schema import create_database
 COMMANDS = {
     "collect": collect,
     "validate": validate,
+    "careers": careers,
     "linkedin": linkedin,
 
     "analyse": analyse,
@@ -29,6 +32,8 @@ COMMANDS = {
     "resume-match": resume_match,
 
     "report": report,
+    "import-careers": import_careers,
+
 }
 
 
