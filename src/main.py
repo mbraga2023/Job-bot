@@ -1,4 +1,6 @@
 import argparse
+import asyncio
+import inspect
 
 from commands.ai_analysis import run as ai_analysis
 from commands.analyse import run as analyse
@@ -12,6 +14,9 @@ from commands.tech_report import run as tech_report
 from commands.validate import run as validate
 from commands.careers import run as careers
 from commands.import_careers import run as import_careers
+from commands.detect_career_apis import (
+    run as detect_career_apis,
+)
 
 from database.schema import create_database
 
@@ -32,8 +37,10 @@ COMMANDS = {
     "resume-match": resume_match,
 
     "report": report,
+
     "import-careers": import_careers,
 
+    "detect-career-apis": detect_career_apis,
 }
 
 
@@ -53,7 +60,25 @@ def main():
 
     create_database()
 
-    COMMANDS[args.command]()
+    command = COMMANDS[args.command]
+
+    # ---------------------------------------------------------
+    # detect-career-apis is async
+    # ---------------------------------------------------------
+
+    if args.command == "detect-career-apis":
+
+        asyncio.run(
+            command()
+        )
+
+    # ---------------------------------------------------------
+    # All existing commands keep their original behavior
+    # ---------------------------------------------------------
+
+    else:
+
+        command()
 
 
 if __name__ == "__main__":
