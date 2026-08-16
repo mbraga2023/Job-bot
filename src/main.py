@@ -58,26 +58,15 @@ def main():
 
     args = parser.parse_args()
 
+    # Create/update database tables before running the command.
     create_database()
 
     command = COMMANDS[args.command]
 
-    # ---------------------------------------------------------
-    # detect-career-apis is async
-    # ---------------------------------------------------------
-
-    if args.command == "detect-career-apis":
-
-        asyncio.run(
-            command()
-        )
-
-    # ---------------------------------------------------------
-    # All existing commands keep their original behavior
-    # ---------------------------------------------------------
-
+    # Automatically handle both async and synchronous commands.
+    if inspect.iscoroutinefunction(command):
+        asyncio.run(command())
     else:
-
         command()
 
 

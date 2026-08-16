@@ -40,6 +40,17 @@ def import_career_sources(json_path: str):
                 source.get("careers_url") or ""
             ).strip()
 
+            search_url = (
+                source.get("search_url") or ""
+            ).strip()
+
+            if not search_url:
+                search_url = None
+
+            # -----------------------------------------------------
+            # Validate required fields
+            # -----------------------------------------------------
+
             if not company or not careers_url:
 
                 print(
@@ -50,26 +61,36 @@ def import_career_sources(json_path: str):
                 skipped += 1
                 continue
 
+            # -----------------------------------------------------
+            # Insert career source
+            # -----------------------------------------------------
+
             cursor = conn.execute(
                 """
                 INSERT OR IGNORE INTO career_sources (
 
                     company,
                     careers_url,
+                    search_url,
                     source_type,
                     active
 
                 )
 
-                VALUES (?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?)
                 """,
                 (
                     company,
                     careers_url,
+                    search_url,
                     "CAREER_PAGE",
                     1,
                 ),
             )
+
+            # -----------------------------------------------------
+            # Result
+            # -----------------------------------------------------
 
             if cursor.rowcount == 1:
 
@@ -79,6 +100,13 @@ def import_career_sources(json_path: str):
                     f"✓ Added: "
                     f"{company} -> {careers_url}"
                 )
+
+                if search_url:
+
+                    print(
+                        f"  Search URL: "
+                        f"{search_url}"
+                    )
 
             else:
 

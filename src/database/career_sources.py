@@ -3,6 +3,7 @@ import json
 
 from database.database import get_connection
 
+
 def create_career_sources_table():
 
     with get_connection() as conn:
@@ -16,9 +17,25 @@ def create_career_sources_table():
 
             careers_url TEXT NOT NULL UNIQUE,
 
+            search_url TEXT,
+
             source_type TEXT DEFAULT 'CAREER_PAGE',
 
+            api_url TEXT,
+
+            api_method TEXT,
+
+            api_config TEXT,
+
             active INTEGER DEFAULT 1,
+
+            last_checked_at DATETIME,
+
+            last_success_at DATETIME,
+
+            last_error TEXT,
+
+            discovered_jobs INTEGER DEFAULT 0,
 
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 
@@ -39,6 +56,7 @@ def get_all_career_sources():
                 id,
                 company,
                 careers_url,
+                search_url,
                 source_type,
                 active
             FROM career_sources
@@ -61,10 +79,12 @@ def get_career_source_by_url(url):
 
         return cursor.fetchone()
 
+
 def insert_career_source(
     company: str,
     careers_url: str,
-    source_type: str = "UNKNOWN",
+    search_url: str | None = None,
+    source_type: str = "CAREER_PAGE",
 ):
 
     with get_connection() as conn:
@@ -75,15 +95,17 @@ def insert_career_source(
 
                 company,
                 careers_url,
+                search_url,
                 source_type
 
             )
 
-            VALUES (?, ?, ?)
+            VALUES (?, ?, ?, ?)
             """,
             (
                 company,
                 careers_url,
+                search_url,
                 source_type,
             ),
         )
