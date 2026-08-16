@@ -13,28 +13,21 @@ from core.career_result import (
     CareerScanResult,
 )
 
+from database.career_jobs import (
+    insert_career_job,
+    deactivate_missing_jobs,
+)
+
+from database.career_sources import (
+    mark_source_checked,
+    update_career_source_status,
+)
+
 
 class CareerAnalyzer:
+
     # =========================================================
     # SEARCH TERMS
-    # =========================================================
-    #
-    # These are terms that will be submitted to the company's
-    # career search field.
-    #
-    # IMPORTANT:
-    # A search term does NOT automatically mean the resulting
-    # job is a QA job.
-    #
-    # Example:
-    #
-    # Searching "Cypress" could return:
-    #
-    #   Software Engineer
-    #   Senior Developer
-    #   QA Engineer
-    #
-    # Therefore the final relevance check is separate.
     # =========================================================
 
     SEARCH_TERMS = (
@@ -45,12 +38,6 @@ class CareerAnalyzer:
 
     # =========================================================
     # QA / TEST RELEVANCE
-    # =========================================================
-    #
-    # This pattern is used to determine whether a returned job
-    # is actually relevant.
-    #
-    # Search terms are broader than this pattern.
     # =========================================================
 
     QA_PATTERN = re.compile(
@@ -111,14 +98,13 @@ class CareerAnalyzer:
     )
 
     # =========================================================
-    # Search inputs
+    # SEARCH INPUTS
     # =========================================================
 
     SEARCH_SELECTORS = (
         "input[type='search']",
 
         "input[name='q']",
-
         "input[name*='search' i]",
         "input[name*='buscar' i]",
         "input[name*='pesquis' i]",
@@ -157,7 +143,7 @@ class CareerAnalyzer:
     )
 
     # =========================================================
-    # Job links
+    # JOB LINKS
     # =========================================================
 
     JOB_LINK_SELECTORS = (
@@ -179,7 +165,7 @@ class CareerAnalyzer:
     )
 
     # =========================================================
-    # Job result containers
+    # JOB RESULT CONTAINERS
     # =========================================================
 
     JOB_RESULT_SELECTORS = (
@@ -209,12 +195,11 @@ class CareerAnalyzer:
     )
 
     # =========================================================
-    # Cookie dialogs
+    # COOKIE DIALOGS
     # =========================================================
 
     COOKIE_DIALOG_SELECTORS = (
         "#CybotCookiebotDialog",
-
         "#onetrust-banner-sdk",
         "#onetrust-consent-sdk",
 
@@ -234,7 +219,6 @@ class CareerAnalyzer:
     )
 
     COOKIE_BUTTON_SELECTORS = (
-        # Cookiebot / GFT
         "#CybotCookiebotDialogBodyButtonDecline",
         "button:has-text('Use necessary cookies only')",
 
@@ -242,11 +226,9 @@ class CareerAnalyzer:
         "button:has-text('Allow all cookies')",
         "button:has-text('Allow all')",
 
-        # OneTrust
         "#onetrust-reject-all-handler",
         "#onetrust-accept-btn-handler",
 
-        # English
         "button:has-text('Accept all')",
         "button:has-text('Accept')",
         "button:has-text('I agree')",
@@ -255,7 +237,6 @@ class CareerAnalyzer:
         "button:has-text('Reject')",
         "button:has-text('Decline')",
 
-        # Portuguese
         "button:has-text('Aceitar todos')",
         "button:has-text('Aceitar')",
         "button:has-text('Concordo')",
@@ -267,7 +248,7 @@ class CareerAnalyzer:
     )
 
     # =========================================================
-    # Main analyzer
+    # MAIN ANALYZER
     # =========================================================
 
     async def analyze(
@@ -279,13 +260,7 @@ class CareerAnalyzer:
         await self._wait_for_page(page)
 
         # -----------------------------------------------------
-        # STEP 0
-        # Try to handle cookies.
-        #
-        # IMPORTANT:
-        # Failure to dismiss the cookie dialog is NOT treated
-        # as a page failure. Some sites, such as Gupy, can
-        # remain completely usable with the modal present.
+        # STEP 0 - Cookies
         # -----------------------------------------------------
 
         cookie_found = await self._handle_cookie_consent(
@@ -302,8 +277,7 @@ class CareerAnalyzer:
         )
 
         # -----------------------------------------------------
-        # STEP 1
-        # Collect jobs already visible.
+        # STEP 1 - Initial jobs
         # -----------------------------------------------------
 
         initial_jobs = await self._collect_jobs(
@@ -312,13 +286,9 @@ class CareerAnalyzer:
         )
 
         print(
-            f"    Job links detected on initial page: "
+            "    Job links detected on initial page: "
             f"{len(initial_jobs)}"
         )
-
-        # -----------------------------------------------------
-        # Check for job-result containers.
-        # -----------------------------------------------------
 
         initial_has_results = (
             await self._has_job_results(page)
@@ -330,7 +300,7 @@ class CareerAnalyzer:
         )
 
         # -----------------------------------------------------
-        # Check QA jobs already visible.
+        # QA jobs already visible
         # -----------------------------------------------------
 
         initial_qa_jobs = self._filter_qa_jobs(
@@ -344,15 +314,9 @@ class CareerAnalyzer:
                 f"{len(initial_qa_jobs)}"
             )
 
-            for job in initial_qa_jobs:
-
-                print(
-                    f"      ✓ {job.title}"
-                )
-
-                print(
-                    f"        {job.url}"
-                )
+            self._print_qa_jobs(
+                initial_qa_jobs
+            )
 
             return CareerScanResult(
                 success=True,
@@ -364,8 +328,7 @@ class CareerAnalyzer:
             )
 
         # -----------------------------------------------------
-        # STEP 2
-        # Find search input.
+        # STEP 2 - Find search input
         # -----------------------------------------------------
 
         print(
@@ -381,7 +344,7 @@ class CareerAnalyzer:
         )
 
         # -----------------------------------------------------
-        # No search field.
+        # No search field
         # -----------------------------------------------------
 
         if not search_input:
@@ -426,9 +389,7 @@ class CareerAnalyzer:
             )
 
         # -----------------------------------------------------
-        # STEP 3
-        #
-        # Search using multiple terms.
+        # STEP 3 - Search multiple terms
         # -----------------------------------------------------
 
         print(
@@ -436,7 +397,7 @@ class CareerAnalyzer:
         )
 
         print(
-            f"    Search terms: "
+            "    Search terms: "
             f"{', '.join(self.SEARCH_TERMS)}"
         )
 
@@ -454,8 +415,7 @@ class CareerAnalyzer:
         )
 
         # -----------------------------------------------------
-        # STEP 4
-        # Final QA relevance filtering.
+        # STEP 4 - QA relevance filtering
         # -----------------------------------------------------
 
         qa_jobs = self._filter_qa_jobs(
@@ -463,7 +423,7 @@ class CareerAnalyzer:
         )
 
         # -----------------------------------------------------
-        # QA jobs found.
+        # QA jobs found
         # -----------------------------------------------------
 
         if qa_jobs:
@@ -473,15 +433,9 @@ class CareerAnalyzer:
                 f"{len(qa_jobs)}"
             )
 
-            for job in qa_jobs:
-
-                print(
-                    f"      ✓ {job.title}"
-                )
-
-                print(
-                    f"        {job.url}"
-                )
+            self._print_qa_jobs(
+                qa_jobs
+            )
 
             return CareerScanResult(
                 success=True,
@@ -493,7 +447,7 @@ class CareerAnalyzer:
             )
 
         # -----------------------------------------------------
-        # No QA jobs.
+        # No QA jobs
         # -----------------------------------------------------
 
         searched_has_results = (
@@ -532,7 +486,107 @@ class CareerAnalyzer:
         )
 
     # =========================================================
-    # Wait for page
+    # PERSIST QA RESULTS
+    # =========================================================
+    #
+    # This method is intentionally separate from analyze().
+    #
+    # analyze() only analyzes.
+    #
+    # This method persists ONLY QA jobs.
+    # =========================================================
+
+    @staticmethod
+    def save_qa_results(
+        source_id: int,
+        result: CareerScanResult,
+    ) -> int:
+
+        qa_jobs = result.jobs or []
+
+        active_urls = []
+
+        inserted = 0
+
+        for job in qa_jobs:
+
+            job_url = (
+                CareerAnalyzer._normalize_job_url(
+                    job.url
+                )
+            )
+
+            active_urls.append(
+                job_url
+            )
+
+            insert_career_job(
+                career_source_id=source_id,
+                title=job.title,
+                company=None,
+                location=None,
+                url=job_url,
+                raw_data=job.raw_data,
+            )
+
+            inserted += 1
+
+        # -----------------------------------------------------
+        # Important:
+        #
+        # career_jobs contains ONLY QA jobs.
+        #
+        # Therefore deactivate_missing_jobs() also operates
+        # only against the QA jobs stored for this source.
+        # -----------------------------------------------------
+
+        deactivate_missing_jobs(
+            career_source_id=source_id,
+            active_urls=active_urls,
+        )
+
+        # -----------------------------------------------------
+        # Update career source statistics.
+        # -----------------------------------------------------
+
+        update_career_source_status(
+            source_id=source_id,
+            discovered_jobs=inserted,
+        )
+
+        mark_source_checked(
+            source_id=source_id,
+            success=result.success,
+            error=(
+                None
+                if result.success
+                else result.message
+            ),
+        )
+
+        return inserted
+
+    # =========================================================
+    # PRINT QA JOBS
+    # =========================================================
+
+    @staticmethod
+    def _print_qa_jobs(
+        jobs: list[CareerJob],
+    ) -> None:
+
+        for job in jobs:
+
+            print(
+                f"      ✓ {job.title}"
+            )
+
+            print(
+                f"        {job.url}"
+            )
+
+    # =========================================================
+    # WAIT FOR PAGE
     # =========================================================
 
     async def _wait_for_page(
@@ -565,7 +619,7 @@ class CareerAnalyzer:
         )
 
     # =========================================================
-    # Cookie handling
+    # COOKIE HANDLING
     # =========================================================
 
     async def _handle_cookie_consent(
@@ -593,13 +647,9 @@ class CareerAnalyzer:
                 found_dialog = True
 
                 print(
-                    f"    Cookie dialog detected: "
+                    "    Cookie dialog detected: "
                     f"{dialog_selector}"
                 )
-
-                # -------------------------------------------------
-                # Try known buttons.
-                # -------------------------------------------------
 
                 for button_selector in (
                     self.COOKIE_BUTTON_SELECTORS
@@ -617,7 +667,7 @@ class CareerAnalyzer:
                             continue
 
                         print(
-                            f"    Cookie button found: "
+                            "    Cookie button found: "
                             f"{button_selector}"
                         )
 
@@ -637,7 +687,6 @@ class CareerAnalyzer:
                                 )
 
                             except Exception:
-
                                 continue
 
                         await page.wait_for_timeout(
@@ -665,15 +714,7 @@ class CareerAnalyzer:
                             return True
 
                     except Exception:
-
                         continue
-
-                # -------------------------------------------------
-                # Important:
-                #
-                # We don't fail the page because the cookie
-                # dialog couldn't be dismissed.
-                # -------------------------------------------------
 
                 print(
                     "    Cookie dialog found, "
@@ -687,13 +728,12 @@ class CareerAnalyzer:
                 return True
 
             except Exception:
-
                 continue
 
         return found_dialog
 
     # =========================================================
-    # Collect jobs
+    # COLLECT JOBS
     # =========================================================
 
     async def _collect_jobs(
@@ -771,13 +811,12 @@ class CareerAnalyzer:
                 )
 
             except Exception:
-
                 continue
 
         return jobs
 
     # =========================================================
-    # Multi-term search
+    # MULTI-TERM SEARCH
     # =========================================================
 
     async def _search_multiple_terms(
@@ -789,31 +828,21 @@ class CareerAnalyzer:
 
         all_jobs: dict[str, CareerJob] = {}
 
-        # -----------------------------------------------------
-        # Search each term.
-        # -----------------------------------------------------
-
         for term_index, term in enumerate(
             self.SEARCH_TERMS,
             start=1,
         ):
 
-            print(
-                ""
-            )
+            print("")
 
             print(
-                "    "
-                f"[Search {term_index}/"
+                f"    [Search {term_index}/"
                 f"{len(self.SEARCH_TERMS)}] "
                 f"Searching: {term}"
             )
 
             # -------------------------------------------------
-            # Re-find the input before every search.
-            #
-            # This is important for sites like Gupy where the
-            # DOM may be updated/re-rendered after a search.
+            # Re-find input because some sites re-render it.
             # -------------------------------------------------
 
             current_input = (
@@ -830,7 +859,7 @@ class CareerAnalyzer:
                 break
 
             # -------------------------------------------------
-            # Execute search.
+            # Execute search
             # -------------------------------------------------
 
             search_success = (
@@ -850,7 +879,7 @@ class CareerAnalyzer:
                 continue
 
             # -------------------------------------------------
-            # Cookie dialog can appear again after search.
+            # Cookie dialog can appear again.
             # -------------------------------------------------
 
             await self._handle_cookie_consent(
@@ -858,7 +887,7 @@ class CareerAnalyzer:
             )
 
             # -------------------------------------------------
-            # Collect links.
+            # Collect jobs
             # -------------------------------------------------
 
             jobs = await self._collect_jobs(
@@ -872,9 +901,7 @@ class CareerAnalyzer:
             )
 
             # -------------------------------------------------
-            # Add to global dictionary.
-            #
-            # The URL is the primary deduplication key.
+            # Deduplicate
             # -------------------------------------------------
 
             new_count = 0
@@ -890,8 +917,6 @@ class CareerAnalyzer:
 
                     duplicate_count += 1
 
-                    # Preserve information about the search
-                    # terms that found this job.
                     self._append_search_term(
                         all_jobs[key],
                         term,
@@ -921,7 +946,7 @@ class CareerAnalyzer:
                 )
 
             # -------------------------------------------------
-            # Print QA matches for this specific search.
+            # QA matches for this search
             # -------------------------------------------------
 
             term_qa_jobs = (
@@ -948,16 +973,12 @@ class CareerAnalyzer:
                     f"for '{term}'"
                 )
 
-        # -----------------------------------------------------
-        # Return unique jobs.
-        # -----------------------------------------------------
-
         return list(
             all_jobs.values()
         )
 
     # =========================================================
-    # Perform one search
+    # PERFORM SEARCH
     # =========================================================
 
     async def _perform_search(
@@ -988,10 +1009,6 @@ class CareerAnalyzer:
                 f"{await search_input.get_attribute('placeholder')}"
             )
 
-            # -------------------------------------------------
-            # Clear previous search.
-            # -------------------------------------------------
-
             await search_input.fill(
                 ""
             )
@@ -1004,10 +1021,6 @@ class CareerAnalyzer:
                 "Enter"
             )
 
-            # -------------------------------------------------
-            # Wait for navigation if the site navigates.
-            # -------------------------------------------------
-
             try:
 
                 await page.wait_for_load_state(
@@ -1016,12 +1029,7 @@ class CareerAnalyzer:
                 )
 
             except PlaywrightTimeoutError:
-
                 pass
-
-            # -------------------------------------------------
-            # Allow JS-driven search results to render.
-            # -------------------------------------------------
 
             await page.wait_for_timeout(
                 2_000
@@ -1042,7 +1050,7 @@ class CareerAnalyzer:
             return False
 
     # =========================================================
-    # Filter QA jobs
+    # FILTER QA JOBS
     # =========================================================
 
     def _filter_qa_jobs(
@@ -1079,7 +1087,7 @@ class CareerAnalyzer:
         return result
 
     # =========================================================
-    # Job deduplication key
+    # JOB DEDUPLICATION KEY
     # =========================================================
 
     def _job_key(
@@ -1092,7 +1100,7 @@ class CareerAnalyzer:
         ).casefold()
 
     # =========================================================
-    # Normalize job URL
+    # NORMALIZE JOB URL
     # =========================================================
 
     @staticmethod
@@ -1106,10 +1114,6 @@ class CareerAnalyzer:
                 url
             )
 
-            # Remove query string and fragment.
-            #
-            # This is useful because some career systems append
-            # tracking parameters to the same job URL.
             normalized = urlunparse(
                 (
                     parsed.scheme,
@@ -1134,7 +1138,7 @@ class CareerAnalyzer:
             )[0].rstrip("/")
 
     # =========================================================
-    # Remember which search term found a job
+    # REMEMBER SEARCH TERM
     # =========================================================
 
     @staticmethod
@@ -1163,17 +1167,13 @@ class CareerAnalyzer:
             )
 
     # =========================================================
-    # Detect job results without relying exclusively on links
+    # DETECT JOB RESULTS
     # =========================================================
 
     async def _has_job_results(
         self,
         page: Page,
     ) -> bool:
-
-        # -----------------------------------------------------
-        # Explicit "no results" messages FIRST.
-        # -----------------------------------------------------
 
         body_text = ""
 
@@ -1186,7 +1186,6 @@ class CareerAnalyzer:
             ).casefold()
 
         except Exception:
-
             pass
 
         if body_text:
@@ -1217,7 +1216,7 @@ class CareerAnalyzer:
                     return False
 
         # -----------------------------------------------------
-        # Known result containers.
+        # Known result containers
         # -----------------------------------------------------
 
         for selector in (
@@ -1252,7 +1251,6 @@ class CareerAnalyzer:
                             visible_count += 1
 
                     except Exception:
-
                         continue
 
                 if visible_count > 0:
@@ -1266,11 +1264,10 @@ class CareerAnalyzer:
                     return True
 
             except Exception:
-
                 continue
 
         # -----------------------------------------------------
-        # Generic list items.
+        # Generic list items
         # -----------------------------------------------------
 
         try:
@@ -1320,27 +1317,21 @@ class CareerAnalyzer:
                         return True
 
                 except Exception:
-
                     continue
 
         except Exception:
-
             pass
 
         return False
 
     # =========================================================
-    # Find search input
+    # FIND SEARCH INPUT
     # =========================================================
 
     async def _find_search_input(
         self,
         page: Page,
     ):
-
-        # -----------------------------------------------------
-        # Strong selectors.
-        # -----------------------------------------------------
 
         for selector in (
             self.SEARCH_SELECTORS
@@ -1369,7 +1360,6 @@ class CareerAnalyzer:
                             continue
 
                     except Exception:
-
                         pass
 
                     if await self._is_location_input(
@@ -1378,18 +1368,17 @@ class CareerAnalyzer:
                         continue
 
                     print(
-                        f"    Selected search input: "
+                        "    Selected search input: "
                         f"{selector}"
                     )
 
                     return element
 
             except Exception:
-
                 continue
 
         # -----------------------------------------------------
-        # Fallback scoring.
+        # Fallback scoring
         # -----------------------------------------------------
 
         inputs = page.locator(
@@ -1435,7 +1424,6 @@ class CareerAnalyzer:
                     )
 
             except Exception:
-
                 continue
 
         if candidates:
@@ -1457,7 +1445,7 @@ class CareerAnalyzer:
         return None
 
     # =========================================================
-    # Determine whether input is a location field
+    # DETERMINE LOCATION INPUT
     # =========================================================
 
     async def _is_location_input(
@@ -1466,18 +1454,10 @@ class CareerAnalyzer:
     ) -> bool:
 
         attributes = (
-            await element.get_attribute(
-                "name"
-            ),
-            await element.get_attribute(
-                "id"
-            ),
-            await element.get_attribute(
-                "placeholder"
-            ),
-            await element.get_attribute(
-                "aria-label"
-            ),
+            await element.get_attribute("name"),
+            await element.get_attribute("id"),
+            await element.get_attribute("placeholder"),
+            await element.get_attribute("aria-label"),
         )
 
         text = " ".join(
@@ -1504,7 +1484,7 @@ class CareerAnalyzer:
         )
 
     # =========================================================
-    # Search input scoring
+    # SEARCH INPUT SCORE
     # =========================================================
 
     async def _search_input_score(
@@ -1513,18 +1493,10 @@ class CareerAnalyzer:
     ) -> int:
 
         attributes = (
-            await element.get_attribute(
-                "name"
-            ),
-            await element.get_attribute(
-                "id"
-            ),
-            await element.get_attribute(
-                "placeholder"
-            ),
-            await element.get_attribute(
-                "aria-label"
-            ),
+            await element.get_attribute("name"),
+            await element.get_attribute("id"),
+            await element.get_attribute("placeholder"),
+            await element.get_attribute("aria-label"),
         )
 
         text = " ".join(
@@ -1579,7 +1551,7 @@ class CareerAnalyzer:
         return score
 
     # =========================================================
-    # Determine whether a link looks like a job
+    # DETERMINE WHETHER LINK LOOKS LIKE A JOB
     # =========================================================
 
     @classmethod
@@ -1628,19 +1600,17 @@ class CareerAnalyzer:
             indicator in url_value
             for indicator in job_url_indicators
         ):
-
             return True
 
         if cls.QA_PATTERN.search(
             title
         ):
-
             return True
 
         return False
 
     # =========================================================
-    # Normalize text
+    # NORMALIZE TEXT
     # =========================================================
 
     @staticmethod
