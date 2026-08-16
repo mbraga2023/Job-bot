@@ -12,37 +12,68 @@ from commands.resume_match import run as resume_match
 from commands.score import run as score
 from commands.tech_report import run as tech_report
 from commands.validate import run as validate
+
 from commands.careers import run as careers
 from commands.import_careers import run as import_careers
 from commands.detect_career_apis import (
     run as detect_career_apis,
 )
 
+from commands.career_jobs_link_validator import (
+    run as validate_career_jobs,
+)
+
 from database.schema import create_database
 
 
+# =========================================================
+# Commands
+# =========================================================
+
 COMMANDS = {
+
+    # -----------------------------------------------------
+    # Telegram job pipeline
+    # -----------------------------------------------------
+
     "collect": collect,
+
     "validate": validate,
-    "careers": careers,
-    "linkedin": linkedin,
 
     "analyse": analyse,
 
     "normalize": normalize,
+
     "tech-report": tech_report,
+
     "score": score,
 
     "ai-analysis": ai_analysis,
+
     "resume-match": resume_match,
 
     "report": report,
 
+    "linkedin": linkedin,
+
+
+    # -----------------------------------------------------
+    # Career pipeline
+    # -----------------------------------------------------
+
+    "careers": careers,
+
     "import-careers": import_careers,
 
     "detect-career-apis": detect_career_apis,
+
+    "validate-career-jobs": validate_career_jobs,
 }
 
+
+# =========================================================
+# Main
+# =========================================================
 
 def main():
 
@@ -58,17 +89,40 @@ def main():
 
     args = parser.parse_args()
 
-    # Create/update database tables before running the command.
+    # -----------------------------------------------------
+    # Create/update database tables before running command.
+    # -----------------------------------------------------
+
     create_database()
 
-    command = COMMANDS[args.command]
+    # -----------------------------------------------------
+    # Get command
+    # -----------------------------------------------------
 
-    # Automatically handle both async and synchronous commands.
+    command = COMMANDS[
+        args.command
+    ]
+
+    # -----------------------------------------------------
+    # Automatically handle both async
+    # and synchronous commands.
+    # -----------------------------------------------------
+
     if inspect.iscoroutinefunction(command):
-        asyncio.run(command())
+
+        asyncio.run(
+            command()
+        )
+
     else:
+
         command()
 
 
+# =========================================================
+# Entry Point
+# =========================================================
+
 if __name__ == "__main__":
+
     main()

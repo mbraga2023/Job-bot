@@ -95,6 +95,75 @@ class ValidationFixesTests(unittest.TestCase):
             finally:
                 database_module.DB_PATH = original_db_path
 
+    def test_career_job_details_upsert_on_duplicate_url(self):
+        import database.database as database_module
+        from database.database import get_connection
+        from database import schema
+        from database.career_job_details import insert_career_job_details
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            temp_db = Path(tmpdir) / "test.db"
+            original_db_path = database_module.DB_PATH
+            database_module.DB_PATH = temp_db
+            try:
+                import config
+
+                config.DATABASE = temp_db
+                schema.create_database()
+
+                with get_connection() as conn:
+                    conn.execute(
+                        "INSERT INTO career_sources (id, company, careers_url) VALUES (?, ?, ?)",
+                        (1, "Acme", "https://example.com/careers"),
+                    )
+                    conn.execute(
+                        "INSERT INTO career_sources (id, company, careers_url) VALUES (?, ?, ?)",
+                        (2, "Globex", "https://example.org/careers"),
+                    )
+                    conn.execute(
+                        "INSERT INTO career_jobs (id, career_source_id, title, company, url) VALUES (?, ?, ?, ?, ?)",
+                        (1, 1, "QA Engineer", "Acme", "https://example.com/jobs/qa-engineer"),
+                    )
+                    conn.execute(
+                        "INSERT INTO career_jobs (id, career_source_id, title, company, url) VALUES (?, ?, ?, ?, ?)",
+                        (2, 2, "QA Engineer", "Globex", "https://example.com/jobs/qa-engineer/?ref=from-index"),
+                    )
+                    conn.commit()
+
+                first = {
+                    "page_not_found": False,
+                    "title": "QA Engineer",
+                    "company": "Acme",
+                    "location": "Remote",
+                    "remote": True,
+                    "level": "Mid",
+                    "contract": "CLT",
+                    "job_source": "career",
+                    "application_url": "https://example.com/apply/1",
+                    "application_source": "career",
+                    "description": "Build quality systems",
+                    "technologies": ["Python", "Playwright"],
+                    "requirements": ["Testing"],
+                    "differentials": ["CI/CD"],
+                    "benefits": ["Health plan"],
+                }
+                second = {**first, "title": "QA Engineer Updated", "company": "Globex"}
+
+                insert_career_job_details(1, "https://example.com/jobs/qa-engineer", first)
+                insert_career_job_details(2, "https://example.com/jobs/qa-engineer/?ref=from-index", second)
+
+                with get_connection() as conn:
+                    rows = conn.execute(
+                        "SELECT career_job_id, source_url, title, company FROM career_job_details"
+                    ).fetchall()
+
+                self.assertEqual(len(rows), 1)
+                self.assertEqual(rows[0]["career_job_id"], 2)
+                self.assertEqual(rows[0]["title"], "QA Engineer Updated")
+                self.assertEqual(rows[0]["company"], "Globex")
+            finally:
+                database_module.DB_PATH = original_db_path
+
     def test_technology_agent_counts_technology_frequency_from_database(self):
         import database.database as database_module
         from database.database import get_connection

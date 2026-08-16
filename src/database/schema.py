@@ -1,6 +1,16 @@
 from database.database import get_connection
-from database.career_sources import create_career_sources_table
-from database.career_jobs import create_career_jobs_table
+
+from database.career_sources import (
+    create_career_sources_table,
+)
+
+from database.career_jobs import (
+    create_career_jobs_table,
+)
+
+from database.career_job_details import (
+    create_career_job_details_table,
+)
 
 
 # =========================================================
@@ -10,10 +20,22 @@ from database.career_jobs import create_career_jobs_table
 def create_database():
     """Create all database tables."""
 
+    # -----------------------------------------------------
+    # Original job pipeline
+    # -----------------------------------------------------
+
     create_jobs_table()
     create_job_details_table()
     create_job_ai_analysis_table()
     create_resume_matches_table()
+
+    # -----------------------------------------------------
+    # Career jobs pipeline
+    # -----------------------------------------------------
+
+    create_career_sources_table()
+    create_career_jobs_table()
+    create_career_job_details_table()
 
 
 # =========================================================
@@ -197,14 +219,3 @@ def create_resume_matches_table():
         """)
 
         conn.commit()
-        
-def create_database():
-    """Create all database tables."""
-
-    create_jobs_table()
-    create_job_details_table()
-    create_job_ai_analysis_table()
-    create_resume_matches_table()
-
-    create_career_sources_table()
-    create_career_jobs_table()
