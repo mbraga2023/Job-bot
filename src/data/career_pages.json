@@ -1,12 +1,12 @@
 [
     {
-        "company": "PrimeIT",
-        "careers_url": "https://www.primeit.pt/pt/carreiras",
+        "company": "NSTECH",
+        "careers_url": "https://nstech.inhire.app/vagas",
         "search_url": null
     },
     {
-        "company": "TELUS Digital",
-        "careers_url": "https://careers.telusdigital.com/search/jobs",
-        "search_url": "https://careers.telusdigital.com/search/jobs?q=qa&location="
+        "company": "Venice Tech",
+        "careers_url": "https://vagas.venicetech.com.br/jobs",
+        "search_url": null
     }
 ]

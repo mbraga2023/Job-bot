@@ -11,8 +11,6 @@ from playwright.async_api import (
     Page,
     TimeoutError as PlaywrightTimeoutError,
 )
-
-
 class CareerJobsLinksAnalyzer:
     """
     Generic career-page analyzer.
@@ -497,10 +495,10 @@ class CareerJobsLinksAnalyzer:
         # -------------------------------------------------
 
         application_url = (
-            await self.get_application_url(
-                page
-            )
-        )
+    await self.get_application_url(
+        page
+    )
+)
 
         if application_url:
 
@@ -508,6 +506,18 @@ class CareerJobsLinksAnalyzer:
                 page.url,
                 application_url,
             )
+
+            if self.is_gupy_url(application_url):
+
+                from agents.analyzers.gupy import GupyAnalyzer
+
+                gupy_analyzer = GupyAnalyzer()
+
+                return await gupy_analyzer.analyze(
+                    page=page,
+                    application_url=application_url,
+                    fallback=fallback,
+                )
 
         # -------------------------------------------------
         # Description
@@ -2836,3 +2846,13 @@ class CareerJobsLinksAnalyzer:
             return ""
 
         return match.group(1).lower()
+      # =====================================================
+    # Gupy
+    # =====================================================
+    
+    def is_gupy_url(
+        self,
+        url: str,
+    ) -> bool:
+
+        return "gupy" in self.normalize(url)
