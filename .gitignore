@@ -13,3 +13,4 @@ output/*.ods
 output/*.json
 node_modules/*
 *.db
+storage/*

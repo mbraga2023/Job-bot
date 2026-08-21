@@ -1,12 +1,17 @@
 [
     {
-        "company": "NSTECH",
-        "careers_url": "https://nstech.inhire.app/vagas",
+        "company": "Deltek",
+        "careers_url": "https://careers.deltek.com/",
+        "search_url": "https://careers.deltek.com/?keyword=qa"
+    },
+    {
+        "company": "Cengage",
+        "careers_url": "https://cengage.wd5.myworkdayjobs.com/en-US/CengageLATAMBrazilCareers",
         "search_url": null
     },
     {
-        "company": "Venice Tech",
-        "careers_url": "https://vagas.venicetech.com.br/jobs",
+        "company": "Signify Tech",
+        "careers_url": "https://www.signifytechnology.com/jobs/",
         "search_url": null
     }
 ]
