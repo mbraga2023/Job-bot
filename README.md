@@ -1,457 +1,450 @@
-**# Job Bot**
+﻿# Job Bot
 
-This project is a Python automation pipeline for QA job discovery and tracking. It collects job opportunities from Telegram, extracts structured data, validates the source links with Playwright, stores the results in SQLite, and generates a simple dashboard for review.
+This project is a Python automation system for discovering QA jobs from public sources and storing the results in SQLite for later validation and review.
 
-The system is designed around a data pipeline:
+The project currently has two active extraction pipelines:
 
-1\. Telegram posts are parsed and stored as raw jobs.
-2\. Links are validated against source pages.
-3\. Enriched job details are saved.
-4\. Dashboard/reporting files can be generated from the validated data.
+1. Telegram extraction
+   - collects job posts from a configured Telegram channel,
+   - parses the message content,
+   - stores raw job records,
+   - validates the original job link.
 
-**---**
+2. Companies career page extraction
+   - imports company career page URLs,
+   - scans those pages for job offers,
+   - stores discovered job links in a dedicated table,
+   - validates each career job page.
 
-**## Current pipeline status
+The analysis stage and the report stage are not ready yet. The codebase contains placeholders and experimental modules for those future steps, but they are not part of the currently working pipeline.
 
-The current workflow is organized into the following stages:
+---
 
-### 1. Collect
+## Current status
 
-Imports raw job-posting data from the configured Telegram source.
+The project is organized around active data collection and validation flows rather than a finished analysis/report system.
 
-### 1.1 Validate raw Telegram jobs
+### Pipeline 1: Telegram extraction
 
-Validates links from the raw Telegram data, which are commonly redirected through `meupadrinho.com`. Valid job details are stored in `job_details`.
+This pipeline is responsible for reading Telegram job posts and turning them into structured raw job records.
 
-This stage also applies the current job-level filter and discards **Senior** positions.
-
-### 1.2 LinkedIn validation
-
-The LinkedIn validation stage is currently **partially working**.
-
-Its purpose is to:
-- determine whether the LinkedIn job is still open,
-- determine whether the position is remote,
-- update the corresponding job information.
-
-The current implementation is checking a logged-out LinkedIn page, so it does not reliably expose the required job information. This stage is therefore considered **PENDING / needs improvement**.
-
-### 1.3 Import career sources
-
-The `import-career` stage populates the `job_source` table with company career pages.
-
-There are currently approximately **397 companies** in `job_source`. Career URLs are being reviewed and corrected before relying on them for collection.
-
-The API detector is **not being used at this stage**.
-
-### 1.4 Collect career jobs
-
-The `careers` stage is currently working.
-
-It iterates through the career URLs stored in `job_source` and collects raw job-posting data into the `career_jobs` table.
-
-### 1.5 Validate career jobs
-
-This is the next validation stage to be implemented.
-
-The current `validate` workflow operates on records originating from the raw Telegram/job flow and saves validated details into `job_details`.
-
-A second validator is required for `career_jobs`. It should:
-
-1. read pending records from `career_jobs`,
-2. validate the job/application link,
-3. validate the job level and discard **Senior** positions,
-4. extract the job details,
-5. normalize the data when necessary,
-6. save the validated result into `job_details`,
-7. update the career-job validation status so the same record is not processed repeatedly.
-
-The goal is for both ingestion paths to converge on `job_details`:
+Flow:
 
 ```text
-Telegram
-   │
-   ▼
+Telegram channel
+   ↓
+collect
+   ↓
 jobs
-   │
-   ▼
+   ↓
 validate
-   │
-   ▼
+   ↓
 job_details
 ```
 
-and:
+Main stages:
+- collect raw messages from the configured Telegram channel,
+- detect QA-relevant postings,
+- discard duplicates,
+- parse the message into structured fields,
+- validate the job link and job page,
+- store validated data in job_details.
+
+### Pipeline 2: Companies career page extraction
+
+This pipeline is responsible for discovering jobs from company career pages and validating those job listings.
+
+Flow:
 
 ```text
-job_source
-   │
-   ▼
+career_sources
+   ↓
 careers
-   │
-   ▼
+   ↓
 career_jobs
-   │
-   ▼
-validate-career
-   │
-   ▼
-job_details
+   ↓
+validate-career-jobs
+   ↓
+career_job_details
 ```
 
-LinkedIn remains a separate post-validation flow until authentication/page visibility is fixed.
+Main stages:
+- import a list of career page URLs,
+- open each company career page,
+- find jobs that match QA-related criteria,
+- store those jobs in career_jobs,
+- validate each discovered application page,
+- save the validated result in career_job_details.
 
-## Project goal**
+---
 
-The bot helps a QA engineer monitor job openings from a Telegram channel, filter the ones that look relevant, and validate whether the posting still points to an active application page.
+## Environment setup
 
-It is intended to support:
+Create a .env file in the project root with:
 
-\- collection of Telegram job posts,
-\- QA/other keyword classification,
-\- duplicate detection,
-\- link validation,
-\- structured extraction of job metadata,
-\- HTML dashboard generation,
-\- future AI analysis and application tracking.
+```bash
+API_ID=your_telegram_api_id
+API_HASH=your_telegram_api_hash
+TELEGRAM_CHANNEL=@your_channel_name
+```
 
-**---**
+Then install the Python dependencies:
 
-**## Environment setup**
-
-Create a \`.env\` file in the project root with the required variables:
-
-\`\`\`bash
-API\_ID=your\_telegram\_api\_id
-API\_HASH=your\_telegram\_api\_hash
-TELEGRAM\_CHANNEL=@your\_channel\_name
-\`\`\`
-
-Then install dependencies:
-
-\`\`\`bash
+```bash
 pip install -r requirements.txt
-\`\`\`
+```
 
-**---**
+---
 
-**## Typical commands**
+## Main commands
 
-\`\`\`bash
+```bash
 python src/main.py collect
 python src/main.py validate
+python src/main.py import-careers
+python src/main.py careers
+python src/main.py validate-career-jobs
 python src/main.py linkedin
 python src/main.py analyse
 python src/main.py report
-\`\`\`
+```
 
-The main CLI dispatches to the commands under \`src/commands\`.
+The command dispatcher is in src/main.py. That file creates the database schema and routes each command to the matching module under src/commands.
 
-**---**
+The commands that are currently meaningful for the working pipelines are:
+- collect
+- validate
+- import-careers
+- careers
+- validate-career-jobs
 
-**## Repository structure**
+The commands related to analysis and reporting are still placeholders or incomplete work.
 
-\`\`\`text
+---
+
+## Repository structure
+
+```text
 .
+├── companies.txt
 ├── database/
-│   └── jobs.db                  # SQLite database (created automatically)
+│   └── jobs.db                     # SQLite database created at runtime
 ├── output/
-│   ├── dashboard.html           # HTML dashboard generated by the app
-│   └── job\_analysis.json        # exported validation/analysis JSON
+│   ├── dashboard.html              # Generated dashboard output
+│   └── job_analysis.json           # Analysis payload export (not complete yet)
 ├── scripts/
-│   ├── analyse.bat
-│   ├── collect.bat
-│   ├── full.bat
-│   ├── linkedin.bat
-│   ├── report.bat
-│   └── validate.bat            # Windows helper scripts
+│   ├── analyse.bat
+│   ├── collect.bat
+│   ├── full.bat
+│   ├── linkedin.bat
+│   ├── report.bat
+│   └── validate.bat
 ├── src/
-│   ├── agents/
-│   │   ├── analyzers/
-│   │   │   ├── linkedin.py      # LinkedIn-specific page analyzer
-│   │   │   └── meupadrinho.py  # MeuPadrinho job-page parser
-│   │   ├── job\_analyzer.py     # AI job-analysis workflow (still under construction)
-│   │   ├── link\_validator.py   # main job link validation runner
-│   │   ├── linkedin\_agent.py   # LinkedIn validation flow
-│   │   ├── report\_agent.py     # report generation agent (placeholder)
-│   │   ├── resume\_matcher.py   # resume matching logic (placeholder)
-│   │   └── telegram\_collector.py # Telegram collection workflow
-│   ├── commands/
-│   │   ├── analyse.py          # analysis command entry point
-│   │   ├── collect.py          # collection command entry point
-│   │   ├── linkedin.py         # LinkedIn validation command entry point
-│   │   ├── report.py           # dashboard/report command entry point
-│   │   └── validate.py         # validation command entry point
-│   ├── core/
-│   │   ├── classifier.py       # determines whether a job is QA-related
-│   │   ├── job\_status.py       # allowed job statuses for tracking
-│   │   ├── parser.py           # extracts title/company/location/contract metadata from Telegram text
-│   │   └── scorer.py           # keyword-based scoring heuristic
-│   ├── database/
-│   │   ├── applications.py     # application tracking CRUD
-│   │   ├── dashboard.py        # queries used for dashboard rendering
-│   │   ├── database.py         # SQLite connection helper
-│   │   ├── job\_analysis.py     # AI analysis persistence layer
-│   │   ├── job\_details.py      # validated-job detail persistence and queries
-│   │   ├── jobs.py             # raw jobs CRUD and filters
-│   │   └── schema.py           # creates all database tables
-│   ├── services/
-│   │   ├── browser\_service.py  # Playwright browser/page helper
-│   │   ├── excel\_service.py    # exports jobs to Excel
-│   │   ├── html\_service.py     # builds the HTML dashboard
-│   │   ├── json\_service.py     # JSON export/read helper for analysis data
-│   │   ├── openai\_service.py   # OpenAI integration hook
-│   │   └── telegram\_service.py # Telegram entity lookup and URL extraction helpers
-│   ├── config.py              # environment variables and app defaults
-│   ├── main.py                # CLI entry point
-│   └── \_\_pycache\_\_/
+│   ├── agents/
+│   │   ├── analyzers/
+│   │   │   ├── career.py
+│   │   │   ├── career_jobs_links.py
+│   │   │   ├── gupy.py
+│   │   │   ├── linkedin.py
+│   │   │   └── meupadrinho.py
+│   │   ├── career_agent.py
+│   │   ├── career_jobs_link_validator.py
+│   │   ├── job_analyzer.py
+│   │   ├── linkedin_agent.py
+│   │   ├── report_agent.py
+│   │   ├── resume_matcher.py
+│   │   ├── technology_agent.py
+│   │   ├── telegram_collector.py
+│   │   └── link_validator.py
+│   ├── commands/
+│   │   ├── ai_analysis.py
+│   │   ├── analyse.py
+│   │   ├── career_jobs_link_validator.py
+│   │   ├── careers.py
+│   │   ├── collect.py
+│   │   ├── detect_career_apis.py
+│   │   ├── import_careers.py
+│   │   ├── linkedin.py
+│   │   ├── linkedin_connection_test.py
+│   │   ├── normalize.py
+│   │   ├── report.py
+│   │   ├── resume_match.py
+│   │   ├── score.py
+│   │   ├── tech_report.py
+│   │   ├── validate.py
+│   │   └── __pycache__/
+│   ├── core/
+│   │   ├── career_result.py
+│   │   ├── career_source.py
+│   │   ├── classifier.py
+│   │   ├── job_status.py
+│   │   ├── parser.py
+│   │   ├── scorer.py
+│   │   └── technology_catalog.py
+│   ├── data/
+│   │   └── career_pages.json
+│   ├── database/
+│   │   ├── applications.py
+│   │   ├── career_job_details.py
+│   │   ├── career_jobs.py
+│   │   ├── career_sources.py
+│   │   ├── dashboard.py
+│   │   ├── database.py
+│   │   ├── job_analysis.py
+│   │   ├── job_details.py
+│   │   ├── jobs.py
+│   │   ├── schema.py
+│   │   └── __pycache__/
+│   ├── services/
+│   │   ├── browser_service.py
+│   │   ├── career_source_importer.py
+│   │   ├── excel_service.py
+│   │   ├── html_service.py
+│   │   ├── json_service.py
+│   │   ├── linkedin_session.py
+│   │   ├── openai_service.py
+│   │   ├── telegram_service.py
+│   │   └── __pycache__/
+│   ├── config.py
+│   ├── main.py
+│   └── __pycache__/
+├── storage/
+│   └── linkedin_profile/
+│       └── Browser and profile data for LinkedIn validation experiments
 ├── tests/
-│   └── test\_validation\_fixes.py # regression tests for parser/validation fixes
-├── package.json               # minimal package metadata for sqlite3 dependency
-├── requirements.txt           # Python dependencies
-├── README.md                  # project documentation
-└── job\_bot\_session.session     # Telethon session file
-\`\`\`
+│   └── test_validation_fixes.py
+├── companies.txt
+├── job_bot_session.session
+├── package.json
+├── requirements.txt
+├── README.md
+└── .env
+```
 
-**---**
+---
 
-**## File-by-file overview**
+## File-by-file overview
 
-**### Root files**
+### Root files
 
-\- \`package.json\`  
-  Minimal Node metadata. It is not used as the main runtime tool, but keeps the \`sqlite3\` dependency metadata in a standard package file.
+- package.json
+  Minimal Node metadata. It is not part of the main Python runtime, but it keeps metadata consistent for any frontend or dependency tooling used around the project.
 
-\- \`requirements.txt\`  
-  Lists the Python dependencies required by the app, including Telegram, Playwright, pandas, OpenAI, and data libraries.
+- requirements.txt
+  Lists the Python dependencies needed to run the Telegram client, Playwright browser automation, SQLite access, JSON processing, and optional AI/report features.
 
-\- \`job\_bot\_session.session\`  
-  Telethon session cache used to persist the Telegram login state.
+- companies.txt
+  A plain list of company names or identifiers that can be used as a reference while building the career source list.
 
-\- \`README.md\`  
-  Project documentation and setup guide.
+- job_bot_session.session
+  Telethon session file used to persist Telegram authentication between runs.
 
-**### \`src/main.py\`**
+- README.md
+  Project documentation and pipeline overview.
 
-The CLI entry point. It parses the command argument, ensures the SQLite database schema exists, and dispatches to the correct pipeline stage.
+### src/main.py
 
-**### \`src/config.py\`**
+Main CLI entry point. It defines the available commands, ensures the SQLite schema exists, and routes execution to the selected command module.
 
-Central configuration file. It loads environment variables from \`.env\` and defines defaults such as:
+### src/config.py
 
-\- Telegram API credentials,
-\- target channel,
-\- headless browser flag,
-\- output folder paths,
-\- database path,
-\- timeout and AI thresholds.
+Loads environment variables and holds project defaults like Telegram API credentials, channel name, output paths, browser headless mode, timeout values, and general app constants.
 
-**### \`src/core\`**
+### src/commands
 
-\- \`classifier.py\`  
-  Checks a job description for QA-related keywords like \`qa\`, \`automation\`, \`tester\`, \`quality assurance\`, etc. Returns \`QA\` or \`OTHER\`.
+- collect.py
+  Thin wrapper that calls the Telegram collector agent.
 
-\- \`parser.py\`  
-  Normalizes Telegram job messages and extracts fields such as title, company, location, contract, level, and description.
+- validate.py
+  Thin wrapper that calls the raw Telegram link validation flow.
 
-\- \`scorer.py\`  
-  Gives a weighted score based on relevant keywords and remote/location preferences. It is a heuristic ranking system.
+- import_careers.py
+  Reads the career source JSON file and inserts company career pages into the career_sources table.
 
-\- \`job\_status.py\`  
-  Contains the accepted values used to track the lifecycle of each job, such as \`NEW\`, \`OPEN\`, \`APPLIED\`, \`INTERVIEW\`, \`REJECTED\`, \`ACCEPTED\`, \`INTERESTED\`, and \`DISCARDED\`.
+- careers.py
+  Runs the career page agent that scans company pages and stores discovered jobs in career_jobs.
 
-\- \`technology\_catalog.py\`  
-  Maintains a comprehensive catalog of technologies, frameworks, and tools used in the job market. Provides matching and classification utilities for technology extraction from job descriptions.
+- detect_career_apis.py
+  Experimental command for detecting API-based career source formats; not the active production path.
 
-**### \`src/services\`**
+- career_jobs_link_validator.py
+  Entry point for validating discovered career job links and saving their details.
 
-\- \`telegram\_service.py\`  
-  Handles Telegram client access and utility functions such as extracting URLs from Telegram messages, checking whether a job is remote, and generating message hashes for deduplication.
+- linkedin.py
+  LinkedIn validation workflow entry point; still partial and not considered stable.
 
-\- \`browser\_service.py\`  
-  Wraps Playwright browser access and opens pages with a shared browser instance.
+- analyse.py
+  Placeholder analysis command. It is not ready and should not be treated as part of the working pipeline.
 
-\- \`excel\_service.py\`  
-  Converts the collected jobs into a pandas DataFrame and exports them to timestamped \`.xlsx\` files.
+- report.py
+  Reporting/dashboard command. This is still incomplete and not the active deliverable right now.
 
-\- \`html\_service.py\`  
-  Builds the HTML dashboard shown in \`output/dashboard.html\` and injects job data and actions into a table.
+- ai_analysis.py
+  Experimental entry point for AI-based analysis logic.
 
-\- \`json\_service.py\`  
-  Reads and writes JSON data for analysis results while deduplicating repeated records.
+- normalize.py
+  Helper command for normalizing data and repair workflows.
 
-\- \`openai\_service.py\`  
-  Intended location for OpenAI model integration. It is still a placeholder in the current implementation.
+- score.py
+  Command hook for scoring jobs or matches based on heuristics.
 
-**### \`src/database\`**
+- tech_report.py
+  Utility command related to technology extraction/reporting; still experimental.
 
-\- \`database.py\`  
-  Creates the SQLite connection and enables row-oriented access and foreign key enforcement.
+- resume_match.py
+  Command for resume-to-job matching; not fully integrated into the active pipeline.
 
-\- \`schema.py\`  
-  Creates all database tables used by the pipeline: \`jobs\`, \`job\_details\`, \`job\_ai\_analysis\`, and \`resume\_matches\`.
+- linkedin_connection_test.py
+  Small utility used to check whether LinkedIn access or page structure is usable in the current environment.
 
-\- \`jobs.py\`  
-  CRUD functions for raw Telegram jobs. Also includes queries for filtering by validation status and selecting jobs for validation.
+### src/agents
 
-\- \`job\_details.py\`  
-  Saves validated job details scraped from pages and exposes read/update helpers. It is the main storage layer for enriched job metadata.
+- telegram_collector.py
+  Runs the Telegram extraction pipeline. It connects to the configured channel, reads messages, extracts the job link, classifies the posting as QA or not, filters duplicates, and inserts raw jobs into the database.
 
-\- \`job\_analysis.py\`  
-  Stores AI analysis outputs for each job, including score, summary, strengths, weaknesses, and matching/missing skills.
+- link_validator.py
+  Validates the Telegram-derived job links, checks if the job page is still valid, and writes structured details into job_details.
 
-\- \`applications.py\`  
-  Tracks application status and follow-up dates for jobs that were applied to.
+- career_agent.py
+  Scans configured company career pages, detects QA-relevant job links, and stores them in career_jobs while marking old entries as inactive when they disappear.
 
-\- \`dashboard.py\`  
-  Reads the joined \`jobs\` + \`job\_details\` data used to render the dashboard.
+- career_jobs_link_validator.py
+  Loads pending career jobs, opens each application page in a browser, extracts the relevant details, applies discard rules for senior positions, and saves the validated result in career_job_details.
 
-**### \`src/commands\`**
+- job_analyzer.py
+  AI-oriented analysis workflow for job understanding. It exists as a future step, not the active pipeline.
 
-\- \`collect.py\`  
-  Thin wrapper that invokes the Telegram collection workflow.
+- report_agent.py
+  Placeholder for report-generation logic. Not used in the current active workflow.
 
-\- \`validate.py\`  
-  Thin wrapper that invokes the validation workflow.
+- resume_matcher.py
+  Intended for resume-to-job compatibility evaluation. Still provisional.
 
-\- \`linkedin.py\`  
-  Thin wrapper that invokes the LinkedIn-specific validation flow.
+- technology_agent.py
+  Intended to classify or summarize technologies mentioned in jobs. Not part of the current stable pipeline.
 
-\- \`analyse.py\`  
-  Current placeholder for the analysis command.
+- linkedin_agent.py
+  LinkedIn-specific validation and enrichment flow; still partial and dependent on page access quality.
 
-\- \`report.py\`  
-  Generates the dashboard report HTML file.
+- analyzers/career.py
+  Extracts job links from a company career page and decides which ones are relevant to QA work.
 
-\- \`ai\_analysis.py\`  
-  Entry point for AI-based job analysis using language models. Analyzes job descriptions and requirements.
+- analyzers/career_jobs_links.py
+  Loads a job detail page and extracts the actual job information from a company application page.
 
-\- \`normalize.py\`  
-  Normalizes and standardizes job data fields like title, company, and location across different sources.
+- analyzers/gupy.py
+  Specialized parser for Gupy-powered job pages.
 
-\- \`resume\_match.py\`  
-  Matches collected jobs against a resume to identify relevant opportunities.
+- analyzers/linkedin.py
+  LinkedIn page analyzer for job validation or metadata extraction.
 
-\- \`score.py\`  
-  Wrapper for job scoring functionality, integrating keyword-based ranking and relevance calculations.
+- analyzers/meupadrinho.py
+  Specialized parser for job links or pages that pass through MeuPadrinho redirects.
 
-\- \`tech\_report.py\`  
-  Generates technology-focused reports and analysis from the collected job data.
+### src/core
 
-**### \`src/agents\`**
+- classifier.py
+  Checks whether a job is related to QA by scanning for keywords such as qa, quality, test, automation, and similar terms.
 
-\- \`telegram\_collector.py\`  
-  The main Telegram ingestion workflow. It scans messages, extracts links, classifies jobs, checks duplicates, and saves them to the database.
+- parser.py
+  Normalizes Telegram job text and extracts title, company, location, role, contract, level, and description fields.
 
-\- \`link\_validator.py\`  
-  Iterates over pending jobs, opens the posting page using Playwright, extracts extra data with \`MeuPadrinhoAnalyzer\`, saves details, and updates validation status.
+- scorer.py
+  Applies a weighted heuristic score to rank jobs by relevance and matching criteria.
 
-\- \`linkedin\_agent.py\`  
-  Checks saved LinkedIn application URLs and updates the \`job\_status\` based on the page outcome.
+- job_status.py
+  Defines the allowed job status values used throughout the project, such as NEW, OPEN, CLOSED, INTERESTED, APPLIED, INTERVIEW, REJECTED, ACCEPTED, DISCARDED, and NOT_REMOTE.
 
-\- \`job\_analyzer.py\`  
-  Intended entry point for AI-based analysis of jobs. This part is still being developed.
+- technology_catalog.py
+  Stores or references technology keywords used by technology-related classification features.
 
-\- \`resume\_matcher.py\`  
-  Intended logic to compare a resume against job requirements. Still a placeholder.
+- career_result.py
+  Represents a parsed result from the career-page discovery workflow.
 
-\- \`report\_agent.py\`  
-  Placeholder for report or summary generation features.
+- career_source.py
+  Represents a company career source entry, including URL and metadata about the source.
 
-\- \`analyzers/meupadrinho.py\`  
-  Page-specific parser for MeuPadrinho job pages. Extracts the job title, company, description, technologies, requirements, and benefits.
+### src/services
 
-\- \`analyzers/linkedin.py\`  
-  LinkedIn validation helper that inspects the application page and infers a status such as \`OPEN\`, \`CLOSED\`, or other lifecycle states.
+- telegram_service.py
+  Provides helpers for Telegram message parsing, link extraction, remote detection, hash generation, and related text cleanup.
 
-**### \`scripts/\`**
+- browser_service.py
+  Wraps Playwright browser/page behavior so the app can open, wait, and navigate pages reliably.
 
-These are convenience batch files for running the main stages from Windows:
+- career_source_importer.py
+  Imports JSON career source data into the database and validates the structure before insertion.
 
-\- \`collect.bat\`  
-  Runs the collection pipeline.
+- excel_service.py
+  Exports job rows to spreadsheet-friendly output.
 
-\- \`validate.bat\`  
-  Runs the validation pipeline.
+- html_service.py
+  Builds the dashboard HTML page that summarizes job data.
 
-\- \`linkedin.bat\`  
-  Runs the LinkedIn validation script.
+- json_service.py
+  Appends or persists JSON analysis data used by analysis-oriented workflows.
 
-\- \`analyse.bat\`  
-  Starts the analysis pipeline.
+- openai_service.py
+  Integration point for OpenAI-based AI analysis and prompting logic.
 
-\- \`report.bat\`  
-  Generates the dashboard.
+- linkedin_session.py
+  Supports LinkedIn session handling and browser state needed for validation experiments.
 
-\- \`full.bat\`  
-  Runs the complete workflow in sequence.
+### src/database
 
-**### \`tests/\`**
+- database.py
+  Central SQLite connection helper. It opens and returns the database connection used across the project.
 
-\- \`test\_validation\_fixes.py\`  
-  Regression tests covering parser behavior, remote detection, score cap logic, duplicate JSON handling, and schema compatibility.
+- schema.py
+  Creates all database tables used by the Telegram and career pipelines.
 
-**### \`output/\`**
+- jobs.py
+  CRUD layer for the raw jobs table. Stores Telegram-discovered jobs before validation.
 
-Generated output files from the pipeline runs:
+- job_details.py
+  Stores validated Telegram job details after a link has been checked and enriched.
 
-\- \`dashboard.html\`  
-  Interactive HTML dashboard displaying all collected and validated jobs. Includes filtering, sorting, and job status tracking features.
+- job_analysis.py
+  Persistence layer for the AI analysis output associated with jobs.
 
-\- \`job\_analysis.json\`  
-  Exported JSON file containing analysis results, job metadata, AI insights, and validation data for programmatic access.
+- applications.py
+  Tracks application state or user actions for jobs.
 
-**### \`database/\`**
+- dashboard.py
+  Queries used to build dashboard summaries and reports.
 
-\- \`jobs.db\`  
-  SQLite database file created automatically on first run. Contains all job data, validation results, analysis records, and application tracking information. Not included in version control.
+- career_sources.py
+  Manages the list of tracked company career pages and their source metadata.
 
-**---**
+- career_jobs.py
+  Stores discovered jobs from company career pages before validation.
 
-**## Database model**
+- career_job_details.py
+  Stores the validated results for career-page jobs, including source URL normalization and job-status assignment.
 
-The main SQLite tables are:
+### tests
 
-\- \`jobs\`  
-  Raw collected Telegram job postings.
+- test_validation_fixes.py
+  Regression tests for validation and parsing fixes. This is the closest thing to a maintained safety net in the current codebase.
 
-\- \`job\_details\`  
-  Enriched, validated job detail records.
+---
 
-\- \`job\_ai\_analysis\`  
-  AI-generated analysis per job.
+## Notes about the current project direction
 
-\- \`resume\_matches\`  
-  Resume-to-job matching results.
+The project is not yet a finished end-to-end AI recruiting platform.
 
-\- \`applications\`  
-  User application tracking records.
+The codebase already contains the foundations for:
+- Telegram extraction,
+- career page extraction,
+- validation workflows,
+- SQLite persistence,
+- browser-based validation,
+- dashboard output.
 
-**---**
+But the stage that would turn this into a complete analysis/reporting system is still under construction. At the moment, the reliable and active parts are the two collection pipelines described above.
 
-**## Example workflow**
-
-\`\`\`bash
-python src/main.py collect
-python src/main.py validate
-python src/main.py report
-\`\`\`
-
-This sequence:
-
-1\. collects jobs,
-2\. validates them,
-3\. writes the results to SQLite,
-4\. produces a dashboard in \`output/dashboard.html\`.
-
-**---**
-
-**## Notes**
-
-This project is still evolving. Some agent modules are placeholders, but the core pipeline for collection, validation, and dashboard generation is already in place.
-
-**---**
-
-**## Author**
-
-Michel Braga
+The intended future direction is to continue from the validated records and add:
+- richer AI analysis,
+- better job scoring,
+- resume-to-job matching,
+- improved reporting and source quality monitoring.
