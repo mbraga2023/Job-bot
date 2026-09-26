@@ -21,22 +21,48 @@ from services.json_service import append_analysis
 
 def should_discard(details: dict) -> bool:
     """
-    Apply job filtering rules.
+    Keep only mid-level positions.
 
-    Senior positions are discarded because
-    the target level is Pleno.
+    Junior, estágio, and senior roles are discarded.
     """
 
     level = (
         details.get("level", "")
         .strip()
         .lower()
+        .replace("-", " ")
+        .replace("_", " ")
     )
 
-    return level in {
+    level = " ".join(level.split())
+
+    if not level:
+        return False
+
+    discarded_levels = {
+        "junior",
+        "júnior",
+        "junior level",
+        "estagio",
+        "estágio",
+        "estagiario",
+        "estagiário",
+        "estagiária",
+        "estagiaria",
+        "intern",
+        "trainee",
         "senior",
         "sênior",
+        "sr",
     }
+
+    if level in discarded_levels:
+        return True
+
+    if any(keyword in level for keyword in ("junior", "júnior", "estagio", "estágio", "estagiario", "estagiário", "estagiária", "estagiaria", "senior", "sênior")):
+        return True
+
+    return False
 
 
 async def run():

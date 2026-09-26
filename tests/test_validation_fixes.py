@@ -21,6 +21,20 @@ class ValidationFixesTests(unittest.TestCase):
         self.assertFalse(is_remote({"title": "vaga no brasil"}))
         self.assertTrue(is_remote({"title": "vaga remota"}))
 
+    def test_telegram_validation_discards_junior_estagio_and_senior(self):
+        from agents.link_validator import should_discard
+
+        self.assertTrue(should_discard({"level": "Junior"}))
+        self.assertTrue(should_discard({"level": "Júnior"}))
+        self.assertTrue(should_discard({"level": "Estágio"}))
+        self.assertTrue(should_discard({"level": "Estagiário"}))
+        self.assertTrue(should_discard({"level": "Senior"}))
+        self.assertTrue(should_discard({"level": "Sênior"}))
+
+        self.assertFalse(should_discard({"level": "Pleno"}))
+        self.assertFalse(should_discard({"level": "Mid-level"}))
+        self.assertFalse(should_discard({"level": "pleno"}))
+
     def test_scores_are_capped_at_hundred(self):
         job = {"title": "QA automation senior remote java python playwright"}
         self.assertLessEqual(scorer.score_job(job), 100)
