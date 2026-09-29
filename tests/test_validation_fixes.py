@@ -109,6 +109,62 @@ class ValidationFixesTests(unittest.TestCase):
             finally:
                 database_module.DB_PATH = original_db_path
 
+    def test_linkedin_flow_can_replace_job_link_without_overwriting_duplicates(self):
+        import database.database as database_module
+        from database.database import get_connection
+        from database.jobs import update_job_link
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            temp_db = Path(tmpdir) / "test.db"
+            original_db_path = database_module.DB_PATH
+            database_module.DB_PATH = temp_db
+            try:
+                import config
+
+                config.DATABASE = temp_db
+
+                linkedin_url = "https://www.linkedin.com/jobs/view/123/"
+                conn = get_connection()
+                try:
+                    conn.execute(
+                        "CREATE TABLE jobs (id INTEGER PRIMARY KEY, link TEXT NOT NULL UNIQUE)"
+                    )
+                    conn.execute(
+                        "INSERT INTO jobs (id, link) VALUES (?, ?)",
+                        (1, "https://meupadrinho.com/jobs/1"),
+                    )
+                    conn.execute(
+                        "INSERT INTO jobs (id, link) VALUES (?, ?)",
+                        (2, linkedin_url),
+                    )
+                    conn.commit()
+                finally:
+                    conn.close()
+
+                self.assertFalse(update_job_link(1, linkedin_url))
+                self.assertTrue(
+                    update_job_link(
+                        1,
+                        "https://www.linkedin.com/jobs/view/456/",
+                    )
+                )
+
+                conn = get_connection()
+                try:
+                    link = conn.execute(
+                        "SELECT link FROM jobs WHERE id = ?",
+                        (1,),
+                    ).fetchone()["link"]
+                finally:
+                    conn.close()
+
+                self.assertEqual(
+                    link,
+                    "https://www.linkedin.com/jobs/view/456/",
+                )
+            finally:
+                database_module.DB_PATH = original_db_path
+
     def test_career_job_details_upsert_on_duplicate_url(self):
         import database.database as database_module
         from database.database import get_connection

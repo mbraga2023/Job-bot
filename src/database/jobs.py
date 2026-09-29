@@ -295,6 +295,52 @@ def update_validation_status(
         conn.commit()
 
 
+def update_job_link(
+    job_id: int,
+    link: str,
+) -> bool:
+
+    conn = get_connection()
+    try:
+        duplicate = conn.execute(
+            """
+            SELECT 1
+
+            FROM jobs
+
+            WHERE link = ?
+              AND id != ?
+            """,
+            (
+                link,
+                job_id,
+            ),
+        ).fetchone()
+
+        if duplicate is not None:
+            return False
+
+        cursor = conn.execute(
+            """
+            UPDATE jobs
+
+            SET link = ?
+
+            WHERE id = ?
+            """,
+            (
+                link,
+                job_id,
+            ),
+        )
+
+        conn.commit()
+
+        return cursor.rowcount > 0
+    finally:
+        conn.close()
+
+
 # =========================================================
 # Delete
 # =========================================================

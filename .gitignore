@@ -6,11 +6,10 @@ __pycache__/
 
 .env
 
-database/jobs.db
+database/*
 
-output/*.xlsx
-output/*.ods
-output/*.json
+output/*
 node_modules/*
 *.db
 storage/*
+.idea/*

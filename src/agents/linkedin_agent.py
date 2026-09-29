@@ -8,6 +8,7 @@ from database.job_details import (
     get_linkedin_jobs,
     update_job_status,
 )
+from database.jobs import update_job_link
 
 
 async def run():
@@ -66,6 +67,11 @@ async def run():
                 result = await analyzer.analyze(page)
 
                 new_status = result["job_status"]
+
+                if update_job_link(job_id, url):
+                    print("Updated job link to LinkedIn page.")
+                else:
+                    print("⚠ LinkedIn page link is already assigned to another job.")
 
                 update_job_status(
                     job_id,
