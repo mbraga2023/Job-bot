@@ -1,14 +1,25 @@
 #agents/linkedin_agent.py
+from pathlib import Path
+from urllib.parse import urljoin
+
+from playwright.async_api import async_playwright
+
 from config import HEADLESS
 
 from services.linkedin_session import LinkedInSession
 from agents.analyzers.linkedin import LinkedInAnalyzer
+from agents.analyzers.meupadrinho import MeuPadrinhoAnalyzer
 
 from database.job_details import (
     get_linkedin_jobs,
+    update_application_url,
     update_job_status,
 )
 from database.jobs import update_job_link
+
+MEUPADRINHO_PROFILE_DIR = Path(
+    "storage/meupadrinho_edge_profile"
+)
 
 
 async def run():
@@ -21,7 +32,15 @@ async def run():
     print(f"Retrieved {len(jobs)} pending LinkedIn jobs.")
 
     analyzer = LinkedInAnalyzer()
+    meupadrinho_analyzer = MeuPadrinhoAnalyzer()
     session = LinkedInSession(headless=HEADLESS)
+    needs_edge = any(
+        "meupadrinho" in str(job["application_url"] or "").casefold()
+        for job in jobs
+    )
+    edge_playwright = None
+    edge_context = None
+    edge_page = None
 
     checked = 0
     opened = 0
@@ -32,6 +51,35 @@ async def run():
     total = len(jobs)
 
     try:
+        if needs_edge:
+            MEUPADRINHO_PROFILE_DIR.mkdir(
+                parents=True,
+                exist_ok=True,
+            )
+            edge_playwright = await async_playwright().start()
+
+            try:
+                edge_context = await edge_playwright.chromium.launch_persistent_context(
+                    user_data_dir=str(MEUPADRINHO_PROFILE_DIR),
+                    channel="msedge",
+                    headless=False,
+                    chromium_sandbox=True,
+                )
+            except Exception as error:
+                if "opening in existing browser session" in str(error).casefold():
+                    print(
+                        "Microsoft Edge is already using the MeuPadrinho profile. "
+                        "Close all Edge windows using this profile and rerun linkedin."
+                    )
+                    return
+                raise
+
+            edge_page = (
+                edge_context.pages[0]
+                if edge_context.pages
+                else await edge_context.new_page()
+            )
+
         # Starts the persistent browser profile and performs
         # manual login if no active session exists.
         page = await session.get_page()
@@ -52,6 +100,48 @@ async def run():
             try:
                 if job["job_status"] != "NEW":
                     print(f"→ Skipped ({job['job_status']})")
+                    continue
+
+                if "meupadrinho" in str(url or "").casefold():
+                    await edge_page.goto(
+                        url,
+                        wait_until="domcontentloaded",
+                        timeout=60_000,
+                    )
+                    await meupadrinho_analyzer.wait_for_content(
+                        edge_page
+                    )
+                    resolved_url = await meupadrinho_analyzer.get_apply_button(
+                        edge_page
+                    )
+
+                    if not resolved_url:
+                        failed += 1
+                        print(
+                            "✗ MeuPadrinho application link not found; "
+                            "keeping status NEW for retry."
+                        )
+                        continue
+
+                    url = urljoin(edge_page.url, resolved_url)
+
+                    if "linkedin.com/jobs" not in url.casefold():
+                        failed += 1
+                        print(
+                            "✗ MeuPadrinho link did not resolve to a LinkedIn job; "
+                            "keeping the current URL and status NEW."
+                        )
+                        continue
+
+                    update_application_url(job_id, url)
+                    print(f"Resolved application URL: {url}")
+
+                if "linkedin.com/jobs" not in str(url or "").casefold():
+                    failed += 1
+                    print(
+                        "✗ Application URL did not resolve to a LinkedIn job; "
+                        "keeping status NEW for retry."
+                    )
                     continue
 
                 # Reuse the authenticated page.
@@ -100,6 +190,12 @@ async def run():
                 print(f"✗ Failed: {error}")
 
     finally:
+        if edge_context:
+            await edge_context.close()
+
+        if edge_playwright:
+            await edge_playwright.stop()
+
         # This closes the browser but preserves the profile directory.
         await session.close()
 

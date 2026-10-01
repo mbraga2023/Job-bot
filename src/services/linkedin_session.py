@@ -51,7 +51,7 @@ class LinkedInSession:
             channel="chrome",
             headless=False,
             viewport={"width": 1440, "height": 900},
-            args=[],  # Do not include --no-sandbox
+            chromium_sandbox=True,
         )
 
 

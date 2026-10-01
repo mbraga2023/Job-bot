@@ -165,6 +165,95 @@ class ValidationFixesTests(unittest.TestCase):
             finally:
                 database_module.DB_PATH = original_db_path
 
+    def test_linkedin_application_url_extraction(self):
+        import asyncio
+
+        from agents.analyzers.linkedin import LinkedInAnalyzer
+
+        class LinkLocator:
+            first = None
+
+            def __init__(self, href):
+                self.href = href
+                self.first = self
+
+            async def count(self):
+                return 1
+
+            async def get_attribute(self, name):
+                return self.href
+
+        class FakePage:
+            url = "https://www.linkedin.com/jobs/view/123/"
+
+            def get_by_role(self, role, name):
+                return LinkLocator("/jobs/view/456/")
+
+        application_url = asyncio.run(
+            LinkedInAnalyzer().get_application_url(FakePage())
+        )
+        self.assertEqual(
+            application_url,
+            "https://www.linkedin.com/jobs/view/456/",
+        )
+
+    def test_linkedin_queue_includes_meupadrinho_urls_and_updates_application_url(self):
+        import sqlite3
+        from unittest.mock import patch
+
+        from database.job_details import (
+            get_linkedin_jobs,
+            update_application_url,
+        )
+
+        conn = sqlite3.connect(":memory:")
+        conn.row_factory = sqlite3.Row
+        try:
+            conn.execute(
+                """
+                CREATE TABLE job_details (
+                    job_id INTEGER PRIMARY KEY,
+                    application_url TEXT,
+                    job_status TEXT,
+                    job_source TEXT,
+                    title TEXT,
+                    company TEXT,
+                    validated_at TEXT
+                )
+                """
+            )
+            conn.executemany(
+                "INSERT INTO job_details VALUES (?, ?, ?, ?, ?, ?, ?)",
+                [
+                    (1, "https://meupadrinho.com.br/vaga/1", "NEW", "LinkedIn", "QA", "Acme", "2026-01-03"),
+                    (2, "https://www.linkedin.com/jobs/view/2", "NEW", "linkedin", "SDET", "Beta", "2026-01-02"),
+                    (3, "https://www.linkedin.com/jobs/view/3", "NEW", "Indeed", "QA", "Gamma", "2026-01-01"),
+                ],
+            )
+
+            with patch(
+                "database.job_details.get_connection",
+                return_value=conn,
+            ):
+                jobs = get_linkedin_jobs()
+                update_application_url(
+                    1,
+                    "https://www.linkedin.com/jobs/view/1",
+                )
+
+            self.assertEqual(
+                {job["job_id"] for job in jobs},
+                {1, 2},
+            )
+            self.assertEqual(
+                conn.execute(
+                    "SELECT application_url FROM job_details WHERE job_id = 1"
+                ).fetchone()[0],
+                "https://www.linkedin.com/jobs/view/1",
+            )
+        finally:
+            conn.close()
+
     def test_career_job_details_upsert_on_duplicate_url(self):
         import database.database as database_module
         from database.database import get_connection

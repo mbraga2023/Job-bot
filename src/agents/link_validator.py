@@ -1,4 +1,6 @@
 #agents/link_validator.py
+from pathlib import Path
+
 from playwright.async_api import async_playwright
 
 from config import HEADLESS, OUTPUT_FOLDER
@@ -17,6 +19,12 @@ from database.job_details import (
 
 from services.browser_service import open_page
 from services.json_service import append_analysis
+from services.linkedin_session import LinkedInSession
+from agents.analyzers.linkedin import LinkedInAnalyzer
+
+MEUPADRINHO_PROFILE_DIR = Path(
+    "storage/meupadrinho_edge_profile"
+)
 
 
 def should_discard(details: dict) -> bool:
@@ -78,6 +86,8 @@ async def run():
     )
 
     analyzer = MeuPadrinhoAnalyzer()
+    linkedin_analyzer = LinkedInAnalyzer()
+    linkedin_session = None
 
     validated = 0
     failed = 0
@@ -92,9 +102,21 @@ async def run():
 
         playwright = await async_playwright().start()
 
-        browser = await playwright.chromium.launch(
-            headless=HEADLESS
-        )
+        try:
+            browser = await playwright.chromium.launch_persistent_context(
+                user_data_dir=str(MEUPADRINHO_PROFILE_DIR),
+                channel="msedge",
+                headless=False,
+                chromium_sandbox=True,
+            )
+        except Exception as error:
+            if "opening in existing browser session" in str(error).casefold():
+                print(
+                    "Microsoft Edge is already using the MeuPadrinho profile. "
+                    "Close all Edge windows using this profile and rerun validate."
+                )
+                return
+            raise
 
         for index, job_data in enumerate(
             jobs,
@@ -119,6 +141,40 @@ async def run():
                 )
 
                 details = await analyzer.analyze(page)
+
+                if (
+                    str(details.get("job_source") or "").strip().casefold()
+                    == "linkedin"
+                    and details.get("application_url")
+                ):
+                    try:
+                        if linkedin_session is None:
+                            linkedin_session = LinkedInSession(
+                                headless=False
+                            )
+
+                        linkedin_page = await linkedin_session.get_page()
+                        await linkedin_page.goto(
+                            details["application_url"],
+                            wait_until="domcontentloaded",
+                            timeout=60_000,
+                        )
+                        extracted_url = (
+                            await linkedin_analyzer.get_application_url(
+                                linkedin_page
+                            )
+                        )
+
+                        if extracted_url:
+                            details["application_url"] = extracted_url
+                            print("✓ Updated LinkedIn application URL")
+                        else:
+                            print("⚠ LinkedIn application link not found; keeping existing URL")
+
+                    except Exception as error:
+                        print(
+                            f"⚠ Could not extract LinkedIn application link: {error}"
+                        )
 
                 # -----------------------------------------
                 # Determine job status
@@ -227,6 +283,9 @@ async def run():
                     await page.close()
 
     finally:
+
+        if linkedin_session:
+            await linkedin_session.close()
 
         if browser:
             await browser.close()

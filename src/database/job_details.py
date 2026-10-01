@@ -234,13 +234,18 @@ def get_linkedin_jobs(limit: int = 100):
                 jd.job_id,
                 jd.application_url,
                 jd.job_status,
+                jd.job_source,
                 jd.title,
                 jd.company
 
             FROM job_details jd
 
             WHERE
-                jd.application_url LIKE '%linkedin.com/jobs%'
+                LOWER(COALESCE(jd.job_source, '')) = 'linkedin'
+                AND (
+                    LOWER(COALESCE(jd.application_url, '')) LIKE '%meupadrinho%'
+                    OR LOWER(COALESCE(jd.application_url, '')) LIKE '%linkedin.com/jobs%'
+                )
                 AND jd.job_status = 'NEW'
 
             ORDER BY
@@ -302,6 +307,33 @@ def update_job_status(
             """,
             (
                 status,
+                job_id,
+            ),
+        )
+
+        conn.commit()
+
+
+def update_application_url(
+    job_id: int,
+    application_url: str,
+):
+
+    if not application_url:
+        return
+
+    with get_connection() as conn:
+
+        conn.execute(
+            """
+            UPDATE job_details
+
+            SET application_url = ?
+
+            WHERE job_id = ?
+            """,
+            (
+                application_url,
                 job_id,
             ),
         )

@@ -2,6 +2,7 @@
 # agents/analyzers/linkedin.py
 
 import re
+from urllib.parse import urljoin
 
 from playwright.async_api import (
     Page,
@@ -10,6 +11,24 @@ from playwright.async_api import (
 
 
 class LinkedInAnalyzer:
+
+    async def get_application_url(self, page: Page) -> str:
+        """Return the href of LinkedIn's "Candidate-se agora" link."""
+
+        locator = page.get_by_role(
+            "link",
+            name=re.compile(r"candidate-se agora", re.IGNORECASE),
+        ).first
+
+        try:
+            if await locator.count():
+                href = await locator.get_attribute("href")
+                if href:
+                    return urljoin(page.url, href)
+        except Exception:
+            pass
+
+        return ""
 
     async def analyze(self, page: Page) -> dict:
         """
