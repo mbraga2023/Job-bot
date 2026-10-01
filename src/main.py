@@ -18,6 +18,7 @@ from commands.import_careers import run as import_careers
 from commands.detect_career_apis import (
     run as detect_career_apis,
 )
+from commands.indeed import run as indeed
 
 from commands.career_jobs_link_validator import (
     run as validate_career_jobs,
@@ -56,6 +57,8 @@ COMMANDS = {
 
     "linkedin": linkedin,
 
+    "indeed": indeed,
+
 
     # -----------------------------------------------------
     # Career pipeline
@@ -87,13 +90,23 @@ def main():
         help="Pipeline stage to execute",
     )
 
+    parser.add_argument(
+        "url",
+        nargs="?",
+        help="Indeed URL or saved HTML file for the indeed command",
+    )
+
     args = parser.parse_args()
+
+    if args.command == "indeed" and not args.url:
+        parser.error("the indeed command requires a job URL")
 
     # -----------------------------------------------------
     # Create/update database tables before running command.
     # -----------------------------------------------------
 
-    create_database()
+    if args.command != "indeed":
+        create_database()
 
     # -----------------------------------------------------
     # Get command
@@ -108,7 +121,14 @@ def main():
     # and synchronous commands.
     # -----------------------------------------------------
 
-    if inspect.iscoroutinefunction(command):
+    if args.command == "indeed":
+
+        if inspect.iscoroutinefunction(command):
+            asyncio.run(command(args.url))
+        else:
+            command(args.url)
+
+    elif inspect.iscoroutinefunction(command):
 
         asyncio.run(
             command()

@@ -156,6 +156,7 @@ python src/main.py ai-analysis
 python src/main.py resume-match
 python src/main.py report
 python src/main.py linkedin
+python src/main.py indeed <indeed-job-url>
 python src/main.py careers
 python src/main.py import-careers
 python src/main.py detect-career-apis
@@ -239,6 +240,14 @@ python src/main.py report
 ```
 
 This is a lightweight command that calls the dashboard generator and produces HTML output in the `output` folder.
+
+### Inspect an Indeed listing
+
+```bash
+python src/main.py indeed https://www.indeed.com/viewjob?jk=your-job-id
+```
+
+This experimental, read-only command prints extracted job details, description, and relevant links to the console. It does not save records to the database.
 
 ---
 

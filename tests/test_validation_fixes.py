@@ -254,6 +254,86 @@ class ValidationFixesTests(unittest.TestCase):
         finally:
             conn.close()
 
+    def test_indeed_agent_extracts_job_posting_from_json_ld(self):
+        from agents.indeed_agent import (
+            _contains_target_keyword,
+            _find_job_posting,
+            _is_verification_page,
+            _parse_saved_html,
+            _plain_text,
+        )
+
+        structured_data = {
+            "@graph": [
+                {
+                    "@type": "Organization",
+                    "name": "Indeed",
+                },
+                {
+                    "@type": "JobPosting",
+                    "title": "QA Engineer",
+                    "description": "<p>Test <strong>web applications</strong>.</p>",
+                    "hiringOrganization": {"name": "Acme"},
+                },
+            ]
+        }
+
+        posting = _find_job_posting(structured_data)
+        self.assertEqual(posting["title"], "QA Engineer")
+        self.assertEqual(posting["hiringOrganization"]["name"], "Acme")
+        self.assertEqual(
+            _plain_text(posting["description"]),
+            "Test web applications.",
+        )
+        self.assertTrue(
+            _is_verification_page(
+                "Just a moment...",
+                "Additional Verification Required",
+                "https://br.indeed.com/viewjob",
+            )
+        )
+        self.assertFalse(
+            _is_verification_page(
+                "QA Engineer",
+                "Acme is hiring a QA Engineer",
+                "https://br.indeed.com/viewjob",
+            )
+        )
+        self.assertTrue(_contains_target_keyword("Analista de Qualidade Pleno"))
+        self.assertTrue(_contains_target_keyword("[MP] ANALISTA DE QA PLENO"))
+        self.assertTrue(_contains_target_keyword("Senior Quality Assurance"))
+        self.assertFalse(_contains_target_keyword("Quality Technician"))
+
+                snapshot = _parse_saved_html(
+                        """
+                        <!-- saved from url=(050)https://br.indeed.com/jobs?vjk=qa123 -->
+                        <div class="cardOutline">
+                            <a class="jcs-JobTitle" data-jk="qa123" href="/rc/clk?jk=qa123">
+                                Analista de Qualidade Pleno
+                            </a>
+                            <div class="companyName">Acme</div>
+                            <div class="companyLocation">Campinas, SP</div>
+                            <div class="jobMetaDataGroup">Automação de testes</div>
+                        </div>
+                        <div data-testid="viewjob-main-content">
+                            <h5 data-testid="vj-job-title">Analista de Qualidade Pleno</h5>
+                            <a href="https://br.indeed.com/cmp/Acme">Acme</a>
+                            <div id="jobDetailsSection">Descrição completa da vaga.</div>
+                            <div data-testid="primary-apply-action">
+                                <a data-testid="viewjob-indeed-apply" href="https://employer.example/apply">
+                                    Candidatar-se no site da Empresa
+                                </a>
+                            </div>
+                        </div>
+                        """
+                )
+                self.assertEqual(len(snapshot["matching_jobs"]), 1)
+                self.assertEqual(snapshot["matching_jobs"][0]["company"], "Acme")
+                self.assertEqual(
+                        snapshot["selected_pane"]["application_actions"][0]["url"],
+                        "https://employer.example/apply",
+                )
+
     def test_career_job_details_upsert_on_duplicate_url(self):
         import database.database as database_module
         from database.database import get_connection
