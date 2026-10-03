@@ -144,15 +144,24 @@ class LinkedInAnalyzer:
 
         if workplace == "REMOTE":
 
-            print(
-                "[LINKEDIN] OPEN + REMOTE:",
-                page.url,
-            )
+            easy_apply = await self._has_easy_apply(page)
+            status = "linkedin_EasyApply" if easy_apply else "OPEN"
+
+            if easy_apply:
+                print(
+                    "[LINKEDIN] OPEN + REMOTE + EASY APPLY:",
+                    page.url,
+                )
+            else:
+                print(
+                    "[LINKEDIN] OPEN + REMOTE:",
+                    page.url,
+                )
 
             return self._result(
                 applications_open=True,
                 remote=True,
-                status="OPEN",
+                status=status,
             )
 
         # =================================================
@@ -169,6 +178,40 @@ class LinkedInAnalyzer:
             remote=True,
             status="OPEN",
         )
+
+    async def _has_easy_apply(self, page: Page) -> bool:
+        button_name = re.compile(r"\beasy apply\b", re.IGNORECASE)
+
+        for selector in (
+            ".job-details-jobs-unified-top-card__container--two-pane",
+            ".jobs-unified-top-card",
+        ):
+            try:
+                sections = page.locator(selector)
+                section_count = await sections.count()
+            except Exception:
+                continue
+
+            for section_index in range(section_count):
+                section = sections.nth(section_index)
+
+                try:
+                    buttons = section.get_by_role(
+                        "button",
+                        name=button_name,
+                    )
+                    button_count = await buttons.count()
+                except Exception:
+                    continue
+
+                for button_index in range(button_count):
+                    try:
+                        if await buttons.nth(button_index).is_visible():
+                            return True
+                    except Exception:
+                        continue
+
+        return False
 
     # =====================================================
     # CLOSED

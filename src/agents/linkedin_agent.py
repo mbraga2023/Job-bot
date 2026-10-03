@@ -174,6 +174,10 @@ async def run():
                     opened += 1
                     print("✓ Job is OPEN")
 
+                elif new_status == "linkedin_EasyApply":
+                    opened += 1
+                    print("✓ Job is OPEN + EASY APPLY")
+
                 elif new_status == "CLOSED":
                     closed += 1
                     print("⚠ Job is CLOSED")

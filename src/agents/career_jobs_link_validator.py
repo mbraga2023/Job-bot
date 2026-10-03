@@ -15,6 +15,7 @@ from database.career_job_details import (
 
 from services.browser_service import open_page
 from services.json_service import append_analysis
+from services.published_date import normalize_published_date
 
 
 def should_discard(details: dict) -> bool:
@@ -113,6 +114,9 @@ async def run():
 
                 details = await analyzer.analyze(
                     page
+                )
+                details["published_date"] = normalize_published_date(
+                    details.get("published_date")
                 )
 
                 # -------------------------------------------------
