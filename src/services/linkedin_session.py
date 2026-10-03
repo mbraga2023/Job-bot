@@ -28,22 +28,14 @@ class LinkedInSession:
     LINKEDIN_URL = "https://www.linkedin.com/"
     PROFILE_DIR = Path("storage/linkedin_profile")
 
-    def __init__(
-        self,
-        headless: bool = False,
-    ):
+    def __init__(self, headless: bool = False):
         self.headless = headless
         self.playwright = None
         self.context: BrowserContext | None = None
         self.page: Page | None = None
 
-    # =====================================================
-    # Start
-    # =====================================================
-
     async def start(self) -> Page:
         self.PROFILE_DIR.mkdir(parents=True, exist_ok=True)
-
         self.playwright = await async_playwright().start()
 
         self.context = await self.playwright.chromium.launch_persistent_context(
@@ -100,6 +92,7 @@ class LinkedInSession:
             'a[href*="/in/"]',
             '[data-testid="nav-profile"]',
             'button[aria-label*="Me"]',
+            'button.global-nav__primary-link-me-menu-trigger',
             'img[alt*="Photo"]',
         ]
 
@@ -126,54 +119,48 @@ class LinkedInSession:
     async def login_manually(self) -> bool:
 
         if not self.page:
-            raise RuntimeError(
-                "Session has not been started."
-            )
+            raise RuntimeError("Session has not been started.")
 
         print()
         print("=" * 70)
-        print("LINKEDIN LOGIN")
+        print("LINKEDIN LOGIN CHECK")
         print("=" * 70)
-        print()
-        print(
-            "Please log in manually in the opened browser."
-        )
-        print(
-            "Complete any verification steps if LinkedIn"
-        )
-        print(
-            "requests them."
-        )
-        print()
-        print(
-            "Do NOT close the browser."
-        )
-        print()
-        print("=" * 70)
+        print("LinkedIn login could not be confirmed automatically.")
+        print("Check the open Chrome window before choosing an option.")
 
         while True:
-
-            await self.page.wait_for_timeout(
-                2000
-            )
-
-            if await self.is_logged_in():
-
-                print()
-                print(
-                    "✓ LinkedIn session detected."
+            try:
+                answer = await asyncio.to_thread(
+                    input,
+                    "Press Enter to retry, type 's' to skip verification, "
+                    "or 'q' to abort: ",
                 )
-                print(
-                    f"✓ Persistent profile: "
-                    f"{self.PROFILE_DIR}"
-                )
-                print()
+            except (EOFError, OSError):
+                print("No terminal input is available; stopping LinkedIn session.")
+                return False
 
+            choice = answer.strip().casefold()
+
+            if choice in {"s", "skip"}:
+                print("Skipping LinkedIn login verification for this run.")
                 return True
 
-            print(
-                "Waiting for manual LinkedIn login..."
-            )
+            if choice in {"q", "quit", "abort"}:
+                print("LinkedIn login check aborted.")
+                return False
+
+            if choice not in {"", "r", "retry"}:
+                print("Choose Enter to retry, 's' to skip, or 'q' to abort.")
+                continue
+
+            if await self.is_logged_in():
+                print()
+                print("✓ LinkedIn session detected.")
+                print(f"✓ Persistent profile: {self.PROFILE_DIR}")
+                print()
+                return True
+
+            print("LinkedIn login is still not detected.")
 
     # =====================================================
     # Ensure authenticated
@@ -207,7 +194,8 @@ class LinkedInSession:
         if not self.page:
             await self.start()
 
-        await self.ensure_authenticated()
+        if not await self.ensure_authenticated():
+            raise RuntimeError("LinkedIn login was not confirmed.")
 
         return self.page
 
