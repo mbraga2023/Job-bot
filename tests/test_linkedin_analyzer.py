@@ -3,7 +3,6 @@ import unittest
 from unittest.mock import AsyncMock
 
 from agents.analyzers.linkedin import LinkedInAnalyzer
-from core.job_status import JOB_STATUS
 
 
 class LinkedInAnalyzerTests(unittest.TestCase):
@@ -53,7 +52,7 @@ class LinkedInAnalyzerTests(unittest.TestCase):
 
         self.assertTrue(result)
 
-    def test_remote_easy_apply_job_gets_custom_status(self):
+    def test_remote_easy_apply_job_stays_open(self):
         class Body:
             async def inner_text(self, timeout):
                 return "Remote"
@@ -79,8 +78,8 @@ class LinkedInAnalyzerTests(unittest.TestCase):
 
         result = asyncio.run(analyzer.analyze(FakePage()))
 
-        self.assertEqual(result["job_status"], "linkedin_EasyApply")
-        self.assertIn(result["job_status"], JOB_STATUS)
+        self.assertEqual(result["job_status"], "OPEN")
+        self.assertTrue(result["easy_apply"])
 
     def test_remote_job_without_easy_apply_stays_open(self):
         class Body:
@@ -109,3 +108,50 @@ class LinkedInAnalyzerTests(unittest.TestCase):
         result = asyncio.run(analyzer.analyze(FakePage()))
 
         self.assertEqual(result["job_status"], "OPEN")
+
+    def test_not_remote_easy_apply_is_reported(self):
+        class Body:
+            async def inner_text(self, timeout):
+                return "Hybrid"
+
+        class Button:
+            async def is_visible(self):
+                return True
+
+        class Buttons:
+            async def count(self):
+                return 1
+
+            def nth(self, index):
+                return Button()
+
+        class EmptyButtons:
+            async def count(self):
+                return 0
+
+        class FakePage:
+            url = "https://www.linkedin.com/jobs/view/123/"
+
+            async def wait_for_load_state(self, state, timeout):
+                pass
+
+            async def wait_for_selector(self, selector, timeout):
+                pass
+
+            async def wait_for_timeout(self, timeout):
+                pass
+
+            def locator(self, selector):
+                if selector == "body":
+                    return Body()
+                if selector == 'button[aria-label*="Easy Apply" i]':
+                    return Buttons()
+                return EmptyButtons()
+
+        analyzer = LinkedInAnalyzer()
+        analyzer._detect_workplace = AsyncMock(return_value="NOT_REMOTE")
+
+        result = asyncio.run(analyzer.analyze(FakePage()))
+
+        self.assertEqual(result["job_status"], "NOT_REMOTE")
+        self.assertTrue(result["easy_apply"])

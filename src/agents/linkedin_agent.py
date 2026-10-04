@@ -13,6 +13,7 @@ from agents.analyzers.meupadrinho import MeuPadrinhoAnalyzer
 from database.job_details import (
     get_linkedin_jobs,
     update_application_url,
+    update_job_source,
     update_job_status,
 )
 from database.jobs import update_job_link
@@ -158,6 +159,12 @@ async def run():
 
                 new_status = result["job_status"]
 
+                if result["easy_apply"]:
+                    update_job_source(
+                        job_id,
+                        "linkedin_Easy_Apply",
+                    )
+
                 if update_job_link(job_id, url):
                     print("Updated job link to LinkedIn page.")
                 else:
@@ -172,11 +179,10 @@ async def run():
 
                 if new_status == "OPEN":
                     opened += 1
-                    print("✓ Job is OPEN")
-
-                elif new_status == "linkedin_EasyApply":
-                    opened += 1
-                    print("✓ Job is OPEN + EASY APPLY")
+                    if result["easy_apply"]:
+                        print("✓ Job is OPEN + EASY APPLY")
+                    else:
+                        print("✓ Job is OPEN")
 
                 elif new_status == "CLOSED":
                     closed += 1

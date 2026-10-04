@@ -314,6 +314,30 @@ def update_job_status(
         conn.commit()
 
 
+def update_job_source(
+    job_id: int,
+    source: str,
+):
+
+    with get_connection() as conn:
+
+        conn.execute(
+            """
+            UPDATE job_details
+
+            SET job_source = ?
+
+            WHERE job_id = ?
+            """,
+            (
+                source,
+                job_id,
+            ),
+        )
+
+        conn.commit()
+
+
 def update_application_url(
     job_id: int,
     application_url: str,

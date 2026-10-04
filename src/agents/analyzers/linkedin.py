@@ -121,6 +121,8 @@ class LinkedInAnalyzer:
             body=normalized_body,
         )
 
+        easy_apply = await self._has_easy_apply(page)
+
         # =================================================
         # 3. HYBRID / ON-SITE
         # =================================================
@@ -136,6 +138,7 @@ class LinkedInAnalyzer:
                 applications_open=True,
                 remote=False,
                 status="NOT_REMOTE",
+                easy_apply=easy_apply,
             )
 
         # =================================================
@@ -143,9 +146,6 @@ class LinkedInAnalyzer:
         # =================================================
 
         if workplace == "REMOTE":
-
-            easy_apply = await self._has_easy_apply(page)
-            status = "linkedin_EasyApply" if easy_apply else "OPEN"
 
             if easy_apply:
                 print(
@@ -161,7 +161,8 @@ class LinkedInAnalyzer:
             return self._result(
                 applications_open=True,
                 remote=True,
-                status=status,
+                status="OPEN",
+                easy_apply=easy_apply,
             )
 
         # =================================================
@@ -177,15 +178,18 @@ class LinkedInAnalyzer:
             applications_open=True,
             remote=True,
             status="OPEN",
+            easy_apply=easy_apply,
         )
 
     async def _has_easy_apply(self, page: Page) -> bool:
         button_name = re.compile(r"\beasy apply\b", re.IGNORECASE)
 
-        for selector in (
+        selectors = (
             ".job-details-jobs-unified-top-card__container--two-pane",
             ".jobs-unified-top-card",
-        ):
+        )
+
+        for selector in selectors:
             try:
                 sections = page.locator(selector)
                 section_count = await sections.count()
@@ -210,6 +214,13 @@ class LinkedInAnalyzer:
                             return True
                     except Exception:
                         continue
+
+        buttons = page.locator(
+            'button[aria-label*="Easy Apply" i]'
+        )
+        for button_index in range(await buttons.count()):
+            if await buttons.nth(button_index).is_visible():
+                return True
 
         return False
 
@@ -543,6 +554,7 @@ class LinkedInAnalyzer:
         applications_open: bool,
         remote: bool | None,
         status: str,
+        easy_apply: bool = False,
     ) -> dict:
 
         return {
@@ -550,4 +562,5 @@ class LinkedInAnalyzer:
             "applications_open": applications_open,
             "remote": remote,
             "job_status": status,
+            "easy_apply": easy_apply,
         }
