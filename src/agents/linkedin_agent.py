@@ -164,6 +164,13 @@ async def run():
                         job_id,
                         "linkedin_Easy_Apply",
                     )
+                elif new_status in {"OPEN", "NOT_REMOTE"}:
+                    application_url = await analyzer.get_application_url(page)
+                    if application_url:
+                        update_application_url(job_id, application_url)
+                        print(f"Final application link: {application_url}")
+                    else:
+                        print("No direct application link found.")
 
                 if update_job_link(job_id, url):
                     print("Updated job link to LinkedIn page.")

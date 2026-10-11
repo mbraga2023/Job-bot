@@ -1,11 +1,148 @@
 import asyncio
 import unittest
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
 from agents.analyzers.linkedin import LinkedInAnalyzer
 
 
 class LinkedInAnalyzerTests(unittest.TestCase):
+    def test_linkedin_command_saves_final_application_url(self):
+        from agents.linkedin_agent import run
+
+        final_url = "https://growdev.inhire.app/vagas/example/"
+        page = type(
+            "FakePage",
+            (),
+            {
+                "url": "https://www.linkedin.com/feed/",
+                "goto": AsyncMock(),
+                "wait_for_timeout": AsyncMock(),
+            },
+        )()
+        session = type(
+            "FakeSession",
+            (),
+            {
+                "get_page": AsyncMock(return_value=page),
+                "close": AsyncMock(),
+            },
+        )()
+        analyzer = type(
+            "FakeAnalyzer",
+            (),
+            {
+                "analyze": AsyncMock(
+                    return_value={
+                        "job_status": "OPEN",
+                        "remote": True,
+                        "easy_apply": False,
+                    },
+                ),
+                "get_application_url": AsyncMock(
+                    return_value=final_url,
+                ),
+            },
+        )()
+        job = {
+            "job_id": 4475462793,
+            "application_url": (
+                "https://www.linkedin.com/jobs/view/4475462793/"
+            ),
+            "job_status": "NEW",
+            "company": "Growdev",
+            "title": "Analista de Testes (QA) Pleno | Mobile",
+        }
+
+        with (
+            patch(
+                "agents.linkedin_agent.get_linkedin_jobs",
+                return_value=[job],
+            ),
+            patch(
+                "agents.linkedin_agent.LinkedInSession",
+                return_value=session,
+            ),
+            patch(
+                "agents.linkedin_agent.LinkedInAnalyzer",
+                return_value=analyzer,
+            ),
+            patch("agents.linkedin_agent.update_application_url") as save_url,
+            patch(
+                "agents.linkedin_agent.update_job_link",
+                return_value=True,
+            ),
+            patch("agents.linkedin_agent.update_job_status"),
+        ):
+            asyncio.run(run())
+
+        save_url.assert_called_once_with(job["job_id"], final_url)
+
+    def test_open_non_remote_job_without_easy_apply_extracts_apply_link(self):
+        application_url = (
+            "https://careers.example.com/apply/4475462793"
+        )
+
+        class LinkLocator:
+            first = None
+
+            def __init__(self):
+                self.first = self
+
+            async def count(self):
+                return 1
+
+            async def get_attribute(self, name):
+                return application_url
+
+        class EmptyLinkLocator(LinkLocator):
+            async def count(self):
+                return 0
+
+        class Body:
+            async def inner_text(self, timeout):
+                return "On-site"
+
+        class FakePage:
+            url = (
+                "https://www.linkedin.com/jobs/view/"
+                "analista-de-testes-qa-pleno-mobile-at-growdev-4475462793/"
+            )
+
+            async def wait_for_load_state(self, state, timeout):
+                pass
+
+            async def wait_for_selector(self, selector, timeout):
+                pass
+
+            async def wait_for_timeout(self, timeout):
+                pass
+
+            def locator(self, selector):
+                return Body()
+
+            def get_by_role(self, role, name):
+                if role == "link" and name.search("Apply"):
+                    return LinkLocator()
+                return EmptyLinkLocator()
+
+        analyzer = LinkedInAnalyzer()
+        analyzer._detect_workplace = AsyncMock(
+            return_value="NOT_REMOTE",
+        )
+        analyzer._has_easy_apply = AsyncMock(
+            return_value=False,
+        )
+
+        result = asyncio.run(analyzer.analyze(FakePage()))
+        extracted_url = asyncio.run(
+            analyzer.get_application_url(FakePage())
+        )
+
+        self.assertEqual(result["job_status"], "NOT_REMOTE")
+        self.assertFalse(result["remote"])
+        self.assertFalse(result["easy_apply"])
+        self.assertEqual(extracted_url, application_url)
+
     def test_not_currently_accepting_applications_is_closed(self):
         class Body:
             async def inner_text(self, timeout):

@@ -13,11 +13,14 @@ from playwright.async_api import (
 class LinkedInAnalyzer:
 
     async def get_application_url(self, page: Page) -> str:
-        """Return the href of LinkedIn's "Candidate-se agora" link."""
+        """Return the href of an application link if LinkedIn exposes one."""
 
         locator = page.get_by_role(
             "link",
-            name=re.compile(r"candidate-se agora", re.IGNORECASE),
+            name=re.compile(
+                r"\bapply\b|candidate-se agora",
+                re.IGNORECASE,
+            ),
         ).first
 
         try:
