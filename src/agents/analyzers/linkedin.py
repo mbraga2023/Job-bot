@@ -236,6 +236,7 @@ class LinkedInAnalyzer:
         closed_markers = (
             "no longer accepting applications",
             "no longer accepting applicants",
+            "not currently accepting applications",
             "not accepting applications",
             "applications are closed",
             "application period has ended",
