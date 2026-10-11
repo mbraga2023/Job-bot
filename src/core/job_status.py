@@ -13,5 +13,6 @@ JOB_STATUS = {
     "ACCEPTED",      # Offer accepted
     "DISCARDED",     # Ignored by user
     "NOT_REMOTE",
+    "MANUAL",        # Applied manually in the browser
     "linkedin_EasyApply",
 }

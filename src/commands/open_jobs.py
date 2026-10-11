@@ -1,5 +1,5 @@
 import html
-from database.job_details import get_jobs_to_review
+from database.job_details import get_jobs_to_review, update_job_status
 from services.browser_launcher import open_in_chrome
 
 
@@ -43,6 +43,7 @@ def run(arg: str | None = None):
     print("=" * 65)
 
     urls = []
+    job_ids = []
     for index, job in enumerate(jobs, start=1):
         url = job.get("target_url")
         if not url:
@@ -56,6 +57,7 @@ def run(arg: str | None = None):
         print(f" [{index:02d}/{len(jobs):02d}] [{status:<4}] {company} - {title}")
         print(f"        -> {url}")
         urls.append(url)
+        job_ids.append(job["job_id"])
 
     print("=" * 65)
 
@@ -65,7 +67,10 @@ def run(arg: str | None = None):
 
     success, message = open_in_chrome(urls)
     if success:
+        for job_id in job_ids:
+            update_job_status(job_id, "MANUAL")
         print(f"\n[OK] {message}\n")
+        print(f"[OK] Marked {len(job_ids)} jobs as MANUAL.\n")
     else:
         print(f"\n[X] {message}\n")
 

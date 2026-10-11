@@ -437,7 +437,7 @@ If you want to extend the project, the most natural next steps are:
   Applies a weighted heuristic score to rank jobs by relevance and matching criteria.
 
 - job_status.py
-  Defines the allowed job status values used throughout the project, such as NEW, OPEN, CLOSED, INTERESTED, APPLIED, INTERVIEW, REJECTED, ACCEPTED, DISCARDED, and NOT_REMOTE.
+  Defines the allowed job status values used throughout the project, such as NEW, OPEN, CLOSED, MANUAL (applied manually in the browser), INTERESTED, APPLIED, INTERVIEW, REJECTED, ACCEPTED, DISCARDED, and NOT_REMOTE.
 
 - technology_catalog.py
   Stores or references technology keywords used by technology-related classification features.
