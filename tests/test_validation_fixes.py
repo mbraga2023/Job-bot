@@ -304,35 +304,35 @@ class ValidationFixesTests(unittest.TestCase):
         self.assertTrue(_contains_target_keyword("Senior Quality Assurance"))
         self.assertFalse(_contains_target_keyword("Quality Technician"))
 
-                snapshot = _parse_saved_html(
-                        """
-                        <!-- saved from url=(050)https://br.indeed.com/jobs?vjk=qa123 -->
-                        <div class="cardOutline">
-                            <a class="jcs-JobTitle" data-jk="qa123" href="/rc/clk?jk=qa123">
-                                Analista de Qualidade Pleno
-                            </a>
-                            <div class="companyName">Acme</div>
-                            <div class="companyLocation">Campinas, SP</div>
-                            <div class="jobMetaDataGroup">Automação de testes</div>
-                        </div>
-                        <div data-testid="viewjob-main-content">
-                            <h5 data-testid="vj-job-title">Analista de Qualidade Pleno</h5>
-                            <a href="https://br.indeed.com/cmp/Acme">Acme</a>
-                            <div id="jobDetailsSection">Descrição completa da vaga.</div>
-                            <div data-testid="primary-apply-action">
-                                <a data-testid="viewjob-indeed-apply" href="https://employer.example/apply">
-                                    Candidatar-se no site da Empresa
-                                </a>
-                            </div>
-                        </div>
-                        """
-                )
-                self.assertEqual(len(snapshot["matching_jobs"]), 1)
-                self.assertEqual(snapshot["matching_jobs"][0]["company"], "Acme")
-                self.assertEqual(
-                        snapshot["selected_pane"]["application_actions"][0]["url"],
-                        "https://employer.example/apply",
-                )
+        snapshot = _parse_saved_html(
+            """
+            <!-- saved from url=(050)https://br.indeed.com/jobs?vjk=qa123 -->
+            <div class="cardOutline">
+                <a class="jcs-JobTitle" data-jk="qa123" href="/rc/clk?jk=qa123">
+                    Analista de Qualidade Pleno
+                </a>
+                <div class="companyName">Acme</div>
+                <div class="companyLocation">Campinas, SP</div>
+                <div class="jobMetaDataGroup">Automação de testes</div>
+            </div>
+            <div data-testid="viewjob-main-content">
+                <h5 data-testid="vj-job-title">Analista de Qualidade Pleno</h5>
+                <a href="https://br.indeed.com/cmp/Acme">Acme</a>
+                <div id="jobDetailsSection">Descrição completa da vaga.</div>
+                <div data-testid="primary-apply-action">
+                    <a data-testid="viewjob-indeed-apply" href="https://employer.example/apply">
+                        Candidatar-se no site da Empresa
+                    </a>
+                </div>
+            </div>
+            """
+        )
+        self.assertEqual(len(snapshot["matching_jobs"]), 1)
+        self.assertEqual(snapshot["matching_jobs"][0]["company"], "Acme")
+        self.assertEqual(
+            snapshot["selected_pane"]["application_actions"][0]["url"],
+            "https://employer.example/apply",
+        )
 
     def test_career_job_details_upsert_on_duplicate_url(self):
         import database.database as database_module

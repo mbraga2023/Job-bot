@@ -15,10 +15,12 @@ async def open_page(url: str, headless: bool = True, playwright=None, browser=No
 
     page = await browser.new_page()
 
-    await page.goto(
+    response = await page.goto(
         url,
         wait_until="domcontentloaded",
         timeout=TIMEOUT
     )
+
+    page.last_response = response
 
     return playwright, browser, page

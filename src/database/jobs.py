@@ -192,7 +192,7 @@ def get_jobs_by_validation_status(status: str):
         return cursor.fetchall()
 
 
-def get_meupadrinho_jobs(limit: int = 30):
+def get_meupadrinho_jobs(limit: int = 50):
 
     with get_connection() as conn:
 

@@ -39,6 +39,22 @@ class MeuPadrinhoAnalyzer:
         "nao esta mais aceitando candidaturas",
     )
 
+    RATE_LIMIT_MARKERS = (
+        "429 too many requests",
+        "too many requests",
+        "muitas requisições",
+        "muitas requisicoes",
+        "rate limit",
+        "limite de requisições excedido",
+        "limite de requisicoes excedido",
+        "bloqueado temporariamente",
+        "acesso bloqueado temporariamente",
+        "bloqueio temporario",
+        "bloqueio temporário",
+        "temporarily blocked",
+        "just a moment...",
+    )
+
     LEVELS = {
         "estágio",
         "estagio",
@@ -77,9 +93,27 @@ class MeuPadrinhoAnalyzer:
 
     async def analyze(self, page: Page) -> dict[str, Any]:
 
+        response = getattr(page, "last_response", None)
+        if response is not None and getattr(response, "status", None) == 429:
+            return {
+                "rate_limited": True,
+                "status_code": 429,
+                "page_not_found": False,
+            }
+
         await self.wait_for_content(page)
 
         lines = await self.get_lines(page)
+
+        # -------------------------------------------------
+        # Rate limit (429 / WAF / blocking)
+        # -------------------------------------------------
+        if self.is_rate_limited(page, lines):
+            return {
+                "rate_limited": True,
+                "status_code": getattr(response, "status", 429) if response else 429,
+                "page_not_found": False,
+            }
 
         # -------------------------------------------------
         # Page not found
@@ -293,6 +327,25 @@ class MeuPadrinhoAnalyzer:
     # ---------------------------------------------------
     # Helpers
     # ---------------------------------------------------
+
+    def is_rate_limited(
+        self,
+        page: Page,
+        lines: list[str],
+    ) -> bool:
+
+        response = getattr(page, "last_response", None)
+        if response is not None and getattr(response, "status", None) == 429:
+            return True
+
+        text = self.normalize(
+            " ".join(lines)
+        )
+
+        return any(
+            marker in text
+            for marker in self.RATE_LIMIT_MARKERS
+        )
 
     def is_page_not_found(
         self,

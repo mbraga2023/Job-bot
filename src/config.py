@@ -30,7 +30,8 @@ API_HASH = require_env("API_HASH")
 TELEGRAM_CHANNEL = require_env("TELEGRAM_CHANNEL")
 
 HEADLESS = True
-MAX_JOBS = 20
+VALIDATION_LIMIT = 50
+MAX_JOBS = VALIDATION_LIMIT
 OUTPUT_FOLDER = Path("output")
 DATABASE = Path("database/jobs.db")
 
@@ -38,3 +39,7 @@ OPENAI_MODEL = "gpt-5.5"
 RELEVANCE_THRESHOLD = 80
 
 TIMEOUT = 30000
+
+# Delay between page requests during validation (seconds) to prevent rate limits
+VALIDATE_DELAY_MIN = 2.5
+VALIDATE_DELAY_MAX = 5.0
