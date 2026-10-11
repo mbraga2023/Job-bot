@@ -259,6 +259,46 @@ def get_linkedin_jobs(limit: int = 100):
         return cursor.fetchall()
 
 
+def get_jobs_to_review(
+    statuses: tuple[str, ...] = ("OPEN", "NEW"),
+    limit: int | None = None,
+) -> list[dict]:
+    """
+    Returns jobs with status in statuses (default: OPEN, NEW) that are active.
+    Prioritizes OPEN jobs first, then the most recently validated jobs.
+    Target URL uses application_url if present, falling back to jobs.link.
+    """
+    with get_connection() as conn:
+        placeholders = ", ".join(["?"] * len(statuses))
+        query = f"""
+            SELECT
+                j.id AS job_id,
+                jd.title,
+                jd.company,
+                jd.location,
+                jd.remote,
+                jd.level,
+                jd.job_status,
+                jd.job_source,
+                COALESCE(NULLIF(jd.application_url, ''), j.link) AS target_url,
+                jd.validated_at
+            FROM job_details jd
+            INNER JOIN jobs j ON j.id = jd.job_id
+            WHERE jd.job_status IN ({placeholders})
+              AND jd.page_not_found = 0
+            ORDER BY
+                CASE WHEN jd.job_status = 'OPEN' THEN 0 ELSE 1 END,
+                jd.validated_at DESC
+        """
+        params = list(statuses)
+        if limit is not None and limit > 0:
+            query += " LIMIT ?"
+            params.append(limit)
+
+        cursor = conn.execute(query, params)
+        return [dict(row) for row in cursor.fetchall()]
+
+
 # =========================================================
 # Update
 # =========================================================

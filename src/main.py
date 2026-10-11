@@ -23,6 +23,7 @@ from commands.indeed import run as indeed
 from commands.career_jobs_link_validator import (
     run as validate_career_jobs,
 )
+from commands.open_jobs import run as open_jobs
 
 from database.schema import create_database
 
@@ -59,6 +60,10 @@ COMMANDS = {
 
     "indeed": indeed,
 
+    "open-jobs": open_jobs,
+
+    "open": open_jobs,
+
 
     # -----------------------------------------------------
     # Career pipeline
@@ -93,7 +98,7 @@ def main():
     parser.add_argument(
         "url",
         nargs="?",
-        help="Indeed URL or saved HTML file for the indeed command",
+        help="Optional parameter (e.g. Indeed URL, or limit/status for open-jobs)",
     )
 
     args = parser.parse_args()
@@ -121,7 +126,7 @@ def main():
     # and synchronous commands.
     # -----------------------------------------------------
 
-    if args.command == "indeed":
+    if args.command in ("indeed", "open-jobs", "open"):
 
         if inspect.iscoroutinefunction(command):
             asyncio.run(command(args.url))

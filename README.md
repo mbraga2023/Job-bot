@@ -1,4 +1,4 @@
-﻿# Job Bot
+# Job Bot
 
 Job Bot is a Python automation project for collecting, filtering, validating, and reviewing QA-focused job opportunities from Telegram and company career pages. It stores structured job records in SQLite and exposes a small CLI to run each stage of the pipeline.
 
@@ -157,6 +157,7 @@ python src/main.py resume-match
 python src/main.py report
 python src/main.py linkedin
 python src/main.py indeed <indeed-job-url>
+python src/main.py open-jobs [limit|status]
 python src/main.py careers
 python src/main.py import-careers
 python src/main.py detect-career-apis
@@ -170,6 +171,7 @@ These are the commands that align with the working collection and validation cod
 ```bash
 python src/main.py collect
 python src/main.py validate
+python src/main.py open-jobs
 python src/main.py import-careers
 python src/main.py careers
 python src/main.py validate-career-jobs
@@ -240,6 +242,24 @@ python src/main.py report
 ```
 
 This is a lightweight command that calls the dashboard generator and produces HTML output in the `output` folder.
+
+### 7) Open active jobs in browser tabs
+
+```bash
+python src/main.py open-jobs
+```
+
+Opens all validated jobs with status `OPEN` and `NEW` as separate tabs in a dedicated Google Chrome window (or default browser).
+
+Status-specific browser commands:
+```bash
+python src/main.py open-jobs OPEN    # Opens only jobs verified as OPEN
+python src/main.py open-jobs NEW     # Opens only jobs with status NEW
+
+python src/main.py open-jobs 10      # Opens the top 10 jobs
+```
+
+On Windows, you can also run [`scripts/open_jobs.bat`](scripts/open_jobs.bat) directly.
 
 ### Inspect an Indeed listing
 
