@@ -17,6 +17,7 @@ MAX_OUTPUT_CHARS = 100_000
 COMMANDS = {
     "collect": "collect",
     "validate": "validate",
+    "careers": "careers",
     "linkedin": "linkedin",
     "open": "open-jobs",
     "open-career": "open-career-jobs",
@@ -35,11 +36,15 @@ PAGE = """<!doctype html>
     main { max-width: 900px; margin: 48px auto; padding: 0 24px; }
     h1 { margin-bottom: 8px; }
     p { color: #aab6c8; }
-    .actions { display: flex; flex-wrap: wrap; gap: 12px; margin: 28px 0; }
+    .action-group { margin: 28px 0; }
+    .action-group h2 { margin: 0 0 10px; font-size: 16px; color: #aab6c8; }
+    .actions { display: flex; flex-wrap: wrap; gap: 12px; }
     button { border: 0; border-radius: 8px; padding: 12px 22px;
       background: #3478f6; color: white; font-size: 16px; cursor: pointer; }
     button:hover:not(:disabled) { background: #5590ff; }
     button:disabled { opacity: .5; cursor: wait; }
+    #stop-command { background: #bd3545; }
+    #stop-command:hover:not(:disabled) { background: #dc4658; }
     .logs-heading { display: flex; align-items: center; justify-content: space-between; }
     .logs-heading h2 { margin: 16px 0 8px; font-size: 18px; }
     #copy-logs { padding: 8px 14px; font-size: 14px; }
@@ -53,14 +58,24 @@ PAGE = """<!doctype html>
   <main>
     <h1>Job Bot</h1>
     <p>Run a workflow command. Only one command can run at a time.</p>
-    <div class="actions">
-      <button data-command="collect">Collect</button>
-      <button data-command="validate">Validate</button>
-      <button data-command="linkedin">LinkedIn</button>
-      <button data-command="open">Open jobs</button>
-      <button data-command="open-career">Open career jobs</button>
-    </div>
+    <section class="action-group" id="telegram-linkedin-flow">
+      <h2>Telegram / LinkedIn flow</h2>
+      <div class="actions">
+        <button data-command="collect">Collect</button>
+        <button data-command="validate">Validate</button>
+        <button data-command="linkedin">LinkedIn</button>
+        <button data-command="open">Open jobs</button>
+      </div>
+    </section>
+    <section class="action-group" id="career-flow">
+      <h2>Career flow</h2>
+      <div class="actions">
+        <button data-command="careers">Careers</button>
+        <button data-command="open-career">Open career jobs</button>
+      </div>
+    </section>
     <div id="status" role="status">Ready</div>
+    <button id="stop-command" type="button" disabled>Stop command</button>
     <div class="logs-heading">
       <h2>Command output</h2>
       <button id="copy-logs" type="button">Copy logs</button>
@@ -72,15 +87,19 @@ PAGE = """<!doctype html>
     const status = document.getElementById("status");
     const output = document.getElementById("output");
     const copyButton = document.getElementById("copy-logs");
+    const stopButton = document.getElementById("stop-command");
 
     async function refresh() {
       const response = await fetch("/api/status", { cache: "no-store" });
       const state = await response.json();
       buttons.forEach(button => button.disabled = state.running);
+      stopButton.disabled = !state.running || state.stopping;
       status.textContent = state.running
-        ? `Running: ${state.command}`
+        ? state.stopping
+          ? `Stopping: ${state.command}`
+          : `Running: ${state.command}`
         : state.command
-          ? `${state.command} finished (exit code ${state.return_code})`
+          ? `${state.command} ${state.stopped ? "stopped" : "finished"} (exit code ${state.return_code})`
           : "Ready";
       output.textContent = state.output || "";
     }
@@ -99,6 +118,17 @@ PAGE = """<!doctype html>
         status.textContent = `Could not start command: ${error.message}`;
       }
     }));
+
+    stopButton.addEventListener("click", async () => {
+      try {
+        const response = await fetch("/api/stop", { method: "POST" });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || response.statusText);
+        await refresh();
+      } catch (error) {
+        status.textContent = `Could not stop command: ${error.message}`;
+      }
+    });
 
     copyButton.addEventListener("click", async () => {
       try {
@@ -128,11 +158,14 @@ class DashboardController:
         self._lock = threading.Lock()
         self._state = {
             "running": False,
+            "stopping": False,
+            "stopped": False,
             "command": None,
             "return_code": None,
             "output": "",
         }
         self._process = None
+        self._stop_requested = False
 
     def state(self):
         with self._lock:
@@ -147,10 +180,13 @@ class DashboardController:
                 return False
             self._state = {
                 "running": True,
+                "stopping": False,
+                "stopped": False,
                 "command": name,
                 "return_code": None,
                 "output": f"Starting {name}...\n",
             }
+            self._stop_requested = False
 
         worker = threading.Thread(
             target=self._run_command,
@@ -158,6 +194,30 @@ class DashboardController:
             daemon=True,
         )
         worker.start()
+        return True
+
+    def stop_command(self):
+        with self._lock:
+            if not self._state["running"] or self._state["stopping"]:
+                return False
+            self._stop_requested = True
+            self._state["stopping"] = True
+            process = self._process
+
+        self._append_output("\n[dashboard] Stop requested.\n")
+        if process is not None:
+            try:
+                if process.poll() is None:
+                    process.terminate()
+            except OSError as exc:
+                if process.poll() is None:
+                    with self._lock:
+                        self._stop_requested = False
+                        self._state["stopping"] = False
+                    self._append_output(
+                        f"[dashboard error] Could not stop command: {exc}\n"
+                    )
+                    return False
         return True
 
     def _append_output(self, text):
@@ -191,7 +251,10 @@ class DashboardController:
             )
             with self._lock:
                 self._process = process
+                stop_requested = self._stop_requested
 
+            if stop_requested and process.poll() is None:
+                process.terminate()
             if process.stdout is None:
                 raise RuntimeError("Command output stream was not created.")
 
@@ -204,8 +267,13 @@ class DashboardController:
         finally:
             with self._lock:
                 self._state["running"] = False
+                self._state["stopping"] = False
+                self._state["stopped"] = (
+                    self._stop_requested and process is not None
+                )
                 self._state["return_code"] = return_code
                 self._process = None
+                self._stop_requested = False
 
 
 def _make_handler(controller):
@@ -263,6 +331,17 @@ def _make_handler(controller):
         def do_POST(self):
             if not self._valid_local_host() or not self._valid_origin():
                 self._send(403, json.dumps({"error": "Local requests only."}),
+                           "application/json; charset=utf-8")
+                return
+            if self.path == "/api/stop":
+                if not controller.stop_command():
+                    self._send(
+                        409,
+                        json.dumps({"error": "No stoppable command is running."}),
+                        "application/json; charset=utf-8",
+                    )
+                    return
+                self._send(202, json.dumps({"stopping": True}),
                            "application/json; charset=utf-8")
                 return
             if self.path != "/api/run":

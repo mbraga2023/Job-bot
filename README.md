@@ -244,9 +244,11 @@ python src/main.py dashboard
 ```
 
 This starts the Job Bot dashboard at `http://127.0.0.1:8765/` and opens it in
-your browser. Use its Collect, Validate, LinkedIn, and Open jobs buttons to run
-those commands and view their output. Only one command runs at a time. Set
-`JOB_BOT_DASHBOARD_PORT` to choose another port.
+your browser. Its first button row groups Collect, Validate, LinkedIn, and Open
+jobs for the Telegram/LinkedIn flow; the second row groups Careers and Open
+career jobs. Use **Stop command** to terminate the currently running command.
+Only one command runs at a time. Set `JOB_BOT_DASHBOARD_PORT` to choose another
+port.
 
 The separate `report` command still generates a static jobs table at
 `output/dashboard.html`.

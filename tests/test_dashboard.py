@@ -1,6 +1,7 @@
 import json
 import tempfile
 import threading
+import time
 import unittest
 from http.server import ThreadingHTTPServer
 from pathlib import Path
@@ -46,6 +47,7 @@ class DashboardTests(unittest.TestCase):
     def test_open_action_maps_to_existing_open_jobs_command(self):
         self.assertEqual(COMMANDS["open"], "open-jobs")
         self.assertEqual(COMMANDS["open-career"], "open-career-jobs")
+        self.assertEqual(COMMANDS["careers"], "careers")
 
     def test_open_action_launches_cli_and_captures_output(self):
         class FakeProcess:
@@ -68,8 +70,105 @@ class DashboardTests(unittest.TestCase):
         self.assertEqual(options["env"]["PYTHONIOENCODING"], "utf-8")
         self.assertEqual(options["env"]["PYTHONUTF8"], "1")
         self.assertFalse(controller.state()["running"])
+        self.assertFalse(controller.state()["stopped"])
         self.assertEqual(controller.state()["return_code"], 0)
         self.assertIn("opened jobs", controller.state()["output"])
+
+    def test_dashboard_page_groups_flows_and_has_stop_button(self):
+        with urlopen(self.url + "/") as response:
+            page = response.read().decode("utf-8")
+
+        telegram_group = page.index('id="telegram-linkedin-flow"')
+        career_group = page.index('id="career-flow"')
+        self.assertLess(telegram_group, career_group)
+        telegram_markup = page[telegram_group:career_group]
+        career_markup = page[career_group:page.index('id="status"')]
+        self.assertIn('data-command="collect"', telegram_markup)
+        self.assertIn('data-command="validate"', telegram_markup)
+        self.assertIn('data-command="linkedin"', telegram_markup)
+        self.assertIn('data-command="open"', telegram_markup)
+        self.assertIn('data-command="careers"', career_markup)
+        self.assertIn('data-command="open-career"', career_markup)
+        self.assertIn('id="stop-command"', page)
+        self.assertIn('fetch("/api/stop"', page)
+
+    def test_stop_command_terminates_running_child(self):
+        class FakeProcess:
+            def __init__(self):
+                self.terminated = False
+
+            def poll(self):
+                return None
+
+            def terminate(self):
+                self.terminated = True
+
+        process = FakeProcess()
+        self.controller._state.update(running=True, command="collect")
+        self.controller._process = process
+
+        self.assertTrue(self.controller.stop_command())
+        self.assertTrue(process.terminated)
+        self.assertTrue(self.controller.state()["stopping"])
+
+    def test_stop_command_covers_process_startup_race(self):
+        spawn_started = threading.Event()
+        allow_spawn = threading.Event()
+
+        class FakeProcess:
+            stdout = ()
+            returncode = -15
+            terminated = False
+
+            def poll(self):
+                return 0 if self.terminated else None
+
+            def terminate(self):
+                self.terminated = True
+
+            def wait(self):
+                return self.returncode
+
+        process = FakeProcess()
+
+        def fake_popen(*args, **kwargs):
+            spawn_started.set()
+            if not allow_spawn.wait(timeout=2):
+                raise TimeoutError("Test did not release process startup.")
+            return process
+
+        with patch("commands.dashboard.subprocess.Popen", side_effect=fake_popen):
+            self.assertTrue(self.controller.start_command("collect"))
+            self.assertTrue(spawn_started.wait(timeout=2))
+            self.assertTrue(self.controller.stop_command())
+            allow_spawn.set()
+
+            deadline = time.monotonic() + 3
+            while self.controller.state()["running"] and time.monotonic() < deadline:
+                time.sleep(0.01)
+
+        self.assertTrue(process.terminated)
+        self.assertFalse(self.controller.state()["running"])
+        self.assertTrue(self.controller.state()["stopped"])
+
+    def test_stop_endpoint_requests_termination(self):
+        self.controller._state.update(running=True, command="collect")
+        with patch.object(
+            self.controller,
+            "stop_command",
+            return_value=True,
+        ) as stop_command:
+            request = Request(
+                self.url + "/api/stop",
+                data=b"",
+                method="POST",
+            )
+            with urlopen(request) as response:
+                result = json.loads(response.read())
+
+        self.assertEqual(response.status, 202)
+        self.assertEqual(result, {"stopping": True})
+        stop_command.assert_called_once_with()
 
     def test_child_command_captures_unicode_output(self):
         controller = DashboardController()
