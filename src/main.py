@@ -5,6 +5,7 @@ import inspect
 from commands.ai_analysis import run as ai_analysis
 from commands.analyse import run as analyse
 from commands.collect import run as collect
+from commands.dashboard import run as dashboard
 from commands.linkedin import run as linkedin
 from commands.normalize import run as normalize
 from commands.report import run as report
@@ -55,6 +56,8 @@ COMMANDS = {
     "resume-match": resume_match,
 
     "report": report,
+
+    "dashboard": dashboard,
 
     "linkedin": linkedin,
 

@@ -162,6 +162,7 @@ python src/main.py careers
 python src/main.py import-careers
 python src/main.py detect-career-apis
 python src/main.py validate-career-jobs
+python src/main.py dashboard
 ```
 
 ### Functional / active flows
@@ -172,6 +173,7 @@ These are the commands that align with the working collection and validation cod
 python src/main.py collect
 python src/main.py validate
 python src/main.py open-jobs
+python src/main.py dashboard
 python src/main.py import-careers
 python src/main.py careers
 python src/main.py validate-career-jobs
@@ -235,13 +237,19 @@ python src/main.py validate-career-jobs
 
 This revisits the discovered career links and writes details to `career_job_details`.
 
-### 6) Generate the dashboard
+### 6) Run the local dashboard
 
 ```bash
-python src/main.py report
+python src/main.py dashboard
 ```
 
-This is a lightweight command that calls the dashboard generator and produces HTML output in the `output` folder.
+This starts the Job Bot dashboard at `http://127.0.0.1:8765/` and opens it in
+your browser. Use its Collect, Validate, LinkedIn, and Open jobs buttons to run
+those commands and view their output. Only one command runs at a time. Set
+`JOB_BOT_DASHBOARD_PORT` to choose another port.
+
+The separate `report` command still generates a static jobs table at
+`output/dashboard.html`.
 
 ### 7) Open active jobs in browser tabs
 
