@@ -570,6 +570,27 @@ def get_all_career_job_details():
     ]
 
 
+def get_new_career_job_details():
+    """Return validated career jobs still awaiting manual review."""
+    with get_connection() as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                career_job_id,
+                source_url,
+                title,
+                company,
+                level,
+                validated_at
+            FROM career_job_details
+            WHERE job_status = 'NEW'
+            ORDER BY validated_at ASC
+            """
+        ).fetchall()
+
+    return [dict(row) for row in rows]
+
+
 # =========================================================
 # Update
 # =========================================================

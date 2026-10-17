@@ -162,6 +162,7 @@ python src/main.py careers
 python src/main.py import-careers
 python src/main.py detect-career-apis
 python src/main.py validate-career-jobs
+python src/main.py open-career-jobs
 python src/main.py dashboard
 ```
 
@@ -236,6 +237,17 @@ python src/main.py validate-career-jobs
 ```
 
 This revisits the discovered career links and writes details to `career_job_details`.
+Existing rows in `career_job_details` with status `NEW` are also checked:
+Junior-level jobs and jobs validated more than 30 days ago are marked
+`DISCARDED`.
+
+Open the remaining eligible career job pages in Chrome with:
+
+```bash
+python src/main.py open-career-jobs
+```
+
+Jobs are marked `MANUAL` after Chrome successfully opens their pages.
 
 ### 6) Run the local dashboard
 
@@ -244,7 +256,7 @@ python src/main.py dashboard
 ```
 
 This starts the Job Bot dashboard at `http://127.0.0.1:8765/` and opens it in
-your browser. Use its Collect, Validate, LinkedIn, and Open jobs buttons to run
+your browser. Use its Collect, Validate, LinkedIn, Open jobs, and Open career jobs buttons to run
 those commands and view their output. Only one command runs at a time. Set
 `JOB_BOT_DASHBOARD_PORT` to choose another port.
 

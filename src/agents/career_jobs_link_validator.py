@@ -16,6 +16,7 @@ from database.career_job_details import (
 from services.browser_service import open_page
 from services.json_service import append_analysis
 from services.published_date import normalize_published_date
+from services.career_job_review import discard_ineligible_new_career_jobs
 
 
 def should_discard(details: dict) -> bool:
@@ -45,6 +46,14 @@ def should_discard(details: dict) -> bool:
 
 
 async def run():
+
+    discarded_existing = discard_ineligible_new_career_jobs()
+    if any(discarded_existing.values()):
+        print(
+            "[INFO] Existing NEW career jobs discarded: "
+            f"{discarded_existing['junior']} junior, "
+            f"{discarded_existing['stale']} older than 30 days."
+        )
 
     # ---------------------------------------------------------
     # Get career jobs whose URL is NOT already represented

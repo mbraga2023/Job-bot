@@ -19,6 +19,7 @@ COMMANDS = {
     "validate": "validate",
     "linkedin": "linkedin",
     "open": "open-jobs",
+    "open-career": "open-career-jobs",
 }
 
 
@@ -57,6 +58,7 @@ PAGE = """<!doctype html>
       <button data-command="validate">Validate</button>
       <button data-command="linkedin">LinkedIn</button>
       <button data-command="open">Open jobs</button>
+      <button data-command="open-career">Open career jobs</button>
     </div>
     <div id="status" role="status">Ready</div>
     <div class="logs-heading">

@@ -45,6 +45,7 @@ class DashboardTests(unittest.TestCase):
 
     def test_open_action_maps_to_existing_open_jobs_command(self):
         self.assertEqual(COMMANDS["open"], "open-jobs")
+        self.assertEqual(COMMANDS["open-career"], "open-career-jobs")
 
     def test_open_action_launches_cli_and_captures_output(self):
         class FakeProcess:

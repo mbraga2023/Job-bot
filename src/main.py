@@ -25,6 +25,7 @@ from commands.career_jobs_link_validator import (
     run as validate_career_jobs,
 )
 from commands.open_jobs import run as open_jobs
+from commands.open_career_jobs import run as open_career_jobs
 
 from database.schema import create_database
 
@@ -66,6 +67,8 @@ COMMANDS = {
     "open-jobs": open_jobs,
 
     "open": open_jobs,
+
+    "open-career-jobs": open_career_jobs,
 
 
     # -----------------------------------------------------
