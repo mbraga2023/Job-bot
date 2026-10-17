@@ -237,6 +237,7 @@ class LinkedInAnalyzer:
     ) -> bool:
 
         closed_markers = (
+            "unable to load the page",
             "no longer accepting applications",
             "no longer accepting applicants",
             "not currently accepting applications",

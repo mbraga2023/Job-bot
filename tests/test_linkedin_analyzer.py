@@ -168,6 +168,31 @@ class LinkedInAnalyzerTests(unittest.TestCase):
         self.assertEqual(result["job_status"], "CLOSED")
         self.assertFalse(result["applications_open"])
 
+    def test_unable_to_load_the_page_is_closed(self):
+        class Body:
+            async def inner_text(self, timeout):
+                return "Unable to load the page"
+
+        class FakePage:
+            url = "https://www.linkedin.com/jobs/view/4475622523/"
+
+            async def wait_for_load_state(self, state, timeout):
+                pass
+
+            async def wait_for_selector(self, selector, timeout):
+                pass
+
+            async def wait_for_timeout(self, timeout):
+                pass
+
+            def locator(self, selector):
+                return Body()
+
+        result = asyncio.run(LinkedInAnalyzer().analyze(FakePage()))
+
+        self.assertEqual(result["job_status"], "CLOSED")
+        self.assertFalse(result["applications_open"])
+
     def test_easy_apply_detector_scopes_to_job_details_header(self):
         class Button:
             async def is_visible(self):
