@@ -1,9 +1,10 @@
+import argparse
+
 from agents.career_agent import CareerAgent
 
 
-async def run():
-
-    agent = CareerAgent()
+async def run(platform="search_all"):
+    agent = CareerAgent(platform=platform)
 
     await agent.run()
 
@@ -11,4 +12,10 @@ async def run():
 if __name__ == "__main__":
     import asyncio
 
-    asyncio.run(run())
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--platform",
+        choices=("search_all", "inhire"),
+        default="search_all",
+    )
+    asyncio.run(run(platform=parser.parse_args().platform))

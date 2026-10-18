@@ -97,6 +97,12 @@ class DashboardTests(unittest.TestCase):
         self.assertIn('data-command="linkedin"', telegram_markup)
         self.assertIn('data-command="open"', telegram_markup)
         self.assertIn('data-command="careers"', career_markup)
+        self.assertIn('id="career-platform-inhire"', career_markup)
+        self.assertIn('id="career-platform-search-all"', career_markup)
+        self.assertIn('value="search_all"', career_markup)
+        self.assertIn('value="inhire"', career_markup)
+        self.assertIn('value="search_all"\n                checked', career_markup)
+        self.assertIn('career_platform = careerPlatformOptions.find(', page)
         self.assertIn('data-command="open-career"', career_markup)
         self.assertIn('data-command="validate-career-jobs"', career_markup)
         self.assertIn('id="stop-command"', page)
@@ -438,6 +444,84 @@ class DashboardTests(unittest.TestCase):
         self.assertEqual(response.status, 202)
         self.assertEqual(result, {"started": "linkedin"})
         start_command.assert_called_once_with("linkedin")
+
+    def test_run_endpoint_starts_careers_with_inhire_platform(self):
+        with patch.object(
+            self.controller,
+            "start_command",
+            return_value=True,
+        ) as start_command:
+            request = Request(
+                self.url + "/api/run",
+                data=json.dumps(
+                    {"command": "careers", "career_platform": "inhire"}
+                ).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with urlopen(request) as response:
+                result = json.loads(response.read())
+
+        self.assertEqual(response.status, 202)
+        self.assertEqual(result, {"started": "careers"})
+        start_command.assert_called_once_with("careers", career_platform="inhire")
+
+    def test_run_endpoint_defaults_careers_to_search_all(self):
+        with patch.object(
+            self.controller,
+            "start_command",
+            return_value=True,
+        ) as start_command:
+            request = Request(
+                self.url + "/api/run",
+                data=json.dumps({"command": "careers"}).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with urlopen(request) as response:
+                result = json.loads(response.read())
+
+        self.assertEqual(response.status, 202)
+        self.assertEqual(result, {"started": "careers"})
+        start_command.assert_called_once_with(
+            "careers",
+            career_platform="search_all",
+        )
+
+    def test_run_endpoint_rejects_unknown_career_platform(self):
+        request = Request(
+            self.url + "/api/run",
+            data=json.dumps(
+                {"command": "careers", "career_platform": "unknown"}
+            ).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with self.assertRaises(HTTPError) as error:
+            urlopen(request)
+
+        self.assertEqual(error.exception.code, 400)
+
+    def test_careers_command_passes_platform_to_cli(self):
+        class FakeProcess:
+            stdout = []
+            returncode = 0
+
+            def wait(self):
+                return self.returncode
+
+        controller = DashboardController()
+        self.addCleanup(controller.close)
+        with patch(
+            "commands.dashboard.subprocess.Popen",
+            return_value=FakeProcess(),
+        ) as popen:
+            controller._run_command("careers", "inhire")
+
+        self.assertEqual(
+            popen.call_args.args[0][-3:],
+            ["careers", "--platform", "inhire"],
+        )
 
     def test_run_endpoint_rejects_unknown_action(self):
         with patch.object(self.controller, "start_command") as start_command:

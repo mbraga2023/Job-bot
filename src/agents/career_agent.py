@@ -1,8 +1,12 @@
+from urllib.parse import urlparse
+
 from playwright.async_api import async_playwright
 
 from config import HEADLESS
 
 from agents.analyzers.career import CareerAnalyzer
+from agents.platforms.inhire import InHireAdapter
+from core.career_result import CareerScanResult
 
 from database.career_jobs import (
     deactivate_missing_jobs,
@@ -29,17 +33,32 @@ class CareerAgent:
     6. Mark previously found jobs as inactive when they disappear.
     """
 
-    def __init__(self):
+    def __init__(self, platform="search_all"):
+        if platform not in {"search_all", "inhire"}:
+            raise ValueError(f"Unsupported career platform: {platform}")
+        self.platform = platform
         self.analyzer = CareerAnalyzer()
 
     async def run(self):
         sources = get_career_sources(active_only=True)
+        if self.platform == "inhire":
+            sources = [
+                source
+                for source in sources
+                if self.is_inhire_source(source["careers_url"])
+            ]
 
         if not sources:
-            print("No career sources configured.")
+            if self.platform == "inhire":
+                print("No InHire career sources configured.")
+            else:
+                print("No career sources configured.")
             return
 
-        print(f"Found {len(sources)} career sources.")
+        print(
+            f"Found {len(sources)} "
+            f"{'InHire ' if self.platform == 'inhire' else ''}career sources."
+        )
 
         playwright = None
         browser = None
@@ -106,10 +125,13 @@ class CareerAgent:
             print(f"Final URL: {page.url}")
             print(f"Page title: {await page.title()}")
 
-            result = await self.analyzer.analyze(
-                page=page,
-                source_url=source_url,
-            )
+            if self.platform == "inhire":
+                result = await self.analyze_inhire_page(page)
+            else:
+                result = await self.analyzer.analyze(
+                    page=page,
+                    source_url=source_url,
+                )
 
             print(f"Result: {result.message}")
             print(f"QA jobs found: {len(result.jobs)}")
@@ -179,6 +201,31 @@ class CareerAgent:
                 await page.close()
 
     @staticmethod
+    def is_inhire_source(url: str) -> bool:
+        hostname = (urlparse(url).hostname or "").casefold()
+        return hostname == "inhire.app" or hostname.endswith(".inhire.app")
+
+    async def analyze_inhire_page(self, page):
+        adapter = InHireAdapter(page)
+        await adapter.wait_for_page_ready()
+        page_jobs = await adapter.get_jobs()
+        jobs = self.analyzer._filter_qa_jobs(page_jobs)
+        print(
+            f"    InHire page scan: {len(page_jobs)} job(s) loaded; "
+            f"{len(jobs)} QA job(s) matched locally."
+        )
+
+        return CareerScanResult(
+            success=True,
+            page_good=True,
+            jobs=jobs,
+            message=(
+                f"Found {len(jobs)} InHire QA job(s) "
+                "by scanning the loaded job listings."
+            ),
+        )
+
+    @staticmethod
     def detect_source_type(
         url: str,
         body: str,
@@ -186,6 +233,7 @@ class CareerAgent:
         value = f"{url} {body}".casefold()
 
         source_types = (
+            ("inhire", "INHIRE"),
             ("gupy", "GUPY"),
             ("pandape", "PANDAPE"),
             ("quickin", "QUICKIN"),

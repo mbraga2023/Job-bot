@@ -103,6 +103,12 @@ def main():
         nargs="?",
         help="Optional parameter (e.g. Indeed URL, or limit/status for open-jobs)",
     )
+    parser.add_argument(
+        "--platform",
+        choices=("search_all", "inhire"),
+        default="search_all",
+        help="Career platform filter for the careers command",
+    )
 
     args = parser.parse_args()
 
@@ -135,6 +141,9 @@ def main():
             asyncio.run(command(args.url))
         else:
             command(args.url)
+
+    elif args.command == "careers":
+        asyncio.run(command(platform=args.platform))
 
     elif inspect.iscoroutinefunction(command):
 

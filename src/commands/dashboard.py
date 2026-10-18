@@ -47,6 +47,9 @@ PAGE = """<!doctype html>
     .action-group { margin: 28px 0; }
     .action-group h2 { margin: 0 0 10px; font-size: 16px; color: #aab6c8; }
     .actions { display: flex; flex-wrap: wrap; gap: 12px; }
+    .career-platform-options { display: flex; gap: 18px; margin: 0 0 12px;
+      padding: 0; border: 0; color: #aab6c8; }
+    .career-platform-options label { display: flex; align-items: center; gap: 8px; }
     .source-form { display: grid; gap: 12px; max-width: 620px; }
     .source-form label { display: grid; gap: 6px; color: #aab6c8; }
     .source-form input { box-sizing: border-box; width: 100%; padding: 10px;
@@ -138,6 +141,28 @@ PAGE = """<!doctype html>
         </section>
         <section class="action-group" id="career-flow">
           <h2>Career flow</h2>
+          <fieldset class="career-platform-options">
+            <legend>Career search platform</legend>
+            <label>
+              <input
+                id="career-platform-inhire"
+                type="checkbox"
+                name="career-platform"
+                value="inhire"
+              >
+              InHire
+            </label>
+            <label>
+              <input
+                id="career-platform-search-all"
+                type="checkbox"
+                name="career-platform"
+                value="search_all"
+                checked
+              >
+              Search All
+            </label>
+          </fieldset>
           <div class="actions">
             <button data-command="careers">Careers</button>
             <button data-command="validate-career-jobs">Validate career jobs</button>
@@ -225,6 +250,21 @@ PAGE = """<!doctype html>
     );
     const careerSourceForm = document.getElementById("career-source-form");
     const careerSourceBatchForm = document.getElementById("career-source-batch-form");
+    const careerPlatformOptions = [
+      ...document.querySelectorAll('input[name="career-platform"]')
+    ];
+
+    careerPlatformOptions.forEach(option => {
+      option.addEventListener("change", () => {
+        if (option.checked) {
+          careerPlatformOptions.forEach(other => {
+            if (other !== option) other.checked = false;
+          });
+        } else if (!careerPlatformOptions.some(item => item.checked)) {
+          option.checked = true;
+        }
+      });
+    });
 
     function openCareerSourceModal() {
       careerSourceModal.classList.add("is-open");
@@ -325,10 +365,16 @@ PAGE = """<!doctype html>
 
     buttons.forEach(button => button.addEventListener("click", async () => {
       try {
+        const payload = { command: button.dataset.command };
+        if (button.dataset.command === "careers") {
+          payload.career_platform = careerPlatformOptions.find(
+            option => option.checked
+          ).value;
+        }
         const response = await fetch("/api/run", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ command: button.dataset.command })
+          body: JSON.stringify(payload)
         });
         const result = await response.json();
         if (!response.ok) throw new Error(result.error || response.statusText);
@@ -423,9 +469,15 @@ class DashboardController:
         with self._lock:
             self._all_output.close()
 
-    def start_command(self, name):
+    def start_command(self, name, career_platform="search_all"):
         if name not in COMMANDS:
             return False
+        if name == "careers":
+            if not isinstance(career_platform, str) or career_platform not in {
+                "search_all",
+                "inhire",
+            }:
+                return False
 
         with self._lock:
             if self._state["running"]:
@@ -435,6 +487,7 @@ class DashboardController:
                 "stopping": False,
                 "stopped": False,
                 "command": name,
+                "career_platform": career_platform if name == "careers" else None,
                 "return_code": None,
                 "output": f"Starting {name}...\n",
             }
@@ -446,7 +499,7 @@ class DashboardController:
 
         worker = threading.Thread(
             target=self._run_command,
-            args=(name,),
+            args=(name, career_platform),
             daemon=True,
         )
         worker.start()
@@ -482,19 +535,22 @@ class DashboardController:
             self._all_output.flush()
             self._state["output"] = (self._state["output"] + text)[-MAX_OUTPUT_CHARS:]
 
-    def _run_command(self, name):
+    def _run_command(self, name, career_platform="search_all"):
         process = None
         try:
             child_env = os.environ.copy()
             child_env["PYTHONIOENCODING"] = "utf-8"
             child_env["PYTHONUTF8"] = "1"
+            command = [
+                sys.executable,
+                "-u",
+                str(MAIN_SCRIPT),
+                COMMANDS[name],
+            ]
+            if name == "careers":
+                command.extend(["--platform", career_platform])
             process = subprocess.Popen(
-                [
-                    sys.executable,
-                    "-u",
-                    str(MAIN_SCRIPT),
-                    COMMANDS[name],
-                ],
+                command,
                 cwd=PROJECT_ROOT,
                 env=child_env,
                 stdout=subprocess.PIPE,
@@ -652,6 +708,11 @@ def _make_handler(controller):
                     raise ValueError("Invalid request length.")
                 payload = json.loads(self.rfile.read(length))
                 name = payload.get("command") if isinstance(payload, dict) else None
+                career_platform = (
+                    payload.get("career_platform", "search_all")
+                    if isinstance(payload, dict)
+                    else "search_all"
+                )
             except (ValueError, json.JSONDecodeError) as exc:
                 self._send(
                     400,
@@ -667,7 +728,24 @@ def _make_handler(controller):
                     "application/json; charset=utf-8",
                 )
                 return
-            if not controller.start_command(name):
+            if name == "careers":
+                if (
+                    not isinstance(career_platform, str)
+                    or career_platform not in {"search_all", "inhire"}
+                ):
+                    self._send(
+                        400,
+                        json.dumps({"error": "Unknown career platform."}),
+                        "application/json; charset=utf-8",
+                    )
+                    return
+                started = controller.start_command(
+                    name,
+                    career_platform=career_platform,
+                )
+            else:
+                started = controller.start_command(name)
+            if not started:
                 self._send(
                     409,
                     json.dumps({"error": "A command is already running."}),
