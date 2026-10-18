@@ -12,7 +12,6 @@ from urllib.parse import urlsplit
 
 from database.career_sources import insert_career_sources
 
-
 HOST = "127.0.0.1"
 DEFAULT_PORT = 8766
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -70,6 +69,52 @@ PAGE = """<!doctype html>
     pre { min-height: 240px; max-height: 55vh; overflow: auto; padding: 16px;
       border: 1px solid #29364a; border-radius: 8px; background: #090e17;
       white-space: pre-wrap; overflow-wrap: anywhere; }
+    /* Import careers modal: hidden by default */
+#career-source-import {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  padding: 24px;
+  box-sizing: border-box;
+  overflow-y: auto;
+  background: rgb(0 0 0 / 70%);
+  align-items: center;
+  justify-content: center;
+}
+
+#career-source-import.is-open {
+  display: flex;
+}
+
+#career-source-import .modal-content {
+  width: min(620px, 100%);
+  max-height: 90vh;
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: 24px;
+  border: 1px solid #29364a;
+  border-radius: 12px;
+  background: #101827;
+  box-shadow: 0 20px 60px rgb(0 0 0 / 40%);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.modal-header h2 {
+  margin: 0 0 20px;
+}
+
+#close-career-source-modal {
+  padding: 6px 12px;
+  background: #29364a;
+  font-size: 14px;
+}
     @media (max-width: 800px) {
       main { margin: 24px auto; }
       .dashboard-layout { grid-template-columns: minmax(0, 1fr); gap: 24px; }
@@ -95,38 +140,60 @@ PAGE = """<!doctype html>
           <h2>Career flow</h2>
           <div class="actions">
             <button data-command="careers">Careers</button>
-            <button data-command="open-career">Open career jobs</button>
             <button data-command="validate-career-jobs">Validate career jobs</button>
+            <button data-command="open-career">Open career jobs</button>
             <button id="show-career-source-form" type="button">Import careers</button>
           </div>
         </section>
-        <section class="action-group" id="career-source-import">
-          <h2>Add a career source</h2>
-          <form id="career-source-form" class="source-form">
-            <label>
-              Company name
-              <input name="company" type="text" required maxlength="200">
-            </label>
-            <label>
-              Company careers / jobs page URL
-              <input name="careers_url" type="url" required>
-            </label>
-            <label>
-              Search URL (optional)
-              <input name="search_url" type="url">
-            </label>
-            <button type="submit">Save company</button>
-            <p id="career-source-status" class="form-status" role="status"></p>
-          </form>
-          <form id="career-source-batch-form" class="source-form">
-            <label>
-              Upload a JSON file to import multiple companies
-              <input name="file" type="file" accept=".json,application/json" required>
-            </label>
-            <button type="submit">Upload JSON batch</button>
-            <p id="career-source-batch-status" class="form-status" role="status"></p>
-          </form>
-        </section>
+        <section
+  class="action-group"
+  id="career-source-import"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="career-source-modal-title"
+  aria-hidden="true"
+>
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2 id="career-source-modal-title">Add career sources</h2>
+      <button id="close-career-source-modal"
+              type="button"
+              aria-label="Close import modal">
+        Close
+      </button>
+    </div>
+
+    <form id="career-source-form" class="source-form">
+      <label>
+        Company name
+        <input name="company" type="text" required maxlength="200">
+      </label>
+
+      <label>
+        Company careers / jobs page URL
+        <input name="careers_url" type="url" required>
+      </label>
+
+      <label>
+        Search URL (optional)
+        <input name="search_url" type="url">
+      </label>
+
+      <button type="submit">Save company</button>
+      <p id="career-source-status" class="form-status" role="status"></p>
+    </form>
+
+    <form id="career-source-batch-form" class="source-form">
+      <label>
+        Upload a JSON file to import multiple companies
+        <input name="file" type="file" accept=".json,application/json" required>
+      </label>
+
+      <button type="submit">Upload JSON batch</button>
+      <p id="career-source-batch-status" class="form-status" role="status"></p>
+    </form>
+  </div>
+</section>
 
       </section>
       <section class="terminal-panel" aria-label="Command terminal">
@@ -152,14 +219,48 @@ PAGE = """<!doctype html>
     const exportButton = document.getElementById("export-logs");
     const stopButton = document.getElementById("stop-command");
     const showCareerSourceFormButton = document.getElementById("show-career-source-form");
+    const careerSourceModal = document.getElementById("career-source-import");
+    const closeCareerSourceModalButton = document.getElementById(
+      "close-career-source-modal"
+    );
     const careerSourceForm = document.getElementById("career-source-form");
     const careerSourceBatchForm = document.getElementById("career-source-batch-form");
 
-    showCareerSourceFormButton.addEventListener("click", () => {
-      document.getElementById("career-source-import").scrollIntoView({
-        behavior: "smooth"
-      });
+    function openCareerSourceModal() {
+      careerSourceModal.classList.add("is-open");
+      careerSourceModal.setAttribute("aria-hidden", "false");
       careerSourceForm.elements.company.focus();
+    }
+
+    function closeCareerSourceModal() {
+      careerSourceModal.classList.remove("is-open");
+      careerSourceModal.setAttribute("aria-hidden", "true");
+      showCareerSourceFormButton.focus();
+    }
+
+    showCareerSourceFormButton.addEventListener(
+      "click",
+      openCareerSourceModal
+    );
+
+    closeCareerSourceModalButton.addEventListener(
+      "click",
+      closeCareerSourceModal
+    );
+
+    careerSourceModal.addEventListener("click", event => {
+      if (event.target === careerSourceModal) {
+        closeCareerSourceModal();
+      }
+    });
+
+    document.addEventListener("keydown", event => {
+      if (
+        event.key === "Escape" &&
+        careerSourceModal.classList.contains("is-open")
+      ) {
+        closeCareerSourceModal();
+      }
     });
 
     async function saveCareerSources(sources, targetStatus) {
@@ -379,9 +480,7 @@ class DashboardController:
         with self._lock:
             self._all_output.write(text)
             self._all_output.flush()
-            self._state["output"] = (
-                self._state["output"] + text
-            )[-MAX_OUTPUT_CHARS:]
+            self._state["output"] = (self._state["output"] + text)[-MAX_OUTPUT_CHARS:]
 
     def _run_command(self, name):
         process = None
@@ -429,9 +528,7 @@ class DashboardController:
             with self._lock:
                 self._state["running"] = False
                 self._state["stopping"] = False
-                self._state["stopped"] = (
-                    self._stop_requested and process is not None
-                )
+                self._state["stopped"] = self._stop_requested and process is not None
                 self._state["return_code"] = return_code
                 self._process = None
                 self._stop_requested = False
@@ -502,15 +599,20 @@ def _make_handler(controller):
                     200,
                     output,
                     "text/plain; charset=utf-8",
-                    headers=(("Content-Disposition", f'attachment; filename="{filename}"'),),
+                    headers=(
+                        ("Content-Disposition", f'attachment; filename="{filename}"'),
+                    ),
                 )
             else:
                 self._send(404, "Not found.", "text/plain; charset=utf-8")
 
         def do_POST(self):
             if not self._valid_local_host() or not self._valid_origin():
-                self._send(403, json.dumps({"error": "Local requests only."}),
-                           "application/json; charset=utf-8")
+                self._send(
+                    403,
+                    json.dumps({"error": "Local requests only."}),
+                    "application/json; charset=utf-8",
+                )
                 return
             if self.path == "/api/stop":
                 if not controller.stop_command():
@@ -520,19 +622,28 @@ def _make_handler(controller):
                         "application/json; charset=utf-8",
                     )
                     return
-                self._send(202, json.dumps({"stopping": True}),
-                           "application/json; charset=utf-8")
+                self._send(
+                    202,
+                    json.dumps({"stopping": True}),
+                    "application/json; charset=utf-8",
+                )
                 return
             if self.path == "/api/career-sources":
                 self._handle_career_source_import()
                 return
             if self.path != "/api/run":
-                self._send(404, json.dumps({"error": "Not found."}),
-                           "application/json; charset=utf-8")
+                self._send(
+                    404,
+                    json.dumps({"error": "Not found."}),
+                    "application/json; charset=utf-8",
+                )
                 return
             if self.headers.get_content_type() != "application/json":
-                self._send(415, json.dumps({"error": "Expected JSON request."}),
-                           "application/json; charset=utf-8")
+                self._send(
+                    415,
+                    json.dumps({"error": "Expected JSON request."}),
+                    "application/json; charset=utf-8",
+                )
                 return
 
             try:
@@ -542,20 +653,30 @@ def _make_handler(controller):
                 payload = json.loads(self.rfile.read(length))
                 name = payload.get("command") if isinstance(payload, dict) else None
             except (ValueError, json.JSONDecodeError) as exc:
-                self._send(400, json.dumps({"error": str(exc)}),
-                           "application/json; charset=utf-8")
+                self._send(
+                    400,
+                    json.dumps({"error": str(exc)}),
+                    "application/json; charset=utf-8",
+                )
                 return
 
             if not isinstance(name, str) or name not in COMMANDS:
-                self._send(400, json.dumps({"error": "Unknown command."}),
-                           "application/json; charset=utf-8")
+                self._send(
+                    400,
+                    json.dumps({"error": "Unknown command."}),
+                    "application/json; charset=utf-8",
+                )
                 return
             if not controller.start_command(name):
-                self._send(409, json.dumps({"error": "A command is already running."}),
-                           "application/json; charset=utf-8")
+                self._send(
+                    409,
+                    json.dumps({"error": "A command is already running."}),
+                    "application/json; charset=utf-8",
+                )
                 return
-            self._send(202, json.dumps({"started": name}),
-                       "application/json; charset=utf-8")
+            self._send(
+                202, json.dumps({"started": name}), "application/json; charset=utf-8"
+            )
 
         def log_message(self, format, *args):
             if args and isinstance(args[0], int) and args[0] >= 400:

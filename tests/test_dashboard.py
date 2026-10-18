@@ -114,6 +114,22 @@ class DashboardTests(unittest.TestCase):
         self.assertIn('id="career-source-batch-form"', page)
         self.assertIn('accept=".json,application/json"', page)
 
+    def test_career_source_form_opens_and_closes_as_modal(self):
+        with urlopen(self.url + "/") as response:
+            page = response.read().decode("utf-8")
+
+        self.assertIn('id="career-source-import"', page)
+        self.assertIn('aria-hidden="true"', page)
+        self.assertIn('id="close-career-source-modal"', page)
+        self.assertIn("function openCareerSourceModal()", page)
+        self.assertIn("function closeCareerSourceModal()", page)
+        self.assertIn('careerSourceModal.classList.add("is-open")', page)
+        self.assertIn('careerSourceModal.setAttribute("aria-hidden", "false")', page)
+        self.assertIn('careerSourceModal.setAttribute("aria-hidden", "true")', page)
+        self.assertIn('careerSourceModal.addEventListener("click"', page)
+        self.assertIn('document.addEventListener("keydown"', page)
+        self.assertIn('event.key === "Escape"', page)
+
     def test_career_source_endpoint_saves_a_single_source(self):
         payload = {
             "sources": [
