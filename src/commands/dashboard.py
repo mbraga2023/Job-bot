@@ -14,7 +14,7 @@ from database.career_sources import insert_career_sources
 
 
 HOST = "127.0.0.1"
-DEFAULT_PORT = 8765
+DEFAULT_PORT = 8766
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 MAIN_SCRIPT = PROJECT_ROOT / "src" / "main.py"
 MAX_OUTPUT_CHARS = 100_000
@@ -38,7 +38,10 @@ PAGE = """<!doctype html>
   <style>
     :root { color-scheme: dark; font-family: Segoe UI, sans-serif; }
     body { margin: 0; background: #101827; color: #e5eaf2; }
-    main { max-width: 900px; margin: 48px auto; padding: 0 24px; }
+    main { max-width: 1400px; margin: 48px auto; padding: 0 24px; }
+    .dashboard-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+      align-items: start; gap: 40px; }
+    .terminal-panel { min-width: 0; }
     h1 { margin-bottom: 8px; }
     p { color: #aab6c8; }
     .action-group { margin: 28px 0; }
@@ -66,66 +69,78 @@ PAGE = """<!doctype html>
     pre { min-height: 240px; max-height: 55vh; overflow: auto; padding: 16px;
       border: 1px solid #29364a; border-radius: 8px; background: #090e17;
       white-space: pre-wrap; overflow-wrap: anywhere; }
+    @media (max-width: 800px) {
+      main { margin: 24px auto; }
+      .dashboard-layout { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+    }
   </style>
 </head>
 <body>
   <main>
-    <h1>Job Bot</h1>
-    <p>Run a workflow command. Only one command can run at a time.</p>
-    <section class="action-group" id="telegram-linkedin-flow">
-      <h2>Telegram / LinkedIn flow</h2>
-      <div class="actions">
-        <button data-command="collect">Collect</button>
-        <button data-command="validate">Validate</button>
-        <button data-command="linkedin">LinkedIn</button>
-        <button data-command="open">Open jobs</button>
-      </div>
-    </section>
-    <section class="action-group" id="career-flow">
-      <h2>Career flow</h2>
-      <div class="actions">
-        <button data-command="careers">Careers</button>
-        <button data-command="open-career">Open career jobs</button>
-        <button id="show-career-source-form" type="button">Import careers</button>
-      </div>
-    </section>
-    <section class="action-group" id="career-source-import">
-      <h2>Add a career source</h2>
-      <form id="career-source-form" class="source-form">
-        <label>
-          Company name
-          <input name="company" type="text" required maxlength="200">
-        </label>
-        <label>
-          Company careers / jobs page URL
-          <input name="careers_url" type="url" required>
-        </label>
-        <label>
-          Search URL (optional)
-          <input name="search_url" type="url">
-        </label>
-        <button type="submit">Save company</button>
-        <p id="career-source-status" class="form-status" role="status"></p>
-      </form>
-      <form id="career-source-batch-form" class="source-form">
-        <label>
-          Upload a JSON file to import multiple companies
-          <input name="file" type="file" accept=".json,application/json" required>
-        </label>
-        <button type="submit">Upload JSON batch</button>
-        <p id="career-source-batch-status" class="form-status" role="status"></p>
-      </form>
-    </section>
-    <div id="status" role="status">Ready</div>
-    <button id="stop-command" type="button" disabled>Stop command</button>
-    <div class="logs-heading">
-      <h2>Command output</h2>
-      <div class="logs-actions">
-        <button id="copy-logs" type="button">Copy logs</button>
-        <button id="export-logs" type="button" disabled>Export logs (.txt)</button>
-      </div>
+    <div class="dashboard-layout">
+      <section class="controls-panel" aria-label="Dashboard controls">
+        <h1>Job Bot</h1>
+        <p>Run a workflow command. Only one command can run at a time.</p>
+        <section class="action-group" id="telegram-linkedin-flow">
+          <h2>Telegram / LinkedIn flow</h2>
+          <div class="actions">
+            <button data-command="collect">Collect</button>
+            <button data-command="validate">Validate</button>
+            <button data-command="linkedin">LinkedIn</button>
+            <button data-command="open">Open jobs</button>
+          </div>
+        </section>
+        <section class="action-group" id="career-flow">
+          <h2>Career flow</h2>
+          <div class="actions">
+            <button data-command="careers">Careers</button>
+            <button data-command="open-career">Open career jobs</button>
+            <button id="show-career-source-form" type="button">Import careers</button>
+          </div>
+        </section>
+        <section class="action-group" id="career-source-import">
+          <h2>Add a career source</h2>
+          <form id="career-source-form" class="source-form">
+            <label>
+              Company name
+              <input name="company" type="text" required maxlength="200">
+            </label>
+            <label>
+              Company careers / jobs page URL
+              <input name="careers_url" type="url" required>
+            </label>
+            <label>
+              Search URL (optional)
+              <input name="search_url" type="url">
+            </label>
+            <button type="submit">Save company</button>
+            <p id="career-source-status" class="form-status" role="status"></p>
+          </form>
+          <form id="career-source-batch-form" class="source-form">
+            <label>
+              Upload a JSON file to import multiple companies
+              <input name="file" type="file" accept=".json,application/json" required>
+            </label>
+            <button type="submit">Upload JSON batch</button>
+            <p id="career-source-batch-status" class="form-status" role="status"></p>
+          </form>
+        </section>
+
+      </section>
+      <section class="terminal-panel" aria-label="Command terminal">
+        <div class="logs-heading">
+          <h2>Command output</h2>
+        </div>
+        <pre id="output" aria-live="polite"></pre>
+                  <h2>Log actions</h2>
+          <div class="logs-actions">
+            <button id="copy-logs" type="button">Copy logs</button>
+            <button id="export-logs" type="button" disabled>Export logs (.txt)</button>
+                    <div id="status" role="status">Ready</div>
+        <button id="stop-command" type="button" disabled>Stop command</button>
+          </div>
+      </section>
     </div>
-    <pre id="output" aria-live="polite"></pre>
   </main>
   <script>
     const buttons = [...document.querySelectorAll("[data-command]")];
