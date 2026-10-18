@@ -1,8 +1,10 @@
 import json
+import sqlite3
 import tempfile
 import threading
 import time
 import unittest
+from contextlib import contextmanager
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 from urllib.error import HTTPError
@@ -15,6 +17,7 @@ from commands.dashboard import (
     DashboardController,
     _make_handler,
 )
+from database.career_sources import insert_career_sources
 
 
 class DashboardTests(unittest.TestCase):
@@ -35,6 +38,7 @@ class DashboardTests(unittest.TestCase):
         self.server.shutdown()
         self.server.server_close()
         self.thread.join(timeout=2)
+        self.controller.close()
 
     def test_dashboard_page_has_all_requested_actions(self):
         with urlopen(self.url + "/") as response:
@@ -58,6 +62,7 @@ class DashboardTests(unittest.TestCase):
                 return self.returncode
 
         controller = DashboardController()
+        self.addCleanup(controller.close)
         with patch(
             "commands.dashboard.subprocess.Popen",
             return_value=FakeProcess(),
@@ -91,6 +96,179 @@ class DashboardTests(unittest.TestCase):
         self.assertIn('data-command="open-career"', career_markup)
         self.assertIn('id="stop-command"', page)
         self.assertIn('fetch("/api/stop"', page)
+
+    def test_dashboard_page_has_single_and_batch_career_source_forms(self):
+        with urlopen(self.url + "/") as response:
+            page = response.read().decode("utf-8")
+
+        self.assertIn('id="career-source-form"', page)
+        self.assertIn('id="show-career-source-form"', page)
+        self.assertIn('name="company"', page)
+        self.assertIn('name="careers_url"', page)
+        self.assertIn('name="search_url"', page)
+        self.assertIn('id="career-source-batch-form"', page)
+        self.assertIn('accept=".json,application/json"', page)
+
+    def test_career_source_endpoint_saves_a_single_source(self):
+        payload = {
+            "sources": [
+                {
+                    "company": "  Example Co  ",
+                    "careers_url": " https://example.com/jobs ",
+                    "search_url": " ",
+                }
+            ]
+        }
+        with patch(
+            "commands.dashboard.insert_career_sources",
+            return_value=(1, 0),
+        ) as insert_sources:
+            request = Request(
+                self.url + "/api/career-sources",
+                data=json.dumps(payload).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with urlopen(request) as response:
+                result = json.loads(response.read())
+
+        self.assertEqual(response.status, 200)
+        self.assertEqual(result, {"inserted": 1, "skipped": 0})
+        insert_sources.assert_called_once_with(
+            [
+                {
+                    "company": "Example Co",
+                    "careers_url": "https://example.com/jobs",
+                    "search_url": None,
+                }
+            ]
+        )
+
+    def test_career_source_endpoint_accepts_batch_sources(self):
+        sources = [
+            {
+                "company": "First Co",
+                "careers_url": "https://first.example/jobs",
+            },
+            {
+                "company": "Second Co",
+                "careers_url": "https://second.example/jobs",
+                "search_url": "https://second.example/jobs?query=qa",
+            },
+        ]
+        with patch(
+            "commands.dashboard.insert_career_sources",
+            return_value=(2, 0),
+        ) as insert_sources:
+            request = Request(
+                self.url + "/api/career-sources",
+                data=json.dumps({"sources": sources}).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with urlopen(request) as response:
+                result = json.loads(response.read())
+
+        self.assertEqual(result, {"inserted": 2, "skipped": 0})
+        insert_sources.assert_called_once_with(
+            [
+                {
+                    "company": "First Co",
+                    "careers_url": "https://first.example/jobs",
+                    "search_url": None,
+                },
+                sources[1],
+            ]
+        )
+
+    def test_career_source_endpoint_rejects_invalid_batch_before_saving(self):
+        payload = {
+            "sources": [
+                {
+                    "company": "Valid Co",
+                    "careers_url": "https://valid.example/jobs",
+                },
+                {
+                    "company": "Invalid Co",
+                    "careers_url": "ftp://invalid.example/jobs",
+                },
+            ]
+        }
+        with patch("commands.dashboard.insert_career_sources") as insert_sources:
+            request = Request(
+                self.url + "/api/career-sources",
+                data=json.dumps(payload).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with self.assertRaises(HTTPError) as error:
+                urlopen(request)
+
+        self.assertEqual(error.exception.code, 400)
+        insert_sources.assert_not_called()
+
+    def test_database_saves_career_sources_and_skips_duplicate_urls(self):
+        sources = [
+            {
+                "company": "Example Co",
+                "careers_url": "https://example.com/jobs",
+                "search_url": None,
+            },
+            {
+                "company": "Duplicate Co",
+                "careers_url": "https://example.com/jobs",
+                "search_url": "https://example.com/jobs?qa",
+            },
+        ]
+        with tempfile.TemporaryDirectory() as temp_dir:
+            database_path = Path(temp_dir) / "career_sources.db"
+            connection = sqlite3.connect(database_path)
+            try:
+                connection.execute(
+                    """
+                    CREATE TABLE career_sources (
+                        company TEXT NOT NULL,
+                        careers_url TEXT NOT NULL UNIQUE,
+                        search_url TEXT,
+                        source_type TEXT,
+                        active INTEGER
+                    )
+                    """
+                )
+                connection.commit()
+            finally:
+                connection.close()
+
+            @contextmanager
+            def open_connection():
+                connection = sqlite3.connect(database_path)
+                try:
+                    yield connection
+                finally:
+                    connection.close()
+
+            with patch(
+                "database.career_sources.get_connection",
+                side_effect=open_connection,
+            ):
+                result = insert_career_sources(sources)
+
+            connection = sqlite3.connect(database_path)
+            try:
+                rows = connection.execute(
+                    """
+                    SELECT company, careers_url, search_url
+                    FROM career_sources
+                    """
+                ).fetchall()
+            finally:
+                connection.close()
+
+        self.assertEqual(result, (1, 1))
+        self.assertEqual(
+            rows,
+            [("Example Co", "https://example.com/jobs", None)],
+        )
 
     def test_stop_command_terminates_running_child(self):
         class FakeProcess:
@@ -172,6 +350,7 @@ class DashboardTests(unittest.TestCase):
 
     def test_child_command_captures_unicode_output(self):
         controller = DashboardController()
+        self.addCleanup(controller.close)
         with tempfile.TemporaryDirectory() as temp_dir:
             script = Path(temp_dir) / "print_unicode.py"
             script.write_text("print('🚀 Starting')\n", encoding="utf-8")
@@ -187,6 +366,38 @@ class DashboardTests(unittest.TestCase):
 
         self.assertIn('id="copy-logs"', page)
         self.assertIn("navigator.clipboard.writeText(output.textContent)", page)
+
+    def test_dashboard_page_has_export_logs_button(self):
+        with urlopen(self.url + "/") as response:
+            page = response.read().decode("utf-8")
+
+        self.assertIn('id="export-logs"', page)
+        self.assertIn('fetch("/api/logs"', page)
+        self.assertIn('link.download = "job-bot-logs.txt"', page)
+
+    def test_export_logs_endpoint_returns_complete_output_as_text_file(self):
+        output = "x" * 100_050
+        self.controller._state["command"] = "validate"
+        self.controller._append_output(output)
+
+        with urlopen(self.url + "/api/logs") as response:
+            exported = response.read().decode("utf-8")
+
+        self.assertEqual(response.status, 200)
+        self.assertEqual(response.headers.get_content_type(), "text/plain")
+        self.assertEqual(
+            response.headers["Content-Disposition"],
+            'attachment; filename="job-bot-validate-logs.txt"',
+        )
+        self.assertEqual(len(exported), len(output))
+        self.assertEqual(exported, output)
+        self.assertEqual(len(self.controller.state()["output"]), 100_000)
+
+    def test_export_logs_endpoint_reports_when_no_logs_exist(self):
+        with self.assertRaises(HTTPError) as error:
+            urlopen(self.url + "/api/logs")
+
+        self.assertEqual(error.exception.code, 404)
 
     def test_run_endpoint_starts_allowlisted_command(self):
         with patch.object(

@@ -112,7 +112,38 @@ def insert_career_source(
 
         conn.commit()
 
-        return cursor.lastrowid
+        return cursor.lastrowid if cursor.rowcount == 1 else None
+
+
+def insert_career_sources(sources: list[dict]) -> tuple[int, int]:
+    inserted = 0
+
+    with get_connection() as conn:
+        for source in sources:
+            cursor = conn.execute(
+                """
+                INSERT OR IGNORE INTO career_sources (
+                    company,
+                    careers_url,
+                    search_url,
+                    source_type,
+                    active
+                )
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (
+                    source["company"],
+                    source["careers_url"],
+                    source["search_url"],
+                    "CAREER_PAGE",
+                    1,
+                ),
+            )
+            inserted += cursor.rowcount
+
+        conn.commit()
+
+    return inserted, len(sources) - inserted
 
 
 def get_career_sources(active_only: bool = True):

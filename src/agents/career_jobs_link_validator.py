@@ -19,6 +19,22 @@ from services.published_date import normalize_published_date
 from services.career_job_review import discard_ineligible_new_career_jobs
 
 
+def get_validation_status(details: dict) -> str:
+    if details.get("page_not_found"):
+        return "PAGE_NOT_FOUND"
+
+    if details.get("job_status") == "DISCARDED":
+        return "JOB_DISCARDED"
+
+    if details.get("job_status") == "CLOSED":
+        return "JOB_CLOSED"
+
+    if details.get("title") or details.get("description"):
+        return "JOBS_FOUND"
+
+    return "NO_JOBS_FOUND"
+
+
 def should_discard(details: dict) -> bool:
     """
     Keep only mid-level positions.
@@ -67,7 +83,7 @@ async def run():
     if not jobs:
 
         print(
-            "No pending career jobs found."
+            "[STATUS: NO_PENDING_JOBS] No pending career jobs found."
         )
 
         return
@@ -191,37 +207,47 @@ async def run():
                 # Console output
                 # -------------------------------------------------
 
-                if details["page_not_found"]:
+                validation_status = get_validation_status(details)
+
+                if validation_status == "PAGE_NOT_FOUND":
 
                     print(
+                        f"[STATUS: {validation_status}] "
                         "⚠ Page not found → CLOSED"
                     )
 
                 elif (
-                    details["job_status"]
-                    == "DISCARDED"
+                    validation_status == "JOB_DISCARDED"
                 ):
 
                     discarded += 1
 
                     print(
+                        f"[STATUS: {validation_status}] "
                         "⚠ Discarded → "
                         f"Level: "
                         f"{details.get('level', '')}"
                     )
 
                 elif (
-                    details["job_status"]
-                    == "CLOSED"
+                    validation_status == "JOB_CLOSED"
                 ):
 
                     print(
-                        "⚠ Job closed"
+                        f"[STATUS: {validation_status}] ⚠ Job closed"
+                    )
+
+                elif validation_status == "NO_JOBS_FOUND":
+
+                    print(
+                        f"[STATUS: {validation_status}] "
+                        "⚠ No job title or description extracted"
                     )
 
                 else:
 
                     print(
+                        f"[STATUS: {validation_status}] "
                         "✓ Validated → NEW"
                     )
 
@@ -230,7 +256,7 @@ async def run():
                 failed += 1
 
                 print(
-                    f"✗ Failed: {error}"
+                    f"[STATUS: VALIDATION_FAILED] ✗ Failed: {error}"
                 )
 
             finally:

@@ -129,6 +129,7 @@ Relevant files:
 ### Career page discovery
 
 The career flow imports company sources from [src/data/career_pages.json](src/data/career_pages.json), scans each page with Playwright, stores the discovered job URLs, and later validates those job pages in a second pass.
+Its search and QA-title matching terms are centralized in [src/core/keywords.py](src/core/keywords.py).
 
 Relevant files:
 
@@ -248,7 +249,12 @@ your browser. Its first button row groups Collect, Validate, LinkedIn, and Open
 jobs for the Telegram/LinkedIn flow; the second row groups Careers and Open
 career jobs. Use **Stop command** to terminate the currently running command.
 Only one command runs at a time. Set `JOB_BOT_DASHBOARD_PORT` to choose another
-port.
+port. Use **Export logs (.txt)** to download the complete output of the current
+or most recently run command; the dashboard may truncate older output in its
+on-screen view, but the export includes the complete captured output.
+The **Add a career source** forms save a company name, careers/jobs page URL,
+and optional search URL directly to `career_sources`. The JSON batch upload
+accepts the same list format as `src/data/career_pages.json`.
 
 The separate `report` command still generates a static jobs table at
 `output/dashboard.html`.
@@ -403,7 +409,7 @@ If you want to extend the project, the most natural next steps are:
   Scans configured company career pages, detects QA-relevant job links, and stores them in career_jobs while marking old entries as inactive when they disappear.
 
 - career_jobs_link_validator.py
-  Loads pending career jobs, opens each application page in a browser, extracts the relevant details, applies discard rules for senior positions, and saves the validated result in career_job_details.
+  Loads pending career jobs, opens each application page in a browser, extracts the relevant details, applies discard rules for senior positions, and saves the validated result in career_job_details. Each processed job logs a status such as PAGE_NOT_FOUND, JOB_CLOSED, JOB_DISCARDED, JOBS_FOUND, NO_JOBS_FOUND, or VALIDATION_FAILED.
 
 - job_analyzer.py
   AI-oriented analysis workflow for job understanding. It exists as a future step, not the active pipeline.

@@ -12,6 +12,7 @@ from core.career_result import (
     CareerJob,
     CareerScanResult,
 )
+from core.keywords import QA_SEARCH_TERMS
 
 from database.career_jobs import (
     insert_career_job,
@@ -24,79 +25,26 @@ from database.career_sources import (
 )
 
 
-class CareerAnalyzer:
+def _build_keyword_pattern(keywords: list[str]) -> re.Pattern:
+    alternatives = []
+    for keyword in keywords:
+        words = re.split(r"\s+", keyword.strip())
+        alternatives.append(
+            r"[\s_-]+".join(re.escape(word) for word in words)
+        )
 
-    # =========================================================
-    # SEARCH TERMS
-    # =========================================================
-
-    SEARCH_TERMS = (
-        "QA",
-        "Test",
-        "Teste",
-        "Analist"
+    return re.compile(
+        r"(?<!\w)(?:" + "|".join(alternatives) + r")(?!\w)",
+        re.IGNORECASE,
     )
 
+
+class CareerAnalyzer:
     # =========================================================
     # QA / TEST RELEVANCE
     # =========================================================
 
-    QA_PATTERN = re.compile(
-        r"""
-        (?:
-            \bqa\b
-            |
-            quality[\s_-]+assurance
-            |
-            quality[\s_-]+analyst
-            |
-            quality[\s_-]+engineer
-            |
-            test[\s_-]+engineer
-            |
-            software[\s_-]+tester
-            |
-            software[\s_-]+testing
-            |
-            test[\s_-]+automation
-            |
-            automation[\s_-]+test
-            |
-            test[\s_-]+analyst
-            |
-            testing[\s_-]+analyst
-            |
-            tester
-            |
-            testing
-            |
-            analista[\s_-]+de[\s_-]+testes
-            |
-            analista[\s_-]+de[\s_-]+qualidade
-            |
-            analista[\s_-]+da[\s_-]+qualidade
-            |
-            analista[\s_-]+qualidade
-            |
-            engenheiro[\s_-]+de[\s_-]+testes
-            |
-            engenharia[\s_-]+de[\s_-]+qualidade
-            |
-            engenharia[\s_-]+de[\s_-]+testes
-            |
-            testes[\s_-]+de[\s_-]+software
-            |
-            automa(?:ç|c)[aã]o[\s_-]+de[\s_-]+testes
-            |
-            automatizador[\s_-]+de[\s_-]+testes
-            |
-            automation[\s_-]+engineer
-            |
-            test[\s_-]+automation[\s_-]+engineer
-        )
-        """,
-        re.IGNORECASE | re.VERBOSE,
-    )
+    QA_PATTERN = _build_keyword_pattern(QA_SEARCH_TERMS)
 
     # =========================================================
     # SEARCH INPUTS
@@ -399,7 +347,7 @@ class CareerAnalyzer:
 
         print(
             "    Search terms: "
-            f"{', '.join(self.SEARCH_TERMS)}"
+            f"{', '.join(QA_SEARCH_TERMS)}"
         )
 
         searched_jobs = (
@@ -830,7 +778,7 @@ class CareerAnalyzer:
         all_jobs: dict[str, CareerJob] = {}
 
         for term_index, term in enumerate(
-            self.SEARCH_TERMS,
+            QA_SEARCH_TERMS,
             start=1,
         ):
 
@@ -838,7 +786,7 @@ class CareerAnalyzer:
 
             print(
                 f"    [Search {term_index}/"
-                f"{len(self.SEARCH_TERMS)}] "
+                f"{len(QA_SEARCH_TERMS)}] "
                 f"Searching: {term}"
             )
 
