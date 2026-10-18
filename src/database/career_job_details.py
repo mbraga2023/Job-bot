@@ -7,6 +7,7 @@ from core.job_status import (
 )
 
 from database.database import get_connection
+from services.published_date import normalize_published_date
 
 
 # =========================================================
@@ -120,7 +121,7 @@ def normalize_url(url: str) -> str:
 # Validation Queue
 # =========================================================
 
-def get_generic_job_links(limit: int = 20):
+def get_generic_job_links(limit: int | None = 20):
 
     with get_connection() as conn:
 
@@ -148,15 +149,20 @@ def get_generic_job_links(limit: int = 20):
 
         cursor = conn.execute(
             """
-            SELECT source_url
+            SELECT career_job_id, source_url
 
             FROM career_job_details
             """
         )
 
+        existing_details = cursor.fetchall()
         existing_urls = {
             normalize_url(row["source_url"])
-            for row in cursor.fetchall()
+            for row in existing_details
+        }
+        existing_job_ids = {
+            row["career_job_id"]
+            for row in existing_details
         }
 
     # -----------------------------------------------------
@@ -174,12 +180,12 @@ def get_generic_job_links(limit: int = 20):
         if not normalized_url:
             continue
 
-        if normalized_url in existing_urls:
+        if job["id"] in existing_job_ids or normalized_url in existing_urls:
             continue
 
         pending_jobs.append(job)
 
-        if len(pending_jobs) >= limit:
+        if limit is not None and len(pending_jobs) >= limit:
             break
 
     return pending_jobs
@@ -262,6 +268,8 @@ def insert_career_job_details(
             "source_url cannot be empty"
         )
 
+    published_date = normalize_published_date(details.get("published_date"))
+
     with get_connection() as conn:
 
         existing = conn.execute(
@@ -309,7 +317,7 @@ def insert_career_job_details(
                     """,
                     (
                         int(details.get("page_not_found", False)),
-                        details.get("published_date"),
+                        published_date,
                         details.get("title"),
                         details.get("company"),
                         details.get("location"),
@@ -363,7 +371,7 @@ def insert_career_job_details(
                 (
                     career_job_id,
                     int(details.get("page_not_found", False)),
-                    details.get("published_date"),
+                    published_date,
                     details.get("title"),
                     details.get("company"),
                     details.get("location"),

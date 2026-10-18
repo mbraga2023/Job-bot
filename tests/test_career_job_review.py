@@ -12,6 +12,8 @@ import config
 import database.database as database_module
 from commands.open_career_jobs import run as open_career_jobs
 from database.career_job_details import (
+    get_career_job_details,
+    get_generic_job_links,
     get_new_career_job_details,
     insert_career_job_details,
 )
@@ -96,6 +98,45 @@ class CareerJobReviewTests(unittest.TestCase):
                 (career_job_id,),
             ).fetchone()
         return row["job_status"]
+
+    def test_generic_job_queue_can_return_all_pending_jobs(self):
+        with get_connection() as conn:
+            conn.executemany(
+                """
+                INSERT INTO career_jobs (career_source_id, title, company, url)
+                VALUES (?, ?, ?, ?)
+                """,
+                [
+                    (
+                        self.source_id,
+                        f"QA Engineer {index}",
+                        "Test Company",
+                        f"https://example.com/jobs/{index}",
+                    )
+                    for index in range(3)
+                ],
+            )
+            conn.commit()
+
+        self.assertEqual(len(get_generic_job_links(limit=None)), 3)
+        self.assertEqual(len(get_generic_job_links(limit=1)), 1)
+
+    def test_published_date_is_saved_as_iso_date(self):
+        career_job_id = self.add_job(
+            "QA Engineer", "Mid", "2999-01-01 00:00:00"
+        )
+
+        insert_career_job_details(
+            career_job_id,
+            f"https://example.com/jobs/{self.next_id - 1}",
+            {
+                "title": "QA Engineer",
+                "published_date": "June 29, 2026",
+            },
+        )
+
+        details = get_career_job_details(career_job_id)
+        self.assertEqual(details["published_date"], "2026-06-29")
 
     def test_discards_new_junior_and_jobs_validated_over_30_days_ago(self):
         junior_id = self.add_job(

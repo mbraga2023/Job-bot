@@ -17,6 +17,7 @@ from services.browser_service import open_page
 from services.json_service import append_analysis
 from services.published_date import normalize_published_date
 from services.career_job_review import discard_ineligible_new_career_jobs
+from services.career_job_title_classifier import classify_career_job_title
 
 
 def get_validation_status(details: dict) -> str:
@@ -80,6 +81,13 @@ def should_discard(details: dict) -> bool:
     return False
 
 
+def get_discard_reason(details: dict) -> str:
+    level = details.get("level") or ""
+    return f"detected non-mid-level seniority: {level}" if level else (
+        "the extracted seniority is not mid-level"
+    )
+
+
 async def run():
 
     discarded_existing = discard_ineligible_new_career_jobs()
@@ -95,9 +103,7 @@ async def run():
     # in career_job_details.
     # ---------------------------------------------------------
 
-    jobs = get_generic_job_links(
-        limit=200
-    )
+    jobs = get_generic_job_links(limit=None)
 
     if not jobs:
 
@@ -125,13 +131,6 @@ async def run():
     browser = None
 
     try:
-
-        playwright = await async_playwright().start()
-
-        browser = await playwright.chromium.launch(
-            headless=HEADLESS
-        )
-
         for index, job_data in enumerate(
             jobs,
             start=1,
@@ -147,6 +146,45 @@ async def run():
             )
 
             try:
+                decision = await classify_career_job_title(
+                    job_data["title"] or ""
+                )
+
+                if not decision["is_qa_mid_level"]:
+                    details = {
+                        "title": job_data["title"],
+                        "company": job_data["company"],
+                        "location": job_data["location"],
+                        "job_status": "DISCARDED",
+                        "ai_status": "COMPLETED",
+                    }
+                    insert_career_job_details(
+                        career_job_id=job_data["id"],
+                        source_url=job_data["url"],
+                        details=details,
+                    )
+                    append_analysis(
+                        {
+                            **details,
+                            "career_job_id": job_data["id"],
+                            "source_url": job_data["url"],
+                            "discard_reason": decision["reason"],
+                        }
+                    )
+                    discarded += 1
+                    print(
+                        "[STATUS: JOB_DISCARDED] "
+                        f"Reason: {decision['reason']}"
+                    )
+                    continue
+
+                if playwright is None:
+                    playwright = await async_playwright().start()
+
+                if browser is None:
+                    browser = await playwright.chromium.launch(
+                        headless=HEADLESS
+                    )
 
                 # -------------------------------------------------
                 # Validate source URL
@@ -160,8 +198,14 @@ async def run():
                 )
 
                 details = await analyzer.analyze(
-                    page
+                    page,
+                    fallback={
+                        "title": job_data["title"],
+                        "company": job_data["company"],
+                        "location": job_data["location"],
+                    },
                 )
+                details["ai_status"] = "COMPLETED"
                 print(f"  Final URL: {page.url}")
                 print(f"  Page title: {await page.title()}")
                 print(f"  Extracted keys: {list(details.keys())}")
@@ -180,6 +224,8 @@ async def run():
                 # -------------------------------------------------
 
                 details["job_status"] = get_job_status(details)
+                if details["job_status"] == "DISCARDED":
+                    details["discard_reason"] = get_discard_reason(details)
                 if details.get("title") or details.get("description"):
                     successfully_extracted += 1
                 elif details["job_status"] == "EXTRACTION_FAILED":
@@ -231,8 +277,7 @@ async def run():
                     print(
                         f"[STATUS: {validation_status}] "
                         "⚠ Discarded → "
-                        f"Level: "
-                        f"{details.get('level', '')}"
+                        f"Reason: {details['discard_reason']}"
                     )
 
                 elif (

@@ -3,3 +3,4 @@ python-dotenv
 playwright
 pandas
 openai
+ollama

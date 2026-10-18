@@ -2,7 +2,6 @@ import argparse
 import asyncio
 import inspect
 
-from commands.ai_analysis import run as ai_analysis
 from commands.analyse import run as analyse
 from commands.collect import run as collect
 from commands.dashboard import run as dashboard
@@ -51,8 +50,6 @@ COMMANDS = {
     "tech-report": tech_report,
 
     "score": score,
-
-    "ai-analysis": ai_analysis,
 
     "resume-match": resume_match,
 

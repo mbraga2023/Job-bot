@@ -153,7 +153,6 @@ python src/main.py analyse
 python src/main.py normalize
 python src/main.py tech-report
 python src/main.py score
-python src/main.py ai-analysis
 python src/main.py resume-match
 python src/main.py report
 python src/main.py linkedin
@@ -165,6 +164,12 @@ python src/main.py detect-career-apis
 python src/main.py validate-career-jobs
 python src/main.py dashboard
 ```
+
+`python src/main.py validate-career-jobs` uses the local Ollama model
+`llama3.2:1b` to classify all pending career-job titles in one run. Rejected
+titles are recorded as `DISCARDED` with the reason printed in the log;
+accepted jobs are opened and their extracted details are saved to
+`career_job_details`. Jobs already in that table are skipped.
 
 ### Functional / active flows
 
@@ -189,7 +194,6 @@ These commands are present but not fully implemented or are early-stage utilitie
 - `normalize` -> entry point only
 - `tech-report` -> technology reporting logic exists
 - `score` -> scoring agent exists
-- `ai-analysis` -> analysis entry point exists
 - `resume-match` -> placeholder only
 - `linkedin` -> wrapper to LinkedIn workflow
 - `detect-career-apis` -> discovery helper for career APIs
@@ -410,9 +414,6 @@ If you want to extend the project, the most natural next steps are:
 
 - career_jobs_link_validator.py
   Loads pending career jobs, opens each application page in a browser, extracts the relevant details, applies discard rules for senior positions, and saves the validated result in career_job_details. Each processed job logs a status such as PAGE_NOT_FOUND, JOB_CLOSED, JOB_DISCARDED, JOBS_FOUND, NO_JOBS_FOUND, or VALIDATION_FAILED.
-
-- job_analyzer.py
-  AI-oriented analysis workflow for job understanding. It exists as a future step, not the active pipeline.
 
 - report_agent.py
   Placeholder for report-generation logic. Not used in the current active workflow.
