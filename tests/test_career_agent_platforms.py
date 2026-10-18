@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta, timezone
 import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -25,6 +26,52 @@ class CareerAgentPlatformTests(unittest.IsolatedAsyncioTestCase):
     def test_search_all_is_the_existing_default(self):
         self.assertEqual(CareerAgent().platform, "search_all")
 
+    def test_checked_within_24_hours_is_skipped(self):
+        now = datetime(2026, 10, 18, 12, tzinfo=timezone.utc)
+        source = {
+            "company": "InHire Co",
+            "last_checked_at": (now - timedelta(hours=23)).isoformat(),
+        }
+
+        self.assertTrue(CareerAgent.was_checked_within_last_day(source, now))
+
+    def test_checked_exactly_24_hours_ago_is_skipped(self):
+        now = datetime(2026, 10, 18, 12, tzinfo=timezone.utc)
+        source = {
+            "company": "InHire Co",
+            "last_checked_at": (now - timedelta(hours=24)).isoformat(),
+        }
+
+        self.assertTrue(CareerAgent.was_checked_within_last_day(source, now))
+
+    def test_missing_or_older_check_timestamp_is_not_skipped(self):
+        now = datetime(2026, 10, 18, 12, tzinfo=timezone.utc)
+        self.assertFalse(
+            CareerAgent.was_checked_within_last_day(
+                {"company": "Never checked", "last_checked_at": None},
+                now,
+            )
+        )
+        self.assertFalse(
+            CareerAgent.was_checked_within_last_day(
+                {
+                    "company": "Old check",
+                    "last_checked_at": (now - timedelta(hours=24, seconds=1)).isoformat(),
+                },
+                now,
+            )
+        )
+
+    def test_invalid_check_timestamp_logs_warning_and_is_not_skipped(self):
+        with patch("agents.career_agent.print") as print_mock:
+            should_skip = CareerAgent.was_checked_within_last_day(
+                {"company": "Invalid date", "last_checked_at": "not-a-date"}
+            )
+
+        self.assertFalse(should_skip)
+        print_mock.assert_called_once()
+        self.assertIn("Could not parse last_checked_at", print_mock.call_args.args[0])
+
     @patch("agents.career_agent.get_career_sources")
     @patch("agents.career_agent.async_playwright")
     async def test_inhire_run_only_processes_inhire_sources(
@@ -37,11 +84,19 @@ class CareerAgentPlatformTests(unittest.IsolatedAsyncioTestCase):
                 "id": 1,
                 "company": "InHire Co",
                 "careers_url": "https://inhire-company.inhire.app/vagas",
+                "last_checked_at": None,
             },
             {
                 "id": 2,
                 "company": "Other Co",
                 "careers_url": "https://example.com/careers",
+                "last_checked_at": None,
+            },
+            {
+                "id": 3,
+                "company": "Recently checked",
+                "careers_url": "https://recent.inhire.app/vagas",
+                "last_checked_at": datetime.now(timezone.utc).isoformat(),
             },
         ]
         agent = CareerAgent(platform="inhire")

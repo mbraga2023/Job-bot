@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta, timezone
 from urllib.parse import urlparse
 
 from playwright.async_api import async_playwright
@@ -47,10 +48,28 @@ class CareerAgent:
                 for source in sources
                 if self.is_inhire_source(source["careers_url"])
             ]
+            eligible_sources = []
+            skipped_count = 0
+            now = datetime.now(timezone.utc)
+            for source in sources:
+                if self.was_checked_within_last_day(source, now):
+                    skipped_count += 1
+                    print(
+                        f"[SKIP] {source['company']} was checked within "
+                        "the last 24 hours."
+                    )
+                else:
+                    eligible_sources.append(source)
+            sources = eligible_sources
+            if skipped_count:
+                print(
+                    f"Skipped {skipped_count} InHire source(s) checked "
+                    "within the last 24 hours."
+                )
 
         if not sources:
             if self.platform == "inhire":
-                print("No InHire career sources configured.")
+                print("No InHire career sources need checking.")
             else:
                 print("No career sources configured.")
             return
@@ -204,6 +223,36 @@ class CareerAgent:
     def is_inhire_source(url: str) -> bool:
         hostname = (urlparse(url).hostname or "").casefold()
         return hostname == "inhire.app" or hostname.endswith(".inhire.app")
+
+    @staticmethod
+    def was_checked_within_last_day(source, now=None) -> bool:
+        last_checked_at = source["last_checked_at"]
+        if not last_checked_at:
+            return False
+
+        try:
+            checked_at = datetime.fromisoformat(
+                str(last_checked_at).replace("Z", "+00:00")
+            )
+        except ValueError:
+            print(
+                f"[WARNING] Could not parse last_checked_at for "
+                f"{source['company']}: {last_checked_at!r}. "
+                "The source will be checked."
+            )
+            return False
+
+        if checked_at.tzinfo is None:
+            checked_at = checked_at.replace(tzinfo=timezone.utc)
+
+        now = now or datetime.now(timezone.utc)
+        if now.tzinfo is None:
+            now = now.replace(tzinfo=timezone.utc)
+        else:
+            now = now.astimezone(timezone.utc)
+        checked_at = checked_at.astimezone(timezone.utc)
+
+        return now - timedelta(hours=24) <= checked_at <= now
 
     async def analyze_inhire_page(self, page):
         adapter = InHireAdapter(page)
