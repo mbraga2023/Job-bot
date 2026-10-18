@@ -16,7 +16,7 @@ class TitleDecision(TypedDict):
 async def classify_career_job_title(title: str) -> TitleDecision:
     prompt = f"""
 Decide whether this job title describes a QA/software testing position
-at a mid-level, pleno (not junior, internship, senior, lead, or principal).
+at a mid-level, pleno (not junior, internship, senior, lead, or principal). Avoid industrial and laboratory roles.
 If a title explicitly lists both mid-level and senior options, such as
 "QA Testing Pleno/Senior", accept it as including a mid-level position.
 A senior-only title is not mid-level. Use evidence in the title or job description or requirements.
