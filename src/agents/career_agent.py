@@ -136,10 +136,16 @@ class CareerAgent:
             # This assumes career_jobs contains only QA jobs.
             # If you later save all jobs, change this logic so that
             # non-QA jobs are not deactivated.
-            deactivate_missing_jobs(
-                career_source_id=source_id,
-                active_urls=active_urls,
-            )
+            if result.jobs:
+                deactivate_missing_jobs(
+                    career_source_id=source_id,
+                    active_urls=active_urls,
+                )
+            else:
+                print(
+                    "No jobs extracted; skipping deactivation "
+                    "to protect existing records."
+                )
 
             body = await page.locator("body").inner_text()
 

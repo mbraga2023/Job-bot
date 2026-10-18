@@ -52,6 +52,10 @@ class DashboardTests(unittest.TestCase):
         self.assertEqual(COMMANDS["open"], "open-jobs")
         self.assertEqual(COMMANDS["open-career"], "open-career-jobs")
         self.assertEqual(COMMANDS["careers"], "careers")
+        self.assertEqual(
+            COMMANDS["validate-career-jobs"],
+            "validate-career-jobs",
+        )
 
     def test_open_action_launches_cli_and_captures_output(self):
         class FakeProcess:
@@ -94,6 +98,7 @@ class DashboardTests(unittest.TestCase):
         self.assertIn('data-command="open"', telegram_markup)
         self.assertIn('data-command="careers"', career_markup)
         self.assertIn('data-command="open-career"', career_markup)
+        self.assertIn('data-command="validate-career-jobs"', career_markup)
         self.assertIn('id="stop-command"', page)
         self.assertIn('fetch("/api/stop"', page)
 

@@ -6,6 +6,7 @@ JOB_STATUS = {
     "NEW",           # Validated, not reviewed yet
     "OPEN",          # Still accepting applications
     "CLOSED",        # No longer accepting applications
+    "EXTRACTION_FAILED",
     "INTERESTED",    # Marked by user
     "APPLIED",       # Application submitted
     "INTERVIEW",     # Interview process

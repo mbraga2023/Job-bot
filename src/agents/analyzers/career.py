@@ -489,10 +489,16 @@ class CareerAnalyzer:
         # only against the QA jobs stored for this source.
         # -----------------------------------------------------
 
-        deactivate_missing_jobs(
-            career_source_id=source_id,
-            active_urls=active_urls,
-        )
+        if result.jobs:
+            deactivate_missing_jobs(
+                career_source_id=source_id,
+                active_urls=active_urls,
+            )
+        else:
+            print(
+                "No jobs extracted; skipping deactivation "
+                "to protect existing records."
+            )
 
         # -----------------------------------------------------
         # Update career source statistics.

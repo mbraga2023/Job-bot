@@ -29,10 +29,29 @@ def get_validation_status(details: dict) -> str:
     if details.get("job_status") == "CLOSED":
         return "JOB_CLOSED"
 
+    if details.get("job_status") == "EXTRACTION_FAILED":
+        return "EXTRACTION_FAILED"
+
     if details.get("title") or details.get("description"):
         return "JOBS_FOUND"
 
     return "NO_JOBS_FOUND"
+
+
+def get_job_status(details: dict) -> str:
+    if details.get("page_not_found"):
+        return "CLOSED"
+
+    if should_discard(details):
+        return "DISCARDED"
+
+    if details.get("job_status") == "CLOSED":
+        return "CLOSED"
+
+    if not (details.get("title") or details.get("description")):
+        return "EXTRACTION_FAILED"
+
+    return "NEW"
 
 
 def should_discard(details: dict) -> bool:
@@ -94,9 +113,11 @@ async def run():
 
     analyzer = CareerJobsLinksAnalyzer()
 
-    validated = 0
-    failed = 0
+    processed = 0
+    successfully_extracted = 0
+    extraction_failures = 0
     discarded = 0
+    exceptions = 0
 
     total = len(jobs)
 
@@ -117,6 +138,7 @@ async def run():
         ):
 
             page = None
+            processed += 1
 
             print(
                 f"\n[{index}/{total}] "
@@ -140,6 +162,15 @@ async def run():
                 details = await analyzer.analyze(
                     page
                 )
+                print(f"  Final URL: {page.url}")
+                print(f"  Page title: {await page.title()}")
+                print(f"  Extracted keys: {list(details.keys())}")
+                print(f"  Extracted title: {details.get('title')!r}")
+                print(
+                    "  Description length: "
+                    f"{len(details.get('description') or '')}"
+                )
+                print(f"  Page not found: {details.get('page_not_found')}")
                 details["published_date"] = normalize_published_date(
                     details.get("published_date")
                 )
@@ -148,35 +179,14 @@ async def run():
                 # Determine job status
                 # -------------------------------------------------
 
-                if details.get(
-                    "page_not_found"
-                ):
+                details["job_status"] = get_job_status(details)
+                if details.get("title") or details.get("description"):
+                    successfully_extracted += 1
+                elif details["job_status"] == "EXTRACTION_FAILED":
+                    extraction_failures += 1
 
-                    details["job_status"] = (
-                        "CLOSED"
-                    )
-
-                elif should_discard(
-                    details
-                ):
-
-                    details["job_status"] = (
-                        "DISCARDED"
-                    )
-
-                elif details.get(
-                    "job_status"
-                ) == "CLOSED":
-
-                    details["job_status"] = (
-                        "CLOSED"
-                    )
-
-                else:
-
-                    details["job_status"] = (
-                        "NEW"
-                    )
+                if details["job_status"] == "DISCARDED":
+                    discarded += 1
 
                 # -------------------------------------------------
                 # Save validated career job details
@@ -201,8 +211,6 @@ async def run():
                     details
                 )
 
-                validated += 1
-
                 # -------------------------------------------------
                 # Console output
                 # -------------------------------------------------
@@ -219,8 +227,6 @@ async def run():
                 elif (
                     validation_status == "JOB_DISCARDED"
                 ):
-
-                    discarded += 1
 
                     print(
                         f"[STATUS: {validation_status}] "
@@ -244,6 +250,13 @@ async def run():
                         "⚠ No job title or description extracted"
                     )
 
+                elif validation_status == "EXTRACTION_FAILED":
+
+                    print(
+                        f"[STATUS: {validation_status}] "
+                        "⚠ Could not extract job details"
+                    )
+
                 else:
 
                     print(
@@ -253,7 +266,7 @@ async def run():
 
             except Exception as error:
 
-                failed += 1
+                exceptions += 1
 
                 print(
                     f"[STATUS: VALIDATION_FAILED] ✗ Failed: {error}"
@@ -285,19 +298,23 @@ async def run():
     )
 
     print(
-        f"Jobs processed : {total}"
+        f"Processed                : {processed}"
     )
 
     print(
-        f"Validated      : {validated}"
+        f"Successfully extracted   : {successfully_extracted}"
     )
 
     print(
-        f"Discarded      : {discarded}"
+        f"Extraction failures      : {extraction_failures}"
     )
 
     print(
-        f"Failed         : {failed}"
+        f"Discarded                 : {discarded}"
+    )
+
+    print(
+        f"Exceptions                : {exceptions}"
     )
 
     print(

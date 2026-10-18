@@ -26,6 +26,7 @@ COMMANDS = {
     "linkedin": "linkedin",
     "open": "open-jobs",
     "open-career": "open-career-jobs",
+    "validate-career-jobs": "validate-career-jobs",
 }
 
 
@@ -95,6 +96,7 @@ PAGE = """<!doctype html>
           <div class="actions">
             <button data-command="careers">Careers</button>
             <button data-command="open-career">Open career jobs</button>
+            <button data-command="validate-career-jobs">Validate career jobs</button>
             <button id="show-career-source-form" type="button">Import careers</button>
           </div>
         </section>
