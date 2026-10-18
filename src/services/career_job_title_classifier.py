@@ -16,8 +16,11 @@ class TitleDecision(TypedDict):
 async def classify_career_job_title(title: str) -> TitleDecision:
     prompt = f"""
 Decide whether this job title describes a QA/software testing position
-at a mid-level (not junior, internship, senior, lead, or principal).
-Only use evidence in the title. Return JSON with:
+at a mid-level, pleno (not junior, internship, senior, lead, or principal).
+If a title explicitly lists both mid-level and senior options, such as
+"QA Testing Pleno/Senior", accept it as including a mid-level position.
+A senior-only title is not mid-level. Use evidence in the title or job description or requirements.
+Return JSON with:
 {{"is_qa_mid_level": true or false, "reason": "short explanation"}}
 
 Job title: {title}
@@ -37,7 +40,9 @@ Job title: {title}
     try:
         decision = json.loads(content)
     except json.JSONDecodeError as exc:
-        raise ValueError("Llama returned invalid JSON for title classification.") from exc
+        raise ValueError(
+            "Llama returned invalid JSON for title classification."
+        ) from exc
 
     if not isinstance(decision, dict) or not isinstance(
         decision.get("is_qa_mid_level"), bool

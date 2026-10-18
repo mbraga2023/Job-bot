@@ -9,7 +9,35 @@ os.environ.setdefault("API_HASH", "test-hash")
 os.environ.setdefault("TELEGRAM_CHANNEL", "@example")
 
 from agents.career_jobs_link_validator import run
+from agents.analyzers.career_jobs_links import CareerJobsLinksAnalyzer
 from services.career_job_title_classifier import classify_career_job_title
+
+
+class CareerJobLevelDetectionTests(unittest.TestCase):
+    def setUp(self):
+        self.analyzer = CareerJobsLinksAnalyzer()
+
+    def test_portuguese_pleno_is_mid_level(self):
+        self.assertEqual(
+            self.analyzer.level_from_title(
+                "QA Testing & Automation Pleno - COM INGLES - Remoto"
+            ),
+            "Mid",
+        )
+
+    def test_mid_level_option_wins_over_senior_in_combined_title(self):
+        self.assertEqual(
+            self.analyzer.level_from_title(
+                "QA Testing & Automation Pleno/Senior - COM INGLES - Remoto"
+            ),
+            "Mid",
+        )
+
+    def test_senior_only_title_remains_senior(self):
+        self.assertEqual(
+            self.analyzer.level_from_title("Senior QA Engineer"),
+            "Senior",
+        )
 
 
 class CareerJobTitleClassifierTests(unittest.IsolatedAsyncioTestCase):
@@ -28,6 +56,20 @@ class CareerJobTitleClassifierTests(unittest.IsolatedAsyncioTestCase):
             {"is_qa_mid_level": False, "reason": "Senior role"},
         )
         client.chat.assert_awaited_once()
+
+    @patch("services.career_job_title_classifier.ollama.AsyncClient")
+    async def test_prompt_explains_pleno_and_combined_seniority(self, client_mock):
+        client = client_mock.return_value
+        client.chat = AsyncMock()
+        client.chat.return_value.message.content = (
+            '{"is_qa_mid_level": true, "reason": "Pleno is mid-level."}'
+        )
+
+        await classify_career_job_title("QA Testing Pleno/Senior")
+
+        prompt = client.chat.await_args.kwargs["messages"][0]["content"]
+        self.assertIn('"pleno"', prompt)
+        self.assertIn('"QA Testing Pleno/Senior"', prompt)
 
     @patch("services.career_job_title_classifier.ollama.AsyncClient")
     async def test_rejects_invalid_llama_response(self, client_mock):

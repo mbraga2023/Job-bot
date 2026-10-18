@@ -1649,27 +1649,22 @@ class CareerJobsLinksAnalyzer:
             title
         )
 
-        # -------------------------------------------------
-        # Senior
-        # -------------------------------------------------
-
-        if self.contains_level_keyword(
-            normalized,
-            self.LEVEL_SENIOR,
-        ):
-
-            return "Senior"
-
-        # -------------------------------------------------
-        # Mid
-        # -------------------------------------------------
-
-        if self.contains_level_keyword(
+        # Some postings advertise multiple levels, for example
+        # "Pleno/Senior". Preserve the eligible mid-level option.
+        has_mid_level = self.contains_level_keyword(
             normalized,
             self.LEVEL_MID,
-        ):
+        )
+        has_senior_level = self.contains_level_keyword(
+            normalized,
+            self.LEVEL_SENIOR,
+        )
 
+        if has_mid_level:
             return "Mid"
+
+        if has_senior_level:
+            return "Senior"
 
         # -------------------------------------------------
         # Junior
