@@ -51,11 +51,8 @@ def run_command_in_background(cmd_args: list[str], label: str) -> bool:
         if ACTIVE_PROCESS is not None and ACTIVE_PROCESS.poll() is None:
             return False
 
-        with COMMAND_OUTPUT_LOCK:
-            COMMAND_OUTPUT.clear()
-
         CURRENT_COMMAND = label
-        append_output(f">> Running: {label}\n")
+        append_output(f"\n>> Running: {label}\n")
 
         # Use the same python executable
         cmd = [sys.executable, str(MAIN_SCRIPT)] + cmd_args
@@ -69,6 +66,7 @@ def run_command_in_background(cmd_args: list[str], label: str) -> bool:
                 encoding="utf-8",
                 errors="replace",
                 bufsize=1,
+                env={**os.environ, "PYTHONUNBUFFERED": "1"},
             )
         except Exception as exc:
             append_output(f"Failed to start process: {exc}\n")
@@ -76,9 +74,11 @@ def run_command_in_background(cmd_args: list[str], label: str) -> bool:
             ACTIVE_PROCESS = None
             return False
 
+        process = ACTIVE_PROCESS
+
     def reader():
         global ACTIVE_PROCESS, CURRENT_COMMAND
-        proc = ACTIVE_PROCESS
+        proc = process
         if proc and proc.stdout:
             for line in proc.stdout:
                 append_output(line)
