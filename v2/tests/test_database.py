@@ -10,10 +10,12 @@ from v2.config import config
 from v2.core.database import (
     get_connection,
     get_database_stats,
+    get_non_qa_job_count,
     get_job_by_id,
     get_job_by_source_url,
     get_jobs_for_review,
     get_jobs_for_validation,
+    delete_non_qa_jobs,
     init_db,
     insert_career_source,
     insert_discovered_job,
@@ -133,6 +135,32 @@ class TestCentralizedDatabase(unittest.TestCase):
         self.assertEqual(stats["jobs_total"], 2)
         self.assertEqual(stats["jobs_by_pipeline"]["TELEGRAM"], 1)
         self.assertEqual(stats["jobs_by_pipeline"]["CAREER_PAGE"], 1)
+
+    def test_delete_non_qa_jobs_preserves_qa_and_requires_current_preview(self):
+        qa_job_id = insert_discovered_job(
+            pipeline="CAREER_PAGE",
+            source_url="https://example.com/jobs/qa",
+            title="QA Engineer - Pleno",
+        )
+        non_qa_job_id = insert_discovered_job(
+            pipeline="TELEGRAM",
+            source_url="https://example.com/jobs/marketing",
+            title="Marketing Manager",
+        )
+        untitled_job_id = insert_discovered_job(
+            pipeline="CAREER_PAGE",
+            source_url="https://example.com/jobs/untitled",
+        )
+
+        preview_count = get_non_qa_job_count()
+        self.assertEqual(preview_count, 2)
+        with self.assertRaisesRegex(ValueError, "changed since the preview"):
+            delete_non_qa_jobs(preview_count - 1)
+
+        self.assertEqual(delete_non_qa_jobs(preview_count), 2)
+        self.assertIsNotNone(get_job_by_id(qa_job_id))
+        self.assertIsNone(get_job_by_id(non_qa_job_id))
+        self.assertIsNone(get_job_by_id(untitled_job_id))
 
 
 if __name__ == "__main__":

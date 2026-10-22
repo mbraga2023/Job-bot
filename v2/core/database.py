@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, Generator, Sequence
 
 from v2.config import config
+from v2.core.keywords import is_qa_job_title
 
 
 def get_db_path() -> Path:
@@ -440,6 +441,31 @@ def get_jobs_for_review(
     with get_connection() as conn:
         cursor = conn.execute(query, params)
         return [dict(r) for r in cursor.fetchall()]
+
+
+def get_non_qa_job_count() -> int:
+    """Count jobs whose titles do not match the career flow's QA title filter."""
+    with get_connection() as conn:
+        titles = conn.execute("SELECT title FROM jobs").fetchall()
+        return sum(not is_qa_job_title(row["title"]) for row in titles)
+
+
+def delete_non_qa_jobs(expected_count: int) -> int:
+    """Delete jobs without a QA-matching title, only if the preview count is unchanged."""
+    with get_connection() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        rows = conn.execute("SELECT id, title FROM jobs").fetchall()
+        job_ids = [
+            row["id"] for row in rows if not is_qa_job_title(row["title"])
+        ]
+        if len(job_ids) != expected_count:
+            raise ValueError(
+                "The number of non-QA jobs changed since the preview; refresh and try again."
+            )
+
+        conn.executemany("DELETE FROM jobs WHERE id = ?", ((job_id,) for job_id in job_ids))
+        conn.commit()
+        return len(job_ids)
 
 
 def get_database_stats() -> dict[str, Any]:

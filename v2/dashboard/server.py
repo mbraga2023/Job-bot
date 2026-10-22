@@ -12,7 +12,12 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
-from v2.core.database import get_database_stats, insert_career_source
+from v2.core.database import (
+    delete_non_qa_jobs,
+    get_database_stats,
+    get_non_qa_job_count,
+    insert_career_source,
+)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 MAIN_SCRIPT = PROJECT_ROOT / "v2" / "main.py"
@@ -126,6 +131,8 @@ PAGE_HTML = """<!doctype html>
     button.secondary:hover:not(:disabled) { background: #334155; }
     button.danger { background: #dc2626; }
     button.danger:hover:not(:disabled) { background: #ef4444; }
+    button.warning { background: #b45309; }
+    button.warning:hover:not(:disabled) { background: #d97706; }
     
     /* Terminal */
     .terminal-panel { background: #131b2e; border: 1px solid #1e293b; border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; height: calc(100vh - 220px); }
@@ -210,6 +217,7 @@ PAGE_HTML = """<!doctype html>
         <div class="actions-grid">
           <button class="secondary" onclick="triggerCommand(['migrate'], 'Migrate from v1')">Migrate from v1</button>
           <button class="secondary" onclick="triggerCommand(['stats'], 'Print Stats')">Log Stats</button>
+          <button class="warning" onclick="cleanNonQaJobs()">Temporary: Clean non-QA jobs</button>
         </div>
       </div>
     </section>
@@ -289,6 +297,35 @@ PAGE_HTML = """<!doctype html>
 
     async function stopCommand() {
       await fetch("/api/stop", { method: "POST" });
+    }
+
+    async function cleanNonQaJobs() {
+      try {
+        const previewResponse = await fetch("/api/non-qa-jobs");
+        const preview = await previewResponse.json();
+        if (!previewResponse.ok) throw new Error(preview.error || "Could not count jobs.");
+        if (preview.count === 0) {
+          alert("No non-QA jobs found.");
+          return;
+        }
+
+        const confirmation = prompt(
+          `This will permanently delete ${preview.count} jobs whose titles are not recognized as QA, including jobs with missing titles. Type DELETE NON-QA JOBS to continue.`
+        );
+        if (confirmation !== "DELETE NON-QA JOBS") return;
+
+        const response = await fetch("/api/non-qa-jobs", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ expected_count: preview.count, confirmation })
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || "Could not delete jobs.");
+        alert(`Deleted ${result.deleted} non-QA jobs.`);
+        refreshStats();
+      } catch (error) {
+        alert("Cleanup failed: " + error.message);
+      }
     }
 
     async function pollLogs() {
@@ -372,6 +409,13 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps(stats).encode("utf-8"))
             return
 
+        if parsed.path == "/api/non-qa-jobs":
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"count": get_non_qa_job_count()}).encode("utf-8"))
+            return
+
         if parsed.path == "/api/logs":
             with ACTIVE_PROCESS_LOCK:
                 running = ACTIVE_PROCESS is not None and ACTIVE_PROCESS.poll() is None
@@ -418,6 +462,32 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self.send_header("Content-Type", "application/json")
             self.end_headers()
             self.wfile.write(json.dumps({"stopped": True}).encode("utf-8"))
+            return
+
+        if parsed.path == "/api/non-qa-jobs":
+            content_length = int(self.headers.get("Content-Length", 0))
+            body = self.rfile.read(content_length).decode("utf-8")
+            data = json.loads(body) if body else {}
+            if data.get("confirmation") != "DELETE NON-QA JOBS":
+                self.send_response(400)
+                response = {"error": "Explicit cleanup confirmation is required."}
+            elif not isinstance(data.get("expected_count"), int) or isinstance(
+                data.get("expected_count"), bool
+            ):
+                self.send_response(400)
+                response = {"error": "A valid preview count is required."}
+            else:
+                try:
+                    deleted = delete_non_qa_jobs(data["expected_count"])
+                except ValueError as exc:
+                    self.send_response(409)
+                    response = {"error": str(exc)}
+                else:
+                    self.send_response(200)
+                    response = {"deleted": deleted}
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps(response).encode("utf-8"))
             return
 
         if parsed.path == "/api/import-career":
