@@ -41,13 +41,19 @@ class InHireAdapter(BaseCareerAdapter):
         previous_state = None
         stable_rounds = 0
 
-        # Scroll to load dynamic list
-        for _ in range(25):
+        print(f"  [INHIRE] Scrolling to load listings for {company_name or 'source'}...", flush=True)
+        for scroll in range(1, 26):
             await self.page.evaluate("() => window.scrollTo(0, document.body.scrollHeight)")
             await self.page.wait_for_timeout(600)
             count = await links.count()
             height = await self.page.evaluate("() => document.body.scrollHeight")
             current_state = (count, height)
+
+            if scroll % 5 == 0:
+                print(
+                    f"  [INHIRE] Scroll {scroll}/25: {count} listing link(s) loaded.",
+                    flush=True,
+                )
 
             if current_state == previous_state:
                 stable_rounds += 1
@@ -58,6 +64,7 @@ class InHireAdapter(BaseCareerAdapter):
 
             previous_state = current_state
 
+        print("  [INHIRE] Extracting loaded listings...", flush=True)
         elements = await links.evaluate_all(
             """links => links.map(link => ({
                 url: link.href,
@@ -87,4 +94,5 @@ class InHireAdapter(BaseCareerAdapter):
             seen_urls.add(url)
             jobs.append(CareerJobItem(title=title, url=url, company=company_name))
 
+        print(f"  [INHIRE] Extracted {len(jobs)} valid listing(s).", flush=True)
         return jobs

@@ -17,6 +17,7 @@ from v2.core.database import (
     init_db,
     insert_career_source,
     insert_discovered_job,
+    mark_source_checked,
     update_job_status,
     update_job_validation,
 )
@@ -52,6 +53,25 @@ class TestCentralizedDatabase(unittest.TestCase):
         # Unique constraint test
         dup_id = insert_career_source("TestCorp", "https://test.com/careers")
         self.assertEqual(dup_id, 0)
+
+    def test_successful_source_check_clears_previous_error(self):
+        source_id = insert_career_source("TestCorp", "https://test.com/careers")
+        with get_connection(self.db_path) as conn:
+            conn.execute(
+                "UPDATE career_sources SET last_error = ? WHERE id = ?",
+                ("Previous scan failed", source_id),
+            )
+            conn.commit()
+
+        mark_source_checked(source_id, discovered_jobs=2)
+
+        with get_connection(self.db_path) as conn:
+            row = conn.execute(
+                "SELECT last_error, discovered_jobs FROM career_sources WHERE id = ?",
+                (source_id,),
+            ).fetchone()
+        self.assertIsNone(row["last_error"])
+        self.assertEqual(row["discovered_jobs"], 2)
 
     def test_telegram_and_career_jobs_lifecycle(self):
         # 1. Insert Telegram job
