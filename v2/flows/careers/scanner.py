@@ -15,7 +15,7 @@ from v2.core.database import (
     insert_discovered_job,
     mark_source_checked,
 )
-from v2.core.keywords import QA_SEARCH_TERMS, is_qa_related
+from v2.core.keywords import QA_SEARCH_TERMS, is_qa_job_title
 from v2.flows.careers.adapters import GenericAdapter, GupyAdapter, InHireAdapter
 
 NAVIGATION_ATTEMPTS = 3
@@ -181,8 +181,12 @@ async def run_scanner(platform: str = "search_all") -> dict[str, int]:
 
                 source_new = 0
                 for item in jobs:
-                    # Filter QA if title is already populated; otherwise keep for validator
-                    if item.title and not is_qa_related(item.title):
+                    if not is_qa_job_title(item.title):
+                        print(
+                            f"  [-] Skipping non-QA or untitled listing: "
+                            f"{item.title or item.url}",
+                            flush=True,
+                        )
                         continue
 
                     job_id = insert_discovered_job(

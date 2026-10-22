@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import re
-from urllib.parse import urljoin, urlparse
 from playwright.async_api import Page, TimeoutError as PlaywrightTimeoutError
 
 from v2.flows.careers.adapters.base import BaseCareerAdapter, CareerJobItem, CareerPageModel
+from v2.core.keywords import is_qa_job_title, normalize_job_title
 
 GUPY_MODEL = CareerPageModel(
     platform="gupy",
@@ -47,11 +47,11 @@ class GupyAdapter(BaseCareerAdapter):
             await self.page.evaluate("() => window.scrollTo(0, document.body.scrollHeight)")
             await self.page.wait_for_timeout(500)
 
-        links = await self.get_job_links()
         jobs: list[CareerJobItem] = []
         seen: set[str] = set()
 
-        for link in links:
+        for element in await self.get_job_link_details():
+            link = element["url"]
             # Filter valid Gupy job link
             if not re.search(r"/(?:job|jobs)/\d+", link):
                 continue
@@ -59,9 +59,12 @@ class GupyAdapter(BaseCareerAdapter):
                 continue
             seen.add(link)
 
-            # Try to grab title from element or path
+            title = normalize_job_title(element["title"])
+            if not is_qa_job_title(title):
+                continue
+
             jobs.append(CareerJobItem(
-                title="",
+                title=title,
                 url=link,
                 company=company_name,
             ))

@@ -5,28 +5,67 @@ from __future__ import annotations
 import asyncio
 import json
 import random
+import re
 from typing import Any
-import ollama
 from playwright.async_api import async_playwright
 
 from v2.config import config
 from v2.core.database import get_jobs_for_validation, update_job_validation
 from v2.core.date_utils import is_older_than_days, normalize_published_date
-from v2.core.keywords import extract_technologies, is_qa_related
+from v2.core.keywords import (
+    extract_technologies,
+    is_qa_job_title,
+    is_qa_related,
+    normalize_job_title,
+)
 from v2.core.seniority import evaluate_seniority
+
+
+def extract_labeled_job_title(body_text: str) -> str:
+    """Extract an explicitly labeled title from normalized visible page text."""
+    lines = [
+        normalized
+        for line in body_text.splitlines()
+        if (normalized := normalize_job_title(line))
+    ]
+    title_label = re.compile(
+        r"^(?:job\s+title|position\s+title|position|cargo|t[ií]tulo|"
+        r"nome\s+da\s+vaga|vaga)\s*:?\s*(.*)$",
+        re.IGNORECASE,
+    )
+    for index, line in enumerate(lines):
+        match = title_label.match(line)
+        if not match:
+            continue
+        inline_title = normalize_job_title(match.group(1))
+        if inline_title:
+            return inline_title
+        if index + 1 < len(lines):
+            return lines[index + 1]
+    return ""
 
 
 async def classify_title_with_ollama(title: str) -> dict[str, Any]:
     """Call local Ollama LLM to classify if title is mid-level QA."""
+    normalized_title = normalize_job_title(title)
+    if not is_qa_job_title(normalized_title):
+        return {
+            "is_qa_mid_level": False,
+            "reason": "TITLE_NOT_QA_ROLE",
+        }
+
     prompt = f"""Decide whether this job title describes a QA/software testing position at a mid-level, pleno (not junior, internship, senior, lead, or principal). Avoid industrial and laboratory roles.
 If a title explicitly lists both mid-level and senior options, such as "QA Testing Pleno/Senior", accept it as including a mid-level position.
 A senior-only title is not mid-level.
+Only classify the job title itself. Do not infer a QA role from the company, page content, marketing text, or the word "career".
 Return JSON with:
 {{"is_qa_mid_level": true or false, "reason": "short explanation"}}
 
-Job title: {title}
+Job title: {normalized_title}
 """
     try:
+        import ollama
+
         client = ollama.AsyncClient()
         response = await client.chat(
             model=config.ollama_model,
@@ -115,15 +154,58 @@ async def run_validator(limit: int | None = None) -> None:
                     body_text = ""
 
                 # Extract title if not previously known
-                page_title = None
-                try:
-                    h1 = page.locator("h1").first
-                    if await h1.is_visible(timeout=1000):
-                        page_title = (await h1.inner_text()).strip()
-                except Exception:
-                    pass
+                page_title = extract_labeled_job_title(body_text)
+                if not page_title:
+                    try:
+                        h1 = page.locator("h1").first
+                        if await h1.is_visible(timeout=1000):
+                            page_title = normalize_job_title(await h1.inner_text())
+                    except Exception:
+                        pass
 
-                final_title = page_title or raw_title or "QA Engineer"
+                page_title_is_qa = is_qa_job_title(page_title)
+                final_title = (
+                    page_title if page_title_is_qa else normalize_job_title(raw_title)
+                )
+                if not final_title:
+                    final_title = page_title
+
+                if not is_qa_job_title(final_title):
+                    reason = "TITLE_NOT_QA_ROLE"
+                    print(
+                        f"  [DISCARD] Extracted title is not a QA/testing role: "
+                        f"{final_title or '(no title found)'}"
+                    )
+                    update_job_validation(
+                        job_id=job["id"],
+                        status="DISCARDED",
+                        title=final_title or None,
+                        discard_reason=reason,
+                        ai_status="PROCESSED",
+                        ai_reason=reason,
+                    )
+                    discarded_count += 1
+                    continue
+
+                if final_title != normalize_job_title(raw_title):
+                    ai_decision = await classify_title_with_ollama(final_title)
+                    ai_reason = ai_decision.get("reason")
+                    ai_status = "PROCESSED"
+                    if not ai_decision.get("is_qa_mid_level"):
+                        print(
+                            f"  [DISCARD] AI rejected extracted title: "
+                            f"{final_title} ({ai_reason})"
+                        )
+                        update_job_validation(
+                            job_id=job["id"],
+                            status="DISCARDED",
+                            title=final_title,
+                            discard_reason=f"LLM_REJECTED: {ai_reason}",
+                            ai_status=ai_status,
+                            ai_reason=ai_reason,
+                        )
+                        discarded_count += 1
+                        continue
 
                 # Technologies and date
                 technologies = extract_technologies(body_text)

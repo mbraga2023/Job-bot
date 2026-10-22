@@ -68,3 +68,45 @@ class BaseCareerAdapter:
                     if full_url:
                         urls.append(full_url)
         return list(dict.fromkeys(urls))
+
+    async def get_job_link_details(self) -> list[dict[str, str]]:
+        """Extract visible job links and their closest usable title text."""
+        details: dict[str, dict[str, str]] = {}
+        for selector in self.model.job_links:
+            links = self.page.locator(selector)
+            elements = await links.evaluate_all(
+                """links => links.map(link => {
+                    const visible = link.getClientRects().length > 0
+                        && getComputedStyle(link).visibility !== "hidden"
+                        && getComputedStyle(link).display !== "none";
+                    const card = link.closest(
+                        '[data-job-id], [data-testid*="job" i], ' +
+                        '[class*="job-card" i], [class*="job-item" i], ' +
+                        '[class*="job-listing" i], li'
+                    );
+                    const heading = card && card.querySelector(
+                        'h1, h2, h3, h4, [class*="title" i]'
+                    );
+                    const text = element => (element?.innerText || element?.textContent || "")
+                        .replace(/\\s+/g, " ").trim();
+                    return {
+                        url: link.href,
+                        title: text(heading)
+                            || text(link)
+                            || link.getAttribute("aria-label")
+                            || link.getAttribute("title")
+                            || "",
+                        visible
+                    };
+                })"""
+            )
+            for element in elements:
+                url = element.get("url", "").strip()
+                title = element.get("title", "").strip()
+                if not element.get("visible") or not url:
+                    continue
+                if url not in details:
+                    details[url] = {"url": url, "title": title}
+                elif not details[url]["title"] and title:
+                    details[url]["title"] = title
+        return list(details.values())

@@ -3,7 +3,12 @@
 from __future__ import annotations
 
 import unittest
-from v2.core.keywords import extract_technologies, is_qa_related
+from v2.core.keywords import (
+    extract_technologies,
+    is_qa_job_title,
+    is_qa_related,
+    normalize_job_title,
+)
 
 
 class TestKeywords(unittest.TestCase):
@@ -35,6 +40,20 @@ class TestKeywords(unittest.TestCase):
         self.assertIn("SQL", techs)
         self.assertIn("CI/CD", techs)
         self.assertIn("Docker", techs)
+
+    def test_qa_title_filter_rejects_non_qa_and_promotional_titles(self):
+        self.assertTrue(is_qa_job_title("QA Engineer - Pleno"))
+        self.assertTrue(is_qa_job_title("Analista de Testes"))
+        self.assertFalse(is_qa_job_title("Molder - Weekend Night Shift"))
+        self.assertFalse(
+            is_qa_job_title("Turn your gaming skills into a career at Volvo Group")
+        )
+
+    def test_job_title_normalization_collapses_whitespace_and_entities(self):
+        self.assertEqual(
+            normalize_job_title("  QA Engineer\n (Pleno) &amp; Remote  "),
+            "QA Engineer (Pleno) & Remote",
+        )
 
 
 if __name__ == "__main__":

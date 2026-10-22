@@ -12,6 +12,7 @@ from unittest.mock import AsyncMock, patch
 from playwright.async_api import Error as PlaywrightError
 
 from v2.flows.careers import scanner
+from v2.flows.careers.adapters.base import CareerJobItem
 
 
 class FakeBrowser:
@@ -203,6 +204,49 @@ class TestCareerScanner(unittest.TestCase):
         self.assertIn("[SEARCH] Searching for 'Quality Assurance'", logs)
         adapter.search.assert_any_await("QA")
         adapter.search.assert_any_await("Quality Assurance")
+
+    def test_scanner_does_not_insert_non_qa_or_untitled_items(self) -> None:
+        source = {
+            "id": 9,
+            "company": "Example",
+            "careers_url": "https://example.com/careers",
+            "last_checked_at": None,
+        }
+        adapter = type(
+            "StubGenericAdapter",
+            (),
+            {
+                "wait_for_page_ready": AsyncMock(),
+                "get_jobs": AsyncMock(
+                    return_value=[
+                        CareerJobItem(
+                            title="Molder - Weekend Night Shift",
+                            url="https://example.com/jobs/molder",
+                        ),
+                        CareerJobItem(
+                            title="",
+                            url="https://example.com/jobs/untitled",
+                        ),
+                        CareerJobItem(
+                            title="QA Engineer",
+                            url="https://example.com/jobs/qa-engineer",
+                        ),
+                    ]
+                ),
+            },
+        )()
+
+        with (
+            patch.object(scanner, "get_active_career_sources", return_value=[source]),
+            patch.object(scanner, "async_playwright", return_value=FakePlaywrightContext()),
+            patch.object(scanner, "GenericAdapter", return_value=adapter),
+            patch.object(scanner, "insert_discovered_job") as insert_job,
+            patch.object(scanner, "mark_source_checked"),
+        ):
+            asyncio.run(scanner.run_scanner(platform="search_all"))
+
+        insert_job.assert_called_once()
+        self.assertEqual(insert_job.call_args.kwargs["title"], "QA Engineer")
 
 
 if __name__ == "__main__":
