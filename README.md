@@ -269,14 +269,15 @@ The separate `report` command still generates a static jobs table at
 python src/main.py open-jobs
 ```
 
-Opens all validated jobs with status `OPEN` and `NEW` as separate tabs in a dedicated Google Chrome window (or default browser).
+Opens validated jobs with status `OPEN` and `NEW` in batches of 10 separate tabs in a dedicated Google Chrome window (or default browser). When more jobs remain, press Enter in the terminal to open the next batch.
+`python src/main.py open` is an alias for `python src/main.py open-jobs`.
 
 Status-specific browser commands:
 ```bash
 python src/main.py open-jobs OPEN    # Opens only jobs verified as OPEN
 python src/main.py open-jobs NEW     # Opens only jobs with status NEW
 
-python src/main.py open-jobs 10      # Opens the top 10 jobs
+python src/main.py open-jobs 10      # Opens the top 10 jobs (one batch)
 ```
 
 On Windows, you can also run [`scripts/open_jobs.bat`](scripts/open_jobs.bat) directly.
