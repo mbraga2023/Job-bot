@@ -134,6 +134,18 @@ def extract_message_link(message: Any) -> str | None:
 def is_remote_job(job_data: dict[str, Any]) -> int:
     """Check if job description or location describes remote work."""
     text = " ".join(str(v) for v in job_data.values() if v).lower()
+    not_remote_keywords = (
+        "on-site",
+        "on site",
+        "onsite",
+        "presencial",
+        "hybrid",
+        "híbrido",
+        "hibrido",
+    )
+    if any(keyword in text for keyword in not_remote_keywords):
+        return 0
+
     keywords = ("remoto", "remota", "remote", "home office", "home-office", "100% remoto")
     return 1 if any(kw in text for kw in keywords) else 0
 

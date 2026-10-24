@@ -61,6 +61,21 @@ QA_TITLE_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+NON_QA_TITLE_PREFIXES: tuple[str, ...] = (
+    "Monitor de Qualidade",
+    "Gerente Executivo de Qualidade",
+    "Consultor de Validação",
+    "Especialista em Desenvolvimento do Produto",
+    "Pesquisador",
+    "Inspetor de qualidade",
+    "Analista de sistemas de gestão",
+    "Analista de Controle de Qualidade Pleno",
+    "Analista de negócios",
+    "Analista de Monitoramento",
+    "Gestão de qualidade",
+    "Assistente de qualidade",
+)
+
 NON_JOB_TITLE_PATTERN = re.compile(
     r"\b(?:"
     r"view\s+all\s+jobs|see\s+all\s+jobs|"
@@ -71,6 +86,18 @@ NON_JOB_TITLE_PATTERN = re.compile(
     r"join\s+our\s+talent\s+community"
     r")\b",
     re.IGNORECASE,
+)
+
+_NON_QA_TITLE_KEYS = tuple(
+    re.sub(
+        r"\s+",
+        " ",
+        unicodedata.normalize("NFKD", title)
+        .encode("ascii", "ignore")
+        .decode("ascii")
+        .casefold(),
+    ).strip()
+    for title in NON_QA_TITLE_PREFIXES
 )
 
 # Classification keywords matching QA roles
@@ -145,14 +172,35 @@ def is_qa_job_title(title: str | None) -> bool:
     normalized = normalize_job_title(title)
     if not normalized or len(normalized) > 180:
         return False
+    if is_non_qa_job_title(normalized):
+        return False
     if NON_JOB_TITLE_PATTERN.search(normalized):
         return False
     return bool(QA_TITLE_PATTERN.search(normalized))
 
 
+def is_non_qa_job_title(title: str | None) -> bool:
+    """Check whether a normalized title starts with an explicitly excluded role."""
+    normalized = normalize_job_title(title)
+    normalized_key = re.sub(
+        r"\s+",
+        " ",
+        unicodedata.normalize("NFKD", normalized)
+        .encode("ascii", "ignore")
+        .decode("ascii")
+        .casefold(),
+    ).strip()
+    return any(
+        normalized_key == prefix or normalized_key.startswith(f"{prefix} ")
+        for prefix in _NON_QA_TITLE_KEYS
+    )
+
+
 def is_qa_related(text: str | None) -> bool:
     """Check if the given text matches QA role keywords."""
     if not text:
+        return False
+    if is_non_qa_job_title(text):
         return False
     lower = text.lower()
     for kw in QA_KEYWORDS:

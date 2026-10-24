@@ -3,8 +3,27 @@
 from __future__ import annotations
 
 import re
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlsplit
 from playwright.async_api import Page, TimeoutError as PlaywrightTimeoutError
+
+
+def is_linkedin_person_url(url: str | None) -> bool:
+    """Return whether a URL points to a LinkedIn member profile."""
+    if not url:
+        return False
+    try:
+        parsed = urlsplit(url.strip())
+    except ValueError:
+        return False
+
+    host = (parsed.hostname or "").casefold()
+    path_parts = parsed.path.strip("/").split("/")
+    return (
+        (host == "linkedin.com" or host.endswith(".linkedin.com"))
+        and len(path_parts) >= 2
+        and path_parts[0].casefold() == "in"
+        and bool(path_parts[1])
+    )
 
 
 class LinkedInAnalyzer:
@@ -52,12 +71,12 @@ class LinkedInAnalyzer:
         easy_apply = await self._has_easy_apply(page)
 
         if workplace == "NOT_REMOTE":
-            return self._result(applications_open=True, remote=False, status="NOT_REMOTE", easy_apply=easy_apply)
+            return self._result(applications_open=True, remote=False, status="OPEN", easy_apply=easy_apply)
 
         if workplace == "REMOTE":
             return self._result(applications_open=True, remote=True, status="OPEN", easy_apply=easy_apply)
 
-        return self._result(applications_open=True, remote=True, status="OPEN", easy_apply=easy_apply)
+        return self._result(applications_open=True, remote=None, status="OPEN", easy_apply=easy_apply)
 
     async def _has_easy_apply(self, page: Page) -> bool:
         button_name = re.compile(r"\beasy apply\b", re.IGNORECASE)
@@ -118,6 +137,7 @@ class LinkedInAnalyzer:
     async def _detect_workplace(self, page: Page, body: str) -> str | None:
         workplace = page.locator("a[href*='/jobs/view/']")
         count = await workplace.count()
+        remote_detected = False
 
         for index in range(count):
             try:
@@ -125,8 +145,9 @@ class LinkedInAnalyzer:
             except Exception:
                 continue
             detected = self._classify_workplace(self._normalize(text))
-            if detected:
+            if detected == "NOT_REMOTE":
                 return detected
+            remote_detected = remote_detected or detected == "REMOTE"
 
         selectors = ("[data-test-job-details]", "[data-testid*='job-details']", "li", "div", "span")
         for selector in selectors:
@@ -146,8 +167,9 @@ class LinkedInAnalyzer:
                 if len(normalized) > 300:
                     continue
                 detected = self._classify_workplace(normalized)
-                if detected:
+                if detected == "NOT_REMOTE":
                     return detected
+                remote_detected = remote_detected or detected == "REMOTE"
 
         not_remote_markers = ("on-site", "on site", "onsite", "presencial", "hybrid", "híbrido", "hibrido")
         for marker in not_remote_markers:
@@ -159,7 +181,7 @@ class LinkedInAnalyzer:
             if self._contains_workplace_marker(body, marker):
                 return "REMOTE"
 
-        return None
+        return "REMOTE" if remote_detected else None
 
     @classmethod
     def _classify_workplace(cls, text: str) -> str | None:

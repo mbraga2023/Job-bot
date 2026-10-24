@@ -160,12 +160,12 @@ def main() -> None:
     tg_val.add_argument("--limit", type=int, default=500, help="Max jobs to validate")
 
     tg_li = telegram_subs.add_parser(
-        "linkedin", help="Check LinkedIn application links & active status"
+        "linkedin", help="Check LinkedIn application links, active status, and work mode"
     )
     tg_li.add_argument("--limit", type=int, default=100, help="Max jobs to check")
 
     tg_open = telegram_subs.add_parser(
-        "open", help="Open eligible Telegram jobs in Chrome"
+        "open", help="Open remote Telegram jobs in Chrome"
     )
     tg_open.add_argument("--limit", type=int, default=None, help="Max jobs to open")
 

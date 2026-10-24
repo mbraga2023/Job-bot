@@ -59,6 +59,12 @@ class TestDashboardCommandLogs(unittest.TestCase):
         self.assertIn("triggerCommand(['telegram', 'open'], 'Continue Telegram review')", server.PAGE_HTML)
         self.assertIn("triggerCommand(['careers', 'open'], 'Continue career review')", server.PAGE_HTML)
 
+    def test_dashboard_has_disabled_connect_to_recruiters_button(self) -> None:
+        self.assertIn(
+            '<button class="secondary" disabled title="Coming soon">Connect to Recruiters</button>',
+            server.PAGE_HTML,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

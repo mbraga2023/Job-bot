@@ -124,6 +124,40 @@ class TestCentralizedDatabase(unittest.TestCase):
         job = get_job_by_id(tg_id)
         self.assertEqual(job["status"], "MANUAL")
 
+    def test_remote_only_review_excludes_onsite_and_unknown_jobs(self):
+        remote_id = insert_discovered_job(
+            pipeline="TELEGRAM",
+            source_url="https://example.com/jobs/remote",
+            remote=1,
+        )
+        onsite_id = insert_discovered_job(
+            pipeline="TELEGRAM",
+            source_url="https://example.com/jobs/onsite",
+            remote=0,
+        )
+        unknown_id = insert_discovered_job(
+            pipeline="TELEGRAM",
+            source_url="https://example.com/jobs/unknown",
+            remote=None,
+        )
+        recruiter_id = insert_discovered_job(
+            pipeline="TELEGRAM",
+            source_url="https://example.com/jobs/recruiter",
+            remote=1,
+        )
+
+        for job_id in (remote_id, onsite_id, unknown_id):
+            update_job_validation(job_id=job_id, status="OPEN")
+        update_job_validation(job_id=recruiter_id, status="RECRUITER")
+
+        review_jobs = get_jobs_for_review(
+            pipeline="TELEGRAM",
+            statuses=("OPEN", "RECRUITER"),
+            remote_only=True,
+        )
+
+        self.assertEqual([job["id"] for job in review_jobs], [remote_id])
+
     def test_database_stats(self):
         insert_career_source("Co A", "https://coa.com")
         insert_career_source("Co B", "https://cob.com")

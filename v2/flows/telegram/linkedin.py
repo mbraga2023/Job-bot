@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 import asyncio
-from pathlib import Path
 from playwright.async_api import async_playwright
 
 from v2.config import config
 from v2.core.database import get_connection, update_job_status, update_job_validation
-from v2.flows.telegram.analyzers.linkedin import LinkedInAnalyzer
+from v2.flows.telegram.analyzers.linkedin import LinkedInAnalyzer, is_linkedin_person_url
 
 
 async def run_linkedin_validator(limit: int = 100) -> None:
@@ -50,16 +49,43 @@ async def run_linkedin_validator(limit: int = 100) -> None:
 
         opened_count = 0
         closed_count = 0
+        recruiter_count = 0
 
         try:
             for index, job in enumerate(jobs, start=1):
                 target_url = job.get("application_url") or job.get("source_url")
                 print(f"\n[{index}/{len(jobs)}] Checking LinkedIn: {target_url}")
 
+                person_url = next(
+                    (
+                        url
+                        for url in (job.get("application_url"), job.get("source_url"))
+                        if is_linkedin_person_url(url)
+                    ),
+                    None,
+                )
+                if person_url:
+                    update_job_status(job["id"], "RECRUITER")
+                    recruiter_count += 1
+                    print(
+                        f" [RECRUITER] ID {job['id']} is a LinkedIn person page; "
+                        "status set to RECRUITER."
+                    )
+                    continue
+
                 try:
                     await page.goto(target_url, wait_until="domcontentloaded", timeout=config.timeout_ms)
                 except Exception as exc:
                     print(f" [!] Navigation failed: {exc}")
+                    continue
+
+                if is_linkedin_person_url(page.url):
+                    update_job_status(job["id"], "RECRUITER")
+                    recruiter_count += 1
+                    print(
+                        f" [RECRUITER] ID {job['id']} redirected to a LinkedIn person page; "
+                        "status set to RECRUITER."
+                    )
                     continue
 
                 analysis = await analyzer.analyze(page)
@@ -90,6 +116,7 @@ async def run_linkedin_validator(limit: int = 100) -> None:
     print("=" * 60)
     print(f" Confirmed OPEN   : {opened_count}")
     print(f" Confirmed CLOSED : {closed_count}")
+    print(f" Recruiter pages  : {recruiter_count}")
     print("=" * 60 + "\n")
 
 

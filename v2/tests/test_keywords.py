@@ -7,6 +7,7 @@ from v2.core.keywords import (
     extract_technologies,
     is_qa_job_title,
     is_qa_related,
+    is_non_qa_job_title,
     normalize_job_title,
 )
 
@@ -48,6 +49,29 @@ class TestKeywords(unittest.TestCase):
         self.assertFalse(
             is_qa_job_title("Turn your gaming skills into a career at Volvo Group")
         )
+
+    def test_explicit_non_qa_title_list_is_excluded(self):
+        titles = (
+            "Monitor de Qualidade",
+            "Gerente Executivo de Qualidade",
+            "Consultor de Validação",
+            "Especialista em Desenvolvimento do Produto",
+            "Pesquisador",
+            "Inspetor de qualidade",
+            "Analista de sistemas de gestão",
+            "Analista de Controle de Qualidade Pleno",
+            "Analista de negócios",
+            "Analista de Monitoramento",
+            "Gestão de qualidade",
+            "Assistente de qualidade",
+        )
+        for title in titles:
+            with self.subTest(title=title):
+                self.assertTrue(is_non_qa_job_title(title))
+                self.assertFalse(is_qa_job_title(title))
+                self.assertFalse(is_qa_related(title))
+
+        self.assertTrue(is_non_qa_job_title("ANALISTA DE NEGÓCIOS - Pleno"))
 
     def test_job_title_normalization_collapses_whitespace_and_entities(self):
         self.assertEqual(

@@ -190,6 +190,7 @@ PAGE_HTML = """<!doctype html>
           <button onclick="triggerCommand(['telegram', 'linkedin'], 'LinkedIn Check')">3. LinkedIn</button>
           <button class="secondary" onclick="triggerCommand(['telegram', 'open'], 'Open first 10 in Chrome')">4. Open first 10</button>
           <button class="secondary" onclick="triggerCommand(['telegram', 'open'], 'Continue Telegram review')">Continue (next 10)</button>
+          <button class="secondary" disabled title="Coming soon">Connect to Recruiters</button>
         </div>
       </div>
 

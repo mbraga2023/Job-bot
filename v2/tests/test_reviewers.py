@@ -17,6 +17,7 @@ class TestReviewBatches(unittest.TestCase):
                 "title": f"QA Engineer {job_id}",
                 "company": "Example",
                 "status": "VALIDATED",
+                "remote": 1,
                 "application_url": f"https://example.com/jobs/{job_id}",
                 "source_url": f"https://example.com/source/{job_id}",
             }
@@ -40,6 +41,7 @@ class TestReviewBatches(unittest.TestCase):
             pipeline="TELEGRAM",
             statuses=("OPEN", "VALIDATED"),
             limit=10,
+            remote_only=True,
         )
         self.assertEqual(len(mock_open.call_args.args[0]), 10)
         self.assertEqual(mock_update_status.call_count, 10)

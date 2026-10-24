@@ -422,11 +422,15 @@ def get_jobs_for_review(
     pipeline: str | None = None,
     statuses: Sequence[str] = ("VALIDATED", "OPEN"),
     limit: int | None = None,
+    remote_only: bool = False,
 ) -> list[dict[str, Any]]:
     """Retrieve eligible jobs to open in Chrome for review and manual application."""
     placeholders = ", ".join("?" for _ in statuses)
-    conditions = [f"status IN ({placeholders})"]
+    conditions = [f"status IN ({placeholders})", "status != 'RECRUITER'"]
     params: list[Any] = list(statuses)
+
+    if remote_only:
+        conditions.append("remote = 1")
 
     if pipeline:
         conditions.append("pipeline = ?")
