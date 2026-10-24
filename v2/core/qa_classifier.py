@@ -5,47 +5,74 @@ from __future__ import annotations
 import json
 
 from v2.config import config
-from v2.core.keywords import is_qa_job_title, normalize_job_title
+from v2.core.keywords import (
+    NON_QA_TITLE_PREFIXES,
+)
 
 
-async def _classify_with_ollama(title: str) -> bool:
+async def review_job_with_ollama(
+    title: str,
+    level: str | None,
+    description: str | None,
+    remote: bool,
+    technologies: list[str] | str | None,
+) -> dict[str, str | bool]:
+    """Make the final QA-job eligibility decision after deterministic validation."""
     import ollama
 
+    excluded_titles = "\n".join(f"- {excluded}" for excluded in NON_QA_TITLE_PREFIXES)
+    description_text = (description or "").strip()[:4000]
+    if isinstance(technologies, str):
+        try:
+            parsed_technologies = json.loads(technologies)
+        except json.JSONDecodeError:
+            parsed_technologies = [technologies]
+    else:
+        parsed_technologies = technologies or []
+    if not isinstance(parsed_technologies, list):
+        parsed_technologies = [str(parsed_technologies)]
+    technologies_text = ", ".join(str(item) for item in parsed_technologies) or "Not provided"
     client = ollama.AsyncClient()
     response = await client.chat(
         model=config.ollama_model,
         messages=[
             {
                 "role": "user",
-                "content": f"""Decide whether this job title describes a software quality assurance
-or software testing role. Reject industrial/product quality control, inspection,
-research, business analysis, monitoring, and other non-software-quality roles.
-Classify only the title. Return JSON: {{"is_qa": true or false}}
+                "content": f"""Make the final eligibility decision for this job, after deterministic
+checks have confirmed a QA-related title, remote work, and acceptable seniority.
+Verify from the job details that this is genuinely a software QA/software testing role,
+is remote, and is not a junior, internship, trainee, senior-only, lead, or principal role.
+Cross-check the job title against the technologies list. Selenium, Playwright, Cypress,
+ISTQB, Appium, Robot Framework, Postman, REST Assured, JMeter, k6, Jest, Pytest, JUnit,
+TestNG, Cucumber, WebdriverIO, or Karate are strong evidence of QA/testing work and
+should make an ambiguous title count as QA. Generic programming tools alone are not
+enough to establish a QA role.
+Reject industrial/product quality control, inspection, research, business analysis,
+monitoring, and other non-software-quality roles.
+These known non-QA titles must be rejected even if they mention quality:
+{excluded_titles}
+Return JSON: {{"eligible": true or false, "reason": "short explanation"}}
 
-Job title: {title}""",
+Job title: {title}
+Seniority: {level or "Not specified"}
+Remote confirmed: {remote}
+Technologies: {technologies_text}
+Job description:
+{description_text or "Not provided"}""",
             }
         ],
         format="json",
-        options={"temperature": 0, "num_predict": 80},
+        options={"temperature": 0, "num_predict": 120},
     )
     content = response.message.content
     if not content:
-        raise ValueError("Ollama returned an empty QA classification.")
+        raise ValueError("Ollama returned an empty final job review.")
 
     result = json.loads(content)
-    if not isinstance(result, dict) or not isinstance(result.get("is_qa"), bool):
-        raise ValueError("Ollama returned an invalid QA classification.")
-    return result["is_qa"]
-
-
-async def is_qa_title(title: str | None) -> bool:
-    """Classify a job title with Ollama, falling back to the deterministic filter."""
-    normalized_title = normalize_job_title(title)
-    if not is_qa_job_title(normalized_title):
-        return False
-
-    try:
-        return await _classify_with_ollama(normalized_title)
-    except Exception as exc:
-        print(f"    [!] Ollama QA classification unavailable ({exc}); using title rules.")
-        return is_qa_job_title(normalized_title)
+    if (
+        not isinstance(result, dict)
+        or not isinstance(result.get("eligible"), bool)
+        or not isinstance(result.get("reason"), str)
+    ):
+        raise ValueError("Ollama returned an invalid final job review.")
+    return {"eligible": result["eligible"], "reason": result["reason"].strip()}

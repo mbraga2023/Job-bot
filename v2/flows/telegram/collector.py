@@ -7,7 +7,6 @@ from telethon import TelegramClient
 
 from v2.config import config
 from v2.core.database import insert_discovered_job
-from v2.core.qa_classifier import is_qa_title
 from v2.flows.telegram.parser import (
     extract_message_link,
     generate_telegram_hash,
@@ -54,7 +53,6 @@ async def run_collector(limit: int = 500) -> dict[str, int]:
                 skipped += 1
                 continue
 
-            category = "QA" if await is_qa_title(parsed.get("title")) else "OTHER"
             remote = is_remote_job(parsed)
             msg_hash = generate_telegram_hash(text)
 
@@ -67,13 +65,13 @@ async def run_collector(limit: int = 500) -> dict[str, int]:
                 remote=remote,
                 level=parsed.get("level"),
                 contract=parsed.get("contract"),
-                category=category,
+                category="UNCLASSIFIED",
                 telegram_hash=msg_hash,
             )
 
             if job_id:
                 new_jobs += 1
-                print(f" [+] {category:<5} | {'REMOTE' if remote else 'ONSITE':<7} | {parsed.get('company')} | {parsed.get('title')}")
+                print(f" [+] IMPORTED | {'REMOTE' if remote else 'ONSITE':<7} | {parsed.get('company')} | {parsed.get('title')}")
             else:
                 duplicates += 1
 

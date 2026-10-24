@@ -84,13 +84,6 @@ class MeuPadrinhoAnalyzer:
         "catho",
     }
 
-    REMOTE_VALUES = {
-        "remoto",
-        "remote",
-        "híbrido",
-        "hibrido",
-    }
-
     async def analyze(self, page: Page) -> dict[str, Any]:
         response = getattr(page, "last_response", None)
         if response is not None and getattr(response, "status", None) == 429:
@@ -283,12 +276,14 @@ class MeuPadrinhoAnalyzer:
             result["location"] = data[pointer]
             pointer += 1
 
+        remote_detected = False
+        non_remote_detected = False
         for value in data[pointer:]:
             norm = self.normalize(value)
-            if norm in {self.normalize(item) for item in self.REMOTE_VALUES}:
-                result["remote"] = True
-            elif norm == "presencial":
-                result["remote"] = False
+            if re.search(r"\b(?:presencial|hibrido|hybrid|onsite|on[- ]site)\b", norm):
+                non_remote_detected = True
+            elif re.search(r"\b(?:remoto|remote|home[- ]office|work from home)\b", norm):
+                remote_detected = True
             elif norm in {self.normalize(item) for item in self.LEVELS}:
                 result["level"] = value
             elif norm in {self.normalize(item) for item in self.CONTRACTS}:
@@ -296,6 +291,7 @@ class MeuPadrinhoAnalyzer:
             elif norm in {self.normalize(item) for item in self.SOURCES}:
                 result["job_source"] = value
 
+        result["remote"] = remote_detected and not non_remote_detected
         return result
 
     def extract_description(self, lines: list[str]) -> str:

@@ -42,7 +42,7 @@ Optional settings:
 | `VALIDATE_DELAY_MIN` | `2.5` | Minimum delay between Telegram validations |
 | `VALIDATE_DELAY_MAX` | `5.0` | Maximum delay between Telegram validations |
 | `VALIDATION_LIMIT` | `500` | Default number of Telegram jobs to validate |
-| `OLLAMA_MODEL` | `llama3.2:1b` | Local model used for career-job classification |
+| `OLLAMA_MODEL` | `qwen2.5-coder:1.5b` | Local model used for QA job-title classification |
 
 The v2 database is initialized automatically at `database\jobs_v2.db` when a
 CLI command is run.
@@ -85,11 +85,16 @@ python v2\main.py telegram linkedin --limit 100
 python v2\main.py telegram open --limit 10
 ```
 
-- `collect` reads job messages from the configured Telegram channel and uses
-  Ollama to classify candidate titles as software QA/testing roles. Titles on
-  the explicit non-QA exclusion list are rejected before LLM classification;
-  if Ollama is unavailable, title rules provide the fallback.
-- `validate` extracts job details and validates Telegram postings.
+- `collect` imports structured job messages from the configured Telegram
+  channel without filtering by job title. New records remain unclassified.
+- `validate` extracts job details, then applies three deterministic gates
+  before calling Ollama: QA-related title (including the non-QA exclusion
+  list), confirmed remote work, and acceptable seniority. Only jobs that pass
+  all three gates receive the final Ollama review, which cross-checks the title
+  against extracted technologies. QA tools such as Selenium, Playwright,
+  Cypress, and ISTQB provide strong QA evidence. Junior, senior, internship,
+  and trainee roles retain their specific seniority discard reasons. If the
+  final review fails, the job remains pending for a later retry.
 - `linkedin` checks LinkedIn job links, application status, and workplace mode.
   LinkedIn member profile links are marked `RECRUITER`.
 - `open` opens only explicitly remote Telegram jobs for review, up to 10 per

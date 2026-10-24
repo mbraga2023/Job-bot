@@ -5,6 +5,7 @@ from __future__ import annotations
 import unittest
 from v2.core.keywords import (
     extract_technologies,
+    has_qa_technology,
     is_qa_job_title,
     is_qa_related,
     is_non_qa_job_title,
@@ -49,6 +50,20 @@ class TestKeywords(unittest.TestCase):
         self.assertFalse(
             is_qa_job_title("Turn your gaming skills into a career at Volvo Group")
         )
+
+    def test_reported_portuguese_qa_titles_are_recognized(self):
+        self.assertTrue(is_qa_job_title("Analista de Teste de Software Jr."))
+        self.assertTrue(
+            is_qa_job_title("Analista de Automação de Testes Sênior - Perfil II")
+        )
+        self.assertTrue(is_qa_job_title("Analista de Teste de Sistemas"))
+
+    def test_qa_technology_evidence(self):
+        for technology in ("Selenium", "Playwright", "Cypress", "ISTQB", "Robot Framework"):
+            with self.subTest(technology=technology):
+                self.assertTrue(has_qa_technology([technology]))
+        self.assertFalse(has_qa_technology(["Python", "Docker"]))
+        self.assertTrue(has_qa_technology('["Playwright", "Selenium"]'))
 
     def test_explicit_non_qa_title_list_is_excluded(self):
         titles = (

@@ -12,6 +12,8 @@ from playwright.async_api import async_playwright
 from v2.config import config
 from v2.core.database import get_jobs_for_validation, update_job_validation
 from v2.core.date_utils import is_older_than_days, normalize_published_date
+from v2.core.keywords import has_qa_technology, is_qa_job_title
+from v2.core.qa_classifier import review_job_with_ollama
 from v2.core.seniority import evaluate_seniority
 from v2.flows.telegram.analyzers.meupadrinho import MeuPadrinhoAnalyzer
 
@@ -76,6 +78,7 @@ async def run_validator(limit: int | None = None) -> None:
                         job_id=job["id"],
                         status="CLOSED",
                         discard_reason="PAGE_NOT_FOUND",
+                        ai_status="PROCESSED",
                     )
                     closed_count += 1
                     continue
@@ -86,34 +89,77 @@ async def run_validator(limit: int | None = None) -> None:
                 final_level = extracted.get("level") or job.get("level")
                 final_company = extracted.get("company") or job.get("company")
                 final_location = extracted.get("location") or job.get("location")
-                final_remote = 1 if extracted.get("remote") else (job.get("remote") or 0)
+                extracted_remote = extracted.get("remote")
+                final_remote = (
+                    int(extracted_remote)
+                    if isinstance(extracted_remote, bool)
+                    else int(job.get("remote") == 1)
+                )
                 app_url = extracted.get("application_url") or url
                 app_source = extracted.get("job_source") or "meupadrinho"
+                technologies = extracted.get("technologies") or job.get("technologies")
+                is_qa = is_qa_job_title(final_title) or has_qa_technology(technologies)
 
-                # Check staleness (> 30 days)
                 is_stale = is_older_than_days(pub_date, days=30)
                 is_seniority_ok, seniority_reason = evaluate_seniority(final_title, final_level)
 
                 status = "VALIDATED"
                 discard_reason = None
+                llm_review: dict[str, str | bool] | None = None
 
                 if extracted.get("job_status") == "CLOSED":
                     status = "CLOSED"
                     closed_count += 1
-                elif is_stale:
+                elif not is_qa:
                     status = "DISCARDED"
-                    discard_reason = "STALE_OVER_30_DAYS"
-                    discard_count = discarded_count + 1
-                    print(f" [DISCARD] Stale (>30 days): {final_company} - {final_title}")
+                    discard_reason = "NON_QA_TITLE"
+                    discarded_count += 1
+                    print(f" [DISCARD] NON_QA_TITLE: {final_company} - {final_title}")
+                elif not final_remote:
+                    status = "DISCARDED"
+                    discard_reason = "NOT_REMOTE"
+                    discarded_count += 1
+                    print(f" [DISCARD] NOT_REMOTE: {final_company} - {final_title}")
                 elif not is_seniority_ok:
                     status = "DISCARDED"
                     discard_reason = seniority_reason
                     discarded_count += 1
                     print(f" [DISCARD] {seniority_reason}: {final_company} - {final_title} ({final_level})")
+                elif is_stale:
+                    status = "DISCARDED"
+                    discard_reason = "STALE_OVER_30_DAYS"
+                    discarded_count += 1
+                    print(f" [DISCARD] Stale (>30 days): {final_company} - {final_title}")
                 else:
-                    status = "VALIDATED"
-                    validated_count += 1
-                    print(f" [OK] Validated: {final_company} - {final_title}")
+                    try:
+                        llm_review = await review_job_with_ollama(
+                            title=final_title or "",
+                            level=final_level,
+                            description=extracted.get("description"),
+                            remote=True,
+                            technologies=technologies,
+                        )
+                    except Exception as exc:
+                        print(
+                            f" [!] Final Ollama review failed for job {job['id']}; "
+                            f"leaving it pending for retry: {exc}"
+                        )
+                        delay = random.uniform(config.validate_delay_min, config.validate_delay_max)
+                        await asyncio.sleep(delay)
+                        continue
+
+                    if llm_review["eligible"]:
+                        status = "VALIDATED"
+                        validated_count += 1
+                        print(f" [OK] Final LLM approval: {final_company} - {final_title}")
+                    else:
+                        status = "DISCARDED"
+                        discard_reason = "LLM_FINAL_REJECTED"
+                        discarded_count += 1
+                        print(
+                            f" [DISCARD] LLM_FINAL_REJECTED: {final_company} - "
+                            f"{final_title} ({llm_review['reason']})"
+                        )
 
                 update_job_validation(
                     job_id=job["id"],
@@ -121,6 +167,7 @@ async def run_validator(limit: int | None = None) -> None:
                     title=final_title,
                     company=final_company,
                     location=final_location,
+                    category="QA" if is_qa else "OTHER",
                     remote=final_remote,
                     level=final_level,
                     contract=extracted.get("contract") or job.get("contract"),
@@ -133,6 +180,8 @@ async def run_validator(limit: int | None = None) -> None:
                     benefits="\n".join(extracted.get("benefits", [])) if isinstance(extracted.get("benefits"), list) else extracted.get("benefits"),
                     published_date=pub_date,
                     discard_reason=discard_reason,
+                    ai_status="PROCESSED",
+                    ai_reason=str(llm_review["reason"]) if llm_review is not None else None,
                 )
 
                 # Delay between requests

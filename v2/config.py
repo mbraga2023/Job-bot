@@ -84,7 +84,7 @@ class AppConfig:
     validation_limit: int = get_env("VALIDATION_LIMIT", default=500, cast=int)
 
     # Local LLM
-    ollama_model: str = get_env("OLLAMA_MODEL", default="llama3.2:1b")
+    ollama_model: str = get_env("OLLAMA_MODEL", default="qwen2.5-coder:1.5b")
 
     # Flow configs
     telegram: TelegramConfig = TelegramConfig()

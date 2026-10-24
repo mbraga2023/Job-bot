@@ -107,12 +107,14 @@ class TestCentralizedDatabase(unittest.TestCase):
         update_job_validation(
             job_id=tg_id,
             status="VALIDATED",
+            category="QA",
             description="Great testing job",
             technologies=["Playwright", "Python"],
             published_date="2026-10-18",
         )
         job = get_job_by_id(tg_id)
         self.assertEqual(job["status"], "VALIDATED")
+        self.assertEqual(job["category"], "QA")
         self.assertIn("Playwright", job["technologies"])
 
         # Review stage: open in Chrome -> MANUAL

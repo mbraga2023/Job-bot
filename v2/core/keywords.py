@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import html
+import json
 import re
 import unicodedata
 
@@ -52,13 +53,33 @@ QA_TITLE_PATTERN = re.compile(
     r"qa\s+(?:automation|analyst|engineer)|"
     r"automation\s+engineer|"
     r"tester|"
-    r"analista\s+de\s+(?:qa|testes|qualidade)|"
+    r"analista\s+de\s+(?:qa|testes?|teste\s+de\s+(?:software|sistemas)|automacao\s+de\s+testes|qualidade)|"
     r"engenheir[oa]\s+de\s+testes|"
     r"automacao\s+de\s+testes|"
     r"qualidade\s+de\s+software|"
     r"testes\s+de\s+software"
     r")\b",
     re.IGNORECASE,
+)
+
+QA_EVIDENCE_TECH_PATTERNS = (
+    r"\bselenium\b",
+    r"\bplaywright\b",
+    r"\bcypress\b",
+    r"\bistqb\b",
+    r"\bappium\b",
+    r"\brobot\s*framework\b",
+    r"\bpostman\b",
+    r"\brest[- ]?assured\b",
+    r"\bjmeter\b",
+    r"\bk6\b",
+    r"\bjest\b",
+    r"\bpytest\b",
+    r"\bjunit\b",
+    r"\btestng\b",
+    r"\bcucumber\b",
+    r"\bwebdriverio\b",
+    r"\bkarate\b",
 )
 
 NON_QA_TITLE_PREFIXES: tuple[str, ...] = (
@@ -129,6 +150,7 @@ QA_TECH_CATALOG: dict[str, list[str]] = {
     "Playwright": [r"\bplaywright\b"],
     "Cypress": [r"\bcypress\b"],
     "Selenium": [r"\bselenium\b"],
+    "ISTQB": [r"\bistqb\b"],
     "Robot Framework": [r"\brobot\s*framework\b"],
     "Appium": [r"\bappium\b"],
     "Postman": [r"\bpostman\b"],
@@ -138,6 +160,9 @@ QA_TECH_CATALOG: dict[str, list[str]] = {
     "Jest": [r"\bjest\b"],
     "Pytest": [r"\bpytest\b"],
     "JUnit": [r"\bjunit\b"],
+    "TestNG": [r"\btestng\b"],
+    "WebdriverIO": [r"\bwebdriverio\b"],
+    "Karate": [r"\bkarate\b"],
     "Cucumber / BDD": [r"\bcucumber\b", r"\bbdd\b", r"\bgji?erkin\b"],
     "CI/CD": [
         r"\bci[/\\-]?cd\b",
@@ -176,7 +201,30 @@ def is_qa_job_title(title: str | None) -> bool:
         return False
     if NON_JOB_TITLE_PATTERN.search(normalized):
         return False
-    return bool(QA_TITLE_PATTERN.search(normalized))
+    title_key = unicodedata.normalize("NFKD", normalized)
+    title_key = "".join(ch for ch in title_key if not unicodedata.combining(ch))
+    return bool(QA_TITLE_PATTERN.search(title_key))
+
+
+def has_qa_technology(technologies: list[str] | str | None) -> bool:
+    """Check whether extracted technologies include known QA/testing tools."""
+    if not technologies:
+        return False
+    if isinstance(technologies, str):
+        try:
+            parsed = json.loads(technologies)
+        except json.JSONDecodeError:
+            values = [technologies]
+        else:
+            values = parsed if isinstance(parsed, list) else [technologies]
+    else:
+        values = technologies
+
+    text = " ".join(str(value) for value in values)
+    return any(
+        re.search(pattern, text, flags=re.IGNORECASE)
+        for pattern in QA_EVIDENCE_TECH_PATTERNS
+    )
 
 
 def is_non_qa_job_title(title: str | None) -> bool:

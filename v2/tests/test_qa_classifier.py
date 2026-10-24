@@ -1,40 +1,61 @@
-"""Tests for LLM-assisted QA job-title classification."""
+"""Tests for final Ollama job review."""
 
 from __future__ import annotations
 
 import unittest
-from unittest.mock import AsyncMock, patch
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, Mock, patch
 
-from v2.core.qa_classifier import is_qa_title
+from v2.core.qa_classifier import review_job_with_ollama
 
 
-class TestQaTitleClassifier(unittest.IsolatedAsyncioTestCase):
-    async def test_excluded_title_does_not_call_ollama(self) -> None:
-        with patch(
-            "v2.core.qa_classifier._classify_with_ollama",
-            new_callable=AsyncMock,
-        ) as classify:
-            self.assertFalse(await is_qa_title("Analista de Controle de Qualidade Pleno"))
+class TestOllamaJobReview(unittest.IsolatedAsyncioTestCase):
+    async def test_final_review_receives_all_job_context_and_exclusions(self) -> None:
+        client = Mock()
+        client.chat = AsyncMock(
+            return_value=SimpleNamespace(
+                message=SimpleNamespace(
+                    content='{"eligible": false, "reason": "Not software QA"}'
+                )
+            )
+        )
+        ollama = SimpleNamespace(AsyncClient=Mock(return_value=client))
 
-        classify.assert_not_awaited()
+        with patch.dict("sys.modules", {"ollama": ollama}):
+            result = await review_job_with_ollama(
+                title="QA Engineer Pleno",
+                level="Pleno",
+                description="Tests software applications.",
+                remote=True,
+                technologies=["Selenium", "ISTQB"],
+            )
 
-    async def test_qa_candidate_uses_ollama_result(self) -> None:
-        with patch(
-            "v2.core.qa_classifier._classify_with_ollama",
-            new_callable=AsyncMock,
-            return_value=False,
-        ) as classify:
-            self.assertFalse(await is_qa_title("QA Engineer"))
+        self.assertEqual(
+            result,
+            {"eligible": False, "reason": "Not software QA"},
+        )
+        prompt = client.chat.await_args.kwargs["messages"][0]["content"]
+        self.assertIn("QA Engineer Pleno", prompt)
+        self.assertIn("Seniority: Pleno", prompt)
+        self.assertIn("Remote confirmed: True", prompt)
+        self.assertIn("Technologies: Selenium, ISTQB", prompt)
+        self.assertIn("strong evidence of QA/testing work", prompt)
+        self.assertIn("Tests software applications.", prompt)
+        self.assertIn("Monitor de Qualidade", prompt)
+        self.assertEqual(client.chat.await_args.kwargs["model"], "qwen2.5-coder:1.5b")
 
-        classify.assert_awaited_once_with("QA Engineer")
+    async def test_invalid_final_review_response_raises(self) -> None:
+        client = Mock()
+        client.chat = AsyncMock(
+            return_value=SimpleNamespace(
+                message=SimpleNamespace(content='{"eligible": "yes"}')
+            )
+        )
+        ollama = SimpleNamespace(AsyncClient=Mock(return_value=client))
 
-    async def test_ollama_failure_falls_back_to_title_rules(self) -> None:
-        with patch(
-            "v2.core.qa_classifier._classify_with_ollama",
-            new_callable=AsyncMock,
-            side_effect=RuntimeError("Ollama unavailable"),
-        ):
-            self.assertTrue(await is_qa_title("QA Engineer"))
+        with patch.dict("sys.modules", {"ollama": ollama}):
+            with self.assertRaisesRegex(ValueError, "invalid final job review"):
+                await review_job_with_ollama("QA Engineer", "Pleno", "", True, [])
 
 
 if __name__ == "__main__":

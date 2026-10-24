@@ -354,6 +354,7 @@ def update_job_validation(
     discard_reason: str | None = None,
     ai_status: str | None = None,
     ai_reason: str | None = None,
+    category: str | None = None,
 ) -> None:
     """Update job after stage 2 extraction/validation."""
     tech_str = json.dumps(technologies) if isinstance(technologies, list) else technologies
@@ -367,6 +368,7 @@ def update_job_validation(
                 title = COALESCE(?, title),
                 company = COALESCE(?, company),
                 location = COALESCE(?, location),
+                category = COALESCE(?, category),
                 remote = COALESCE(?, remote),
                 level = COALESCE(?, level),
                 contract = COALESCE(?, contract),
@@ -385,7 +387,7 @@ def update_job_validation(
                 updated_at = ?
             WHERE id = ?
         """, (
-            status, title, company, location, remote, level, contract,
+            status, title, company, location, category, remote, level, contract,
             application_url, application_source, description, tech_str,
             requirements, differentials, benefits, published_date,
             discard_reason, ai_status, ai_reason, now, now, job_id,

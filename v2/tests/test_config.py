@@ -15,7 +15,7 @@ class TestConfig(unittest.TestCase):
         with patch.dict(os.environ, {}, clear=True):
             cfg = AppConfig()
             self.assertTrue(cfg.headless)
-            self.assertEqual(cfg.ollama_model, "llama3.2:1b")
+            self.assertEqual(cfg.ollama_model, "qwen2.5-coder:1.5b")
             self.assertIsNotNone(cfg.db_path)
 
             # Accessing telegram property throws only upon attribute access
