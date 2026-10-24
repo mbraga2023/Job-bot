@@ -43,6 +43,38 @@ class TestOllamaJobReview(unittest.IsolatedAsyncioTestCase):
         self.assertIn("Tests software applications.", prompt)
         self.assertIn("Monitor de Qualidade", prompt)
         self.assertEqual(client.chat.await_args.kwargs["model"], "qwen2.5-coder:1.5b")
+        self.assertEqual(
+            client.chat.await_args.kwargs["options"],
+            {"temperature": 0, "num_predict": 256},
+        )
+        self.assertEqual(
+            client.chat.await_args.kwargs["format"],
+            {
+                "type": "object",
+                "properties": {
+                    "eligible": {"type": "boolean"},
+                    "reason": {"type": "string"},
+                },
+                "required": ["eligible", "reason"],
+                "additionalProperties": False,
+            },
+        )
+
+    async def test_malformed_json_final_review_raises_clear_error(self) -> None:
+        client = Mock()
+        client.chat = AsyncMock(
+            return_value=SimpleNamespace(
+                message=SimpleNamespace(content='{"eligible": true, "reason": "unfinished')
+            )
+        )
+        ollama = SimpleNamespace(AsyncClient=Mock(return_value=client))
+
+        with patch.dict("sys.modules", {"ollama": ollama}):
+            with self.assertRaisesRegex(
+                ValueError,
+                "Ollama returned malformed JSON for final job review",
+            ):
+                await review_job_with_ollama("QA Engineer", "Pleno", "", True, [])
 
     async def test_invalid_final_review_response_raises(self) -> None:
         client = Mock()

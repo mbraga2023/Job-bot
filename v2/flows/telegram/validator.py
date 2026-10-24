@@ -72,6 +72,13 @@ async def run_validator(limit: int | None = None) -> None:
                     print(" [!] Rate limited by remote server. Stopping validation early.")
                     break
 
+                if extracted.get("login_required"):
+                    print(
+                        " [!] Meu Padrinho appears to require login. Check whether you "
+                        "need to log in to the website; leaving this job pending."
+                    )
+                    continue
+
                 if extracted.get("page_not_found"):
                     print(" [X] Page not found (404 / removed). Marking CLOSED.")
                     update_job_validation(

@@ -51,7 +51,7 @@ Reject industrial/product quality control, inspection, research, business analys
 monitoring, and other non-software-quality roles.
 These known non-QA titles must be rejected even if they mention quality:
 {excluded_titles}
-Return JSON: {{"eligible": true or false, "reason": "short explanation"}}
+Return JSON: {{"eligible": true or false, "reason": "one short sentence, at most 15 words"}}
 
 Job title: {title}
 Seniority: {level or "Not specified"}
@@ -61,14 +61,26 @@ Job description:
 {description_text or "Not provided"}""",
             }
         ],
-        format="json",
-        options={"temperature": 0, "num_predict": 120},
+        format={
+            "type": "object",
+            "properties": {
+                "eligible": {"type": "boolean"},
+                "reason": {"type": "string"},
+            },
+            "required": ["eligible", "reason"],
+            "additionalProperties": False,
+        },
+        options={"temperature": 0, "num_predict": 256},
     )
     content = response.message.content
     if not content:
         raise ValueError("Ollama returned an empty final job review.")
 
-    result = json.loads(content)
+    try:
+        result = json.loads(content)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"Ollama returned malformed JSON for final job review: {exc}") from exc
+
     if (
         not isinstance(result, dict)
         or not isinstance(result.get("eligible"), bool)

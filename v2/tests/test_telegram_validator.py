@@ -243,6 +243,41 @@ class TestTelegramValidatorClassification(unittest.TestCase):
         self.assertEqual(update.call_args.kwargs["status"], "CLOSED")
         self.assertEqual(update.call_args.kwargs["ai_status"], "PROCESSED")
 
+    def test_login_required_warns_and_leaves_job_pending(self) -> None:
+        with (
+            patch("builtins.print") as print_mock,
+            patch(
+                "v2.flows.telegram.validator.review_job_with_ollama",
+                new_callable=AsyncMock,
+            ) as review,
+            patch.object(validator, "get_jobs_for_validation", return_value=[
+                {
+                    "id": 29,
+                    "source_url": "https://example.com/job/29",
+                    "title": "QA Engineer Pleno",
+                    "remote": 1,
+                }
+            ]),
+            patch.object(validator, "async_playwright", return_value=FakePlaywrightContext()),
+            patch.object(validator, "MeuPadrinhoAnalyzer") as analyzer_class,
+            patch.object(validator, "update_job_validation") as update,
+            tempfile.TemporaryDirectory() as temp_dir,
+            patch.object(config, "meupadrinho_profile_dir", Path(temp_dir)),
+            patch.object(config, "headless", True),
+            patch.object(config, "timeout_ms", 1000),
+        ):
+            analyzer_class.return_value.analyze = AsyncMock(
+                return_value={"login_required": True}
+            )
+            asyncio.run(validator.run_validator(limit=1))
+
+        print_mock.assert_any_call(
+            " [!] Meu Padrinho appears to require login. Check whether you "
+            "need to log in to the website; leaving this job pending."
+        )
+        review.assert_not_awaited()
+        update.assert_not_called()
+
     def test_ollama_failure_leaves_job_pending_for_retry(self) -> None:
         with patch(
             "v2.flows.telegram.validator.review_job_with_ollama",
@@ -322,6 +357,25 @@ class TestMeuPadrinhoRemoteExtraction(unittest.TestCase):
             "Sobre a vaga",
         ]
         self.assertFalse(self.analyzer.extract_header(lines)["remote"])
+
+    def test_login_page_is_detected_from_url_or_explicit_prompt(self) -> None:
+        login_url_page = SimpleNamespace(url="https://meupadrinho.com.br/login?next=/vaga/123")
+        prompt_page = SimpleNamespace(url="https://meupadrinho.com.br/vaga/123")
+        job_page = SimpleNamespace(url="https://meupadrinho.com.br/vaga/123")
+
+        self.assertTrue(self.analyzer.is_login_required(login_url_page, []))
+        self.assertTrue(
+            self.analyzer.is_login_required(
+                prompt_page,
+                ["Faça login para continuar"],
+            )
+        )
+        self.assertFalse(
+            self.analyzer.is_login_required(
+                job_page,
+                ["QA Engineer Pleno", "Sobre a vaga"],
+            )
+        )
 
 
 if __name__ == "__main__":

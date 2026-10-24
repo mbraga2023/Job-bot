@@ -5,6 +5,8 @@ from __future__ import annotations
 import os
 import re
 from typing import Any
+from urllib.parse import urlsplit
+
 from playwright.async_api import Page, TimeoutError as PlaywrightTimeoutError
 
 
@@ -55,6 +57,22 @@ class MeuPadrinhoAnalyzer:
         "just a moment...",
     )
 
+    LOGIN_URL_MARKERS = ("/login", "/log-in", "/signin", "/sign-in", "/entrar")
+
+    LOGIN_REQUIRED_MARKERS = (
+        "faça login para continuar",
+        "faca login para continuar",
+        "faça login para acessar",
+        "faca login para acessar",
+        "entre na sua conta para continuar",
+        "acesse sua conta para continuar",
+        "você precisa estar logado",
+        "voce precisa estar logado",
+        "you must be logged in",
+        "log in to continue",
+        "sign in to continue",
+    )
+
     LEVELS = {
         "estágio",
         "estagio",
@@ -100,6 +118,12 @@ class MeuPadrinhoAnalyzer:
             return {
                 "rate_limited": True,
                 "status_code": getattr(response, "status", 429) if response else 429,
+                "page_not_found": False,
+            }
+
+        if self.is_login_required(page, lines):
+            return {
+                "login_required": True,
                 "page_not_found": False,
             }
 
@@ -202,6 +226,14 @@ class MeuPadrinhoAnalyzer:
             return True
         text = self.normalize(" ".join(lines))
         return any(marker in text for marker in self.RATE_LIMIT_MARKERS)
+
+    def is_login_required(self, page: Page, lines: list[str]) -> bool:
+        path = urlsplit(getattr(page, "url", "")).path.casefold().rstrip("/")
+        if any(path.endswith(marker) for marker in self.LOGIN_URL_MARKERS):
+            return True
+
+        text = self.normalize(" ".join(lines))
+        return any(marker in text for marker in self.LOGIN_REQUIRED_MARKERS)
 
     def is_page_not_found(self, lines: list[str]) -> bool:
         text = self.normalize(" ".join(lines))
