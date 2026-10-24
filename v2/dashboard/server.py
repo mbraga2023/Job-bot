@@ -188,7 +188,8 @@ PAGE_HTML = """<!doctype html>
           <button onclick="triggerCommand(['telegram', 'collect'], 'Telegram Collect')">1. Collect</button>
           <button onclick="triggerCommand(['telegram', 'validate'], 'Telegram Validate')">2. Validate</button>
           <button onclick="triggerCommand(['telegram', 'linkedin'], 'LinkedIn Check')">3. LinkedIn</button>
-          <button class="secondary" onclick="triggerCommand(['telegram', 'open'], 'Open in Chrome')">4. Open in Chrome</button>
+          <button class="secondary" onclick="triggerCommand(['telegram', 'open'], 'Open first 10 in Chrome')">4. Open first 10</button>
+          <button class="secondary" onclick="triggerCommand(['telegram', 'open'], 'Continue Telegram review')">Continue (next 10)</button>
         </div>
       </div>
 
@@ -206,7 +207,8 @@ PAGE_HTML = """<!doctype html>
         <div class="actions-grid">
           <button onclick="scanCareers()">1. Scan Pages</button>
           <button onclick="triggerCommand(['careers', 'validate'], 'Careers Validate')">2. Validate (AI)</button>
-          <button class="secondary" onclick="triggerCommand(['careers', 'open'], 'Open in Chrome')">3. Open in Chrome</button>
+          <button class="secondary" onclick="triggerCommand(['careers', 'open'], 'Open first 10 in Chrome')">3. Open first 10</button>
+          <button class="secondary" onclick="triggerCommand(['careers', 'open'], 'Continue career review')">Continue (next 10)</button>
           <button class="secondary" onclick="openImportModal()">+ Add Source</button>
         </div>
       </div>

@@ -197,6 +197,42 @@ class OpenJobsTests(unittest.TestCase):
 
         mock_update_status.assert_not_called()
 
+    @patch("builtins.input")
+    @patch("commands.open_jobs.update_job_status")
+    @patch("commands.open_jobs.open_in_chrome")
+    @patch("commands.open_jobs.get_jobs_to_review")
+    def test_command_opens_jobs_in_batches_of_ten(
+        self,
+        mock_get_jobs,
+        mock_open,
+        mock_update_status,
+        mock_input,
+    ):
+        mock_get_jobs.return_value = [
+            {
+                "job_id": job_id,
+                "title": f"QA Engineer {job_id}",
+                "company": "Company",
+                "job_status": "OPEN",
+                "target_url": f"https://example.com/job/{job_id}",
+            }
+            for job_id in range(1, 12)
+        ]
+        mock_open.side_effect = [
+            (True, "Opened 10 tabs"),
+            (True, "Opened 1 tab"),
+        ]
+
+        run_open_jobs()
+
+        self.assertEqual(mock_open.call_count, 2)
+        self.assertEqual(len(mock_open.call_args_list[0].args[0]), 10)
+        self.assertEqual(len(mock_open.call_args_list[1].args[0]), 1)
+        mock_input.assert_called_once_with(
+            "Press Enter in the terminal to continue with the next 10 jobs..."
+        )
+        self.assertEqual(mock_update_status.call_count, 11)
+
 
 if __name__ == "__main__":
     unittest.main()

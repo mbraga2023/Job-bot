@@ -54,6 +54,11 @@ class TestDashboardCommandLogs(unittest.TestCase):
         self.assertIn("second command output", logs)
         self.assertEqual(popen.call_args.kwargs["env"]["PYTHONUNBUFFERED"], "1")
 
+    def test_dashboard_has_continue_buttons_for_both_review_flows(self) -> None:
+        self.assertEqual(server.PAGE_HTML.count("Continue (next 10)"), 2)
+        self.assertIn("triggerCommand(['telegram', 'open'], 'Continue Telegram review')", server.PAGE_HTML)
+        self.assertIn("triggerCommand(['careers', 'open'], 'Continue career review')", server.PAGE_HTML)
+
 
 if __name__ == "__main__":
     unittest.main()
