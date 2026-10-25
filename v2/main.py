@@ -165,7 +165,7 @@ def main() -> None:
     tg_li.add_argument("--limit", type=int, default=100, help="Max jobs to check")
 
     tg_open = telegram_subs.add_parser(
-        "open", help="Open remote Telegram jobs in Chrome"
+        "open", help="Open Telegram jobs in Chrome"
     )
     tg_open.add_argument("--limit", type=int, default=None, help="Max jobs to open")
 

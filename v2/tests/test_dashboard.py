@@ -3,8 +3,12 @@
 from __future__ import annotations
 
 import io
+import json
 import time
 import unittest
+from http.server import ThreadingHTTPServer
+from threading import Thread
+from urllib.request import Request, urlopen
 from unittest.mock import patch
 
 from v2.dashboard import server
@@ -64,6 +68,37 @@ class TestDashboardCommandLogs(unittest.TestCase):
             '<button class="secondary" disabled title="Coming soon">Connect to Recruiters</button>',
             server.PAGE_HTML,
         )
+
+    def test_import_career_reports_success_and_duplicate(self) -> None:
+        httpd = ThreadingHTTPServer(("127.0.0.1", 0), server.DashboardHandler)
+        thread = Thread(target=httpd.serve_forever, daemon=True)
+        thread.start()
+        self.addCleanup(httpd.server_close)
+        self.addCleanup(httpd.shutdown)
+
+        with patch.object(server, "insert_career_source", side_effect=[123, 0]) as insert:
+            responses = []
+            for _ in range(2):
+                request = Request(
+                    f"http://127.0.0.1:{httpd.server_port}/api/import-career",
+                    data=json.dumps({
+                        "company": "Example",
+                        "careers_url": "https://example.com/careers",
+                    }).encode("utf-8"),
+                    headers={"Content-Type": "application/json"},
+                    method="POST",
+                )
+                with urlopen(request) as response:
+                    responses.append(json.load(response))
+
+        self.assertEqual(
+            responses,
+            [{"ok": True, "duplicate": False}, {"ok": True, "duplicate": True}],
+        )
+        self.assertEqual(insert.call_count, 2)
+        self.assertIn('id="snackbar"', server.PAGE_HTML)
+        self.assertIn("Website already registered.", server.PAGE_HTML)
+        self.assertIn("Career source added successfully.", server.PAGE_HTML)
 
 
 if __name__ == "__main__":

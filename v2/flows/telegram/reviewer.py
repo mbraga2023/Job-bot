@@ -18,7 +18,7 @@ def run(statuses: Sequence[str] = ("OPEN", "VALIDATED"), limit: int | None = Non
         pipeline="TELEGRAM",
         statuses=statuses,
         limit=batch_limit,
-        remote_only=True,
+        remote_only=False,
     )[:batch_limit]
 
     if not jobs:

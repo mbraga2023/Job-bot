@@ -149,6 +149,11 @@ PAGE_HTML = """<!doctype html>
     .form-group label { display: block; font-size: 13px; color: #94a3b8; margin-bottom: 6px; }
     .form-group input { width: 100%; box-sizing: border-box; background: #0b0f19; border: 1px solid #334155; border-radius: 6px; padding: 10px; color: #f8fafc; font-size: 14px; }
     .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+    .snackbar { position: fixed; left: 50%; bottom: 24px; z-index: 200; padding: 12px 20px; border-radius: 8px; color: #fff; font-size: 14px; box-shadow: 0 8px 24px rgba(0,0,0,0.35); opacity: 0; pointer-events: none; transform: translate(-50%, 12px); transition: opacity 0.2s ease, transform 0.2s ease; }
+    .snackbar.show { opacity: 1; transform: translate(-50%, 0); }
+    .snackbar.success { background: #15803d; }
+    .snackbar.error { background: #b91c1c; }
+    .snackbar.info { background: #334155; }
   </style>
 </head>
 <body>
@@ -262,6 +267,7 @@ PAGE_HTML = """<!doctype html>
       </form>
     </div>
   </div>
+  <div id="snackbar" class="snackbar" role="status" aria-live="polite"></div>
 
   <script>
     async function refreshStats() {
@@ -361,6 +367,17 @@ PAGE_HTML = """<!doctype html>
     function openImportModal() { document.getElementById("import-modal").classList.add("open"); }
     function closeImportModal() { document.getElementById("import-modal").classList.remove("open"); }
 
+    let snackbarTimeout;
+    function showSnackbar(message, type = "info") {
+      const snackbar = document.getElementById("snackbar");
+      snackbar.textContent = message;
+      snackbar.className = "snackbar " + type + " show";
+      clearTimeout(snackbarTimeout);
+      snackbarTimeout = setTimeout(() => {
+        snackbar.classList.remove("show");
+      }, 3500);
+    }
+
     async function submitSource(e) {
       e.preventDefault();
       const form = e.target;
@@ -369,14 +386,31 @@ PAGE_HTML = """<!doctype html>
         careers_url: form.careers_url.value,
         search_url: form.search_url.value
       };
-      await fetch("/api/import-career", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-      closeImportModal();
-      form.reset();
-      refreshStats();
+      const submitButton = form.querySelector('button[type="submit"]');
+      submitButton.disabled = true;
+      try {
+        const response = await fetch("/api/import-career", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || "Could not add career source.");
+
+        if (result.duplicate) {
+          showSnackbar("Website already registered.", "info");
+          return;
+        }
+
+        closeImportModal();
+        form.reset();
+        refreshStats();
+        showSnackbar("Career source added successfully.", "success");
+      } catch (error) {
+        showSnackbar(error.message || "Could not add career source.", "error");
+      } finally {
+        submitButton.disabled = false;
+      }
     }
 
     setInterval(pollLogs, 1000);
@@ -502,13 +536,17 @@ class DashboardHandler(BaseHTTPRequestHandler):
             careers_url = data.get("careers_url", "").strip()
             search_url = data.get("search_url", "").strip() or None
 
-            if company and careers_url:
-                insert_career_source(company, careers_url, search_url)
+            if not company or not careers_url:
+                self.send_response(400)
+                response = {"ok": False, "error": "Company and careers URL are required."}
+            else:
+                row_id = insert_career_source(company, careers_url, search_url)
+                self.send_response(200)
+                response = {"ok": True, "duplicate": row_id == 0}
 
-            self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.end_headers()
-            self.wfile.write(json.dumps({"ok": True}).encode("utf-8"))
+            self.wfile.write(json.dumps(response).encode("utf-8"))
             return
 
         self.send_response(404)
