@@ -149,6 +149,10 @@ Batch files are available under `v2\scripts\`:
 ## Project layout
 
 ```text
+v1/                           # Legacy application, tests, and Windows shortcuts
+├── src/                      # Original application code
+├── scripts/                  # Original Windows shortcuts and utilities
+└── tests/                    # Original test suite
 v2/
 ├── config.py                 # Environment and application settings
 ├── main.py                   # CLI entry point
@@ -161,10 +165,21 @@ v2/
 └── tests/                    # Automated tests
 ```
 
+The original v1 CLI remains available at `v1\src\main.py`; run it from the
+repository root so it continues to use the shared root-level database and
+configuration. Its Windows shortcuts are in `v1\scripts\`.
+
 ## Tests
 
 Run the v2 test suite from the repository root:
 
 ```powershell
 python -m unittest discover -s v2/tests
+```
+
+Run the v1 test suite from PowerShell:
+
+```powershell
+$env:PYTHONPATH = "$PWD\v1\src"
+python -m unittest discover -s v1/tests
 ```

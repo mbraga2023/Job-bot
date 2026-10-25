@@ -10,10 +10,10 @@ def run(arg: str | None = None):
     Opens validated jobs with status OPEN and NEW in Google Chrome tabs.
 
     Usage:
-        python src/main.py open-jobs         # Opens jobs 10 at a time
-        python src/main.py open-jobs 10      # Opens top 10 jobs
-        python src/main.py open-jobs OPEN    # Opens only OPEN jobs
-        python src/main.py open-jobs NEW     # Opens only NEW jobs
+        python v1/src/main.py open-jobs         # Opens jobs 10 at a time
+        python v1/src/main.py open-jobs 10      # Opens top 10 jobs
+        python v1/src/main.py open-jobs OPEN    # Opens only OPEN jobs
+        python v1/src/main.py open-jobs NEW     # Opens only NEW jobs
     """
     statuses = ("OPEN", "NEW")
     limit = None

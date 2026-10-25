@@ -14,8 +14,8 @@ from database.career_sources import insert_career_sources
 
 HOST = "127.0.0.1"
 DEFAULT_PORT = 8766
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
-MAIN_SCRIPT = PROJECT_ROOT / "src" / "main.py"
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
+MAIN_SCRIPT = PROJECT_ROOT / "v1" / "src" / "main.py"
 MAX_OUTPUT_CHARS = 100_000
 MAX_CAREER_SOURCE_REQUEST_BYTES = 2 * 1024 * 1024
 COMMANDS = {

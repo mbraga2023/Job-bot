@@ -5,7 +5,7 @@ async def run(url: str | None = None):
     if not url:
         raise ValueError(
             "Provide an Indeed URL or saved HTML file: "
-            "python src/main.py indeed <URL-or-HTML-file>"
+            "python v1/src/main.py indeed <URL-or-HTML-file>"
         )
 
     await inspect_indeed_job(url)
