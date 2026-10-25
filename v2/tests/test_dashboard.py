@@ -10,6 +10,7 @@ from http.server import ThreadingHTTPServer
 from threading import Thread
 from urllib.request import Request, urlopen
 from unittest.mock import patch
+from urllib.error import URLError
 
 from v2.dashboard import server
 
@@ -64,11 +65,50 @@ class TestDashboardCommandLogs(unittest.TestCase):
         self.assertIn("triggerCommand(['careers', 'open'], 'Continue career review')", server.PAGE_HTML)
         self.assertIn('value="gupy"> Gupy Only', server.PAGE_HTML)
 
+    def test_command_completion_refreshes_dashboard_stats(self) -> None:
+        self.assertIn("let commandNeedsStatsRefresh = false;", server.PAGE_HTML)
+        self.assertIn("commandNeedsStatsRefresh = true;", server.PAGE_HTML)
+        self.assertIn(
+            "if (commandNeedsStatsRefresh) {\n"
+            "            commandNeedsStatsRefresh = false;\n"
+            "            await refreshStats();\n"
+            "          }",
+            server.PAGE_HTML,
+        )
+
     def test_dashboard_has_disabled_connect_to_recruiters_button(self) -> None:
         self.assertIn(
             '<button class="secondary" disabled title="Coming soon">Connect to Recruiters</button>',
             server.PAGE_HTML,
         )
+
+    def test_dashboard_exposes_ollama_status_and_start_control(self) -> None:
+        self.assertIn('id="ollama-status"', server.PAGE_HTML)
+        self.assertIn("ollama-online", server.PAGE_HTML)
+        self.assertIn("ollama-offline", server.PAGE_HTML)
+        self.assertIn('id="ollama-start"', server.PAGE_HTML)
+        self.assertIn('fetch("/api/ollama/status")', server.PAGE_HTML)
+        self.assertIn('fetch("/api/ollama/start"', server.PAGE_HTML)
+
+    def test_ollama_status_reports_api_unavailability(self) -> None:
+        with patch.object(server, "urlopen", side_effect=URLError("offline")):
+            self.assertFalse(server.is_ollama_running())
+
+    def test_start_ollama_launches_detached_service_when_offline(self) -> None:
+        with (
+            patch.object(server, "is_ollama_running", side_effect=[False, False]),
+            patch.object(server.shutil, "which", return_value="C:\\Ollama\\ollama.exe"),
+            patch.object(server.subprocess, "Popen") as popen,
+        ):
+            succeeded, started, error = server.start_ollama()
+
+        self.assertTrue(succeeded)
+        self.assertTrue(started)
+        self.assertIsNone(error)
+        self.assertEqual(popen.call_args.args[0], ["C:\\Ollama\\ollama.exe", "serve"])
+        self.assertEqual(popen.call_args.kwargs["stdin"], server.subprocess.DEVNULL)
+        self.assertEqual(popen.call_args.kwargs["stdout"], server.subprocess.DEVNULL)
+        self.assertEqual(popen.call_args.kwargs["stderr"], server.subprocess.DEVNULL)
 
     def test_import_career_reports_success_and_duplicate(self) -> None:
         httpd = ThreadingHTTPServer(("127.0.0.1", 0), server.DashboardHandler)
@@ -100,6 +140,30 @@ class TestDashboardCommandLogs(unittest.TestCase):
         self.assertIn('id="snackbar"', server.PAGE_HTML)
         self.assertIn("Website already registered.", server.PAGE_HTML)
         self.assertIn("Career source added successfully.", server.PAGE_HTML)
+
+    def test_ollama_status_and_start_endpoints(self) -> None:
+        httpd = ThreadingHTTPServer(("127.0.0.1", 0), server.DashboardHandler)
+        thread = Thread(target=httpd.serve_forever, daemon=True)
+        thread.start()
+        self.addCleanup(httpd.server_close)
+        self.addCleanup(httpd.shutdown)
+
+        with (
+            patch.object(server, "is_ollama_running", return_value=False),
+            patch.object(server, "start_ollama", return_value=(True, True, None)),
+        ):
+            with urlopen(f"http://127.0.0.1:{httpd.server_port}/api/ollama/status") as response:
+                status = json.load(response)
+
+            request = Request(
+                f"http://127.0.0.1:{httpd.server_port}/api/ollama/start",
+                method="POST",
+            )
+            with urlopen(request) as response:
+                start = json.load(response)
+
+        self.assertEqual(status, {"running": False})
+        self.assertEqual(start, {"started": True, "error": None})
 
 
 if __name__ == "__main__":

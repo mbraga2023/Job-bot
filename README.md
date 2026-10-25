@@ -71,8 +71,10 @@ python v2\main.py dashboard --no-browser
 ```
 
 The dashboard provides controls for the Telegram/LinkedIn and company-career
-flows, database statistics, and command logs. The **Connect to Recruiters**
-button is reserved for a future workflow.
+flows, database statistics, and command logs. It also shows whether the local
+Ollama API is online and can start Ollama when it is offline; stopping Ollama
+is not available from the dashboard. The **Connect to Recruiters** button is
+reserved for a future workflow.
 
 ### Telegram and LinkedIn flow
 
@@ -121,6 +123,9 @@ python v2\main.py careers open --limit 10
 The dashboard's Career Pages flow can scan all sources, InHire sources only, or
 Gupy sources only. Gupy-only scans match source URLs containing `gupy.io` and
 search the top QA terms using Gupy's live search field.
+During validation, Gupy job pages are parsed for localized title, dates,
+location, job type, work model, description, and requirements before the
+extracted details are passed to the LLM for its final QA/seniority decision.
 
 Career source JSON must be an array of objects with a `company` and
 `careers_url`. `search_url` and `source_type` are optional:

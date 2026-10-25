@@ -4,13 +4,16 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
 import sys
 import threading
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from urllib.error import URLError
 from urllib.parse import parse_qs, urlsplit
+from urllib.request import urlopen
 
 from v2.core.database import (
     delete_non_qa_jobs,
@@ -23,14 +26,57 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 MAIN_SCRIPT = PROJECT_ROOT / "v2" / "main.py"
 HOST = "127.0.0.1"
 DEFAULT_PORT = 8766
+OLLAMA_API_URL = "http://127.0.0.1:11434/api/tags"
 MAX_OUTPUT_CHARS = 100_000
 
 # Process state
 ACTIVE_PROCESS: subprocess.Popen | None = None
+OLLAMA_PROCESS: subprocess.Popen | None = None
 ACTIVE_PROCESS_LOCK = threading.Lock()
+OLLAMA_PROCESS_LOCK = threading.Lock()
 COMMAND_OUTPUT: list[str] = []
 COMMAND_OUTPUT_LOCK = threading.Lock()
 CURRENT_COMMAND: str | None = None
+
+
+def is_ollama_running() -> bool:
+    """Check whether the local Ollama API is responding."""
+    try:
+        with urlopen(OLLAMA_API_URL, timeout=2) as response:
+            return response.status == 200
+    except (URLError, TimeoutError, OSError):
+        return False
+
+
+def start_ollama() -> tuple[bool, bool, str | None]:
+    """Start Ollama's local service if it is not already responding."""
+    global OLLAMA_PROCESS
+    if is_ollama_running():
+        return True, False, None
+
+    executable = shutil.which("ollama")
+    if executable is None:
+        return False, False, "Ollama executable was not found on PATH."
+
+    with OLLAMA_PROCESS_LOCK:
+        if is_ollama_running():
+            return True, False, None
+
+        creation_flags = getattr(subprocess, "DETACHED_PROCESS", 0) | getattr(
+            subprocess, "CREATE_NEW_PROCESS_GROUP", 0
+        )
+        try:
+            OLLAMA_PROCESS = subprocess.Popen(
+                [executable, "serve"],
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                creationflags=creation_flags,
+            )
+        except OSError as exc:
+            return False, False, f"Could not start Ollama: {exc}"
+
+    return True, True, None
 
 
 def append_output(text: str) -> None:
@@ -111,6 +157,8 @@ PAGE_HTML = """<!doctype html>
     header { background: #131b2e; border-bottom: 1px solid #1e293b; padding: 16px 32px; display: flex; justify-content: space-between; align-items: center; }
     header h1 { margin: 0; font-size: 20px; font-weight: 700; color: #60a5fa; }
     .badge { background: #1e293b; color: #94a3b8; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+    .badge.ollama-online { background: #14532d; color: #bbf7d0; }
+    .badge.ollama-offline { background: #7f1d1d; color: #fecaca; }
     main { max-width: 1400px; margin: 32px auto; padding: 0 24px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: 32px; }
     
     /* Stats Bar */
@@ -160,6 +208,8 @@ PAGE_HTML = """<!doctype html>
   <header>
     <h1>Job-bot <span style="color:#94a3b8; font-weight:400;">Version 2.0</span></h1>
     <div style="display:flex; align-items:center; gap:12px;">
+      <span id="ollama-status" class="badge ollama-offline" role="status" aria-live="polite">Ollama: checking</span>
+      <button id="ollama-start" class="secondary" onclick="startOllama()">Start Ollama</button>
       <span id="run-status" class="badge">Idle</span>
       <button class="secondary" onclick="refreshStats()" style="padding:6px 12px; font-size:12px;">Refresh Stats</button>
     </div>
@@ -288,6 +338,45 @@ PAGE_HTML = """<!doctype html>
       }
     }
 
+    async function refreshOllamaStatus() {
+      const status = document.getElementById("ollama-status");
+      const button = document.getElementById("ollama-start");
+      try {
+        const response = await fetch("/api/ollama/status");
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || "Ollama status unavailable.");
+        status.textContent = result.running ? "Ollama: Online" : "Ollama: Offline";
+        status.className = "badge " + (result.running ? "ollama-online" : "ollama-offline");
+        button.disabled = result.running;
+      } catch (error) {
+        status.textContent = "Ollama: Status unavailable";
+        status.className = "badge ollama-offline";
+        button.disabled = false;
+      }
+    }
+
+    async function startOllama() {
+      const button = document.getElementById("ollama-start");
+      button.disabled = true;
+      button.textContent = "Starting...";
+      try {
+        const response = await fetch("/api/ollama/start", { method: "POST" });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || "Could not start Ollama.");
+        showSnackbar(
+          result.started ? "Ollama is starting." : "Ollama is already online.",
+          "success"
+        );
+      } catch (error) {
+        showSnackbar(error.message || "Could not start Ollama.", "error");
+      } finally {
+        button.textContent = "Start Ollama";
+        refreshOllamaStatus();
+      }
+    }
+
+    let commandNeedsStatsRefresh = false;
+
     async function triggerCommand(args, label) {
       document.getElementById("terminal-output").textContent = ">> Starting " + label + "...\\n";
       document.getElementById("btn-stop").disabled = false;
@@ -295,11 +384,20 @@ PAGE_HTML = """<!doctype html>
       document.getElementById("run-status").style.background = "#2563eb";
       document.getElementById("run-status").style.color = "#ffffff";
 
-      await fetch("/api/run", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ args, label })
-      });
+      try {
+        const response = await fetch("/api/run", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ args, label })
+        });
+        const result = await response.json();
+        if (!response.ok || !result.started) {
+          throw new Error(result.error || "Could not start command.");
+        }
+        commandNeedsStatsRefresh = true;
+      } catch (error) {
+        showSnackbar(error.message || "Could not start command.", "error");
+      }
     }
 
     function scanCareers() {
@@ -359,6 +457,10 @@ PAGE_HTML = """<!doctype html>
           statusEl.textContent = "Idle";
           statusEl.style.background = "#1e293b";
           statusEl.style.color = "#94a3b8";
+          if (commandNeedsStatsRefresh) {
+            commandNeedsStatsRefresh = false;
+            await refreshStats();
+          }
         }
       } catch (e) {}
     }
@@ -417,6 +519,8 @@ PAGE_HTML = """<!doctype html>
     }
 
     setInterval(pollLogs, 1000);
+    setInterval(refreshOllamaStatus, 5000);
+    refreshOllamaStatus();
     refreshStats();
   </script>
 </body>
@@ -447,6 +551,14 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self.send_header("Content-Type", "application/json")
             self.end_headers()
             self.wfile.write(json.dumps(stats).encode("utf-8"))
+            return
+
+        if parsed.path == "/api/ollama/status":
+            running = is_ollama_running()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"running": running}).encode("utf-8"))
             return
 
         if parsed.path == "/api/non-qa-jobs":
@@ -502,6 +614,15 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self.send_header("Content-Type", "application/json")
             self.end_headers()
             self.wfile.write(json.dumps({"stopped": True}).encode("utf-8"))
+            return
+
+        if parsed.path == "/api/ollama/start":
+            succeeded, started, error = start_ollama()
+            self.send_response(200 if succeeded else 503)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            response = {"started": started, "error": error}
+            self.wfile.write(json.dumps(response).encode("utf-8"))
             return
 
         if parsed.path == "/api/non-qa-jobs":
