@@ -11,6 +11,9 @@ from v2.core.keywords import is_qa_job_title, normalize_job_title
 GUPY_MODEL = CareerPageModel(
     platform="gupy",
     search_input=[
+        "#job-search-input",
+        'input[role="searchbox"]',
+        'input[placeholder*="job name" i]',
         'input[data-testid="search-input"]',
         'input[placeholder*="Buscar vaga" i]',
         'input[placeholder*="Search" i]',
@@ -35,6 +38,19 @@ class GupyAdapter(BaseCareerAdapter):
 
     def __init__(self, page: Page):
         super().__init__(page, GUPY_MODEL)
+
+    async def search(self, term: str) -> bool:
+        """Fill and submit a search through Gupy's search field."""
+        for selector in self.model.search_input:
+            locator = self.page.locator(selector).first
+            try:
+                if await locator.is_visible(timeout=1500):
+                    await locator.fill(term)
+                    await locator.press("Enter")
+                    return True
+            except PlaywrightTimeoutError:
+                continue
+        return False
 
     async def get_jobs(self, company_name: str | None = None) -> list[CareerJobItem]:
         try:

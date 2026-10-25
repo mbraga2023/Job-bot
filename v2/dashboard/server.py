@@ -209,6 +209,9 @@ PAGE_HTML = """<!doctype html>
           <label style="font-size:14px; color:#cbd5e1; cursor:pointer;">
             <input type="radio" name="career-platform" value="inhire"> InHire Only
           </label>
+          <label style="font-size:14px; color:#cbd5e1; cursor:pointer;">
+            <input type="radio" name="career-platform" value="gupy"> Gupy Only
+          </label>
         </div>
         <div class="actions-grid">
           <button onclick="scanCareers()">1. Scan Pages</button>

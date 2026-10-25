@@ -62,6 +62,7 @@ class TestDashboardCommandLogs(unittest.TestCase):
         self.assertEqual(server.PAGE_HTML.count("Continue (next 10)"), 2)
         self.assertIn("triggerCommand(['telegram', 'open'], 'Continue Telegram review')", server.PAGE_HTML)
         self.assertIn("triggerCommand(['careers', 'open'], 'Continue career review')", server.PAGE_HTML)
+        self.assertIn('value="gupy"> Gupy Only', server.PAGE_HTML)
 
     def test_dashboard_has_disabled_connect_to_recruiters_button(self) -> None:
         self.assertIn(

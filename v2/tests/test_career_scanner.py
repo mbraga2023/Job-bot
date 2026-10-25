@@ -159,6 +159,64 @@ class TestCareerScanner(unittest.TestCase):
             [2, 3, 4],
         )
 
+    def test_gupy_only_filters_sources_and_searches_each_term(self) -> None:
+        sources = [
+            {
+                "id": 1,
+                "company": "Gupy Example",
+                "careers_url": "https://example.gupy.io/",
+                "last_checked_at": None,
+            },
+            {
+                "id": 2,
+                "company": "Generic Example",
+                "careers_url": "https://example.com/careers",
+                "last_checked_at": None,
+            },
+        ]
+        discovered = CareerJobItem(
+            title="QA Engineer",
+            url="https://example.gupy.io/job/123",
+            company="Gupy Example",
+        )
+        adapter = type(
+            "StubGupyAdapter",
+            (),
+            {
+                "wait_for_page_ready": AsyncMock(),
+                "get_jobs": AsyncMock(
+                    side_effect=[[], [discovered], [discovered]],
+                ),
+                "search": AsyncMock(return_value=True),
+            },
+        )()
+        output = io.StringIO()
+
+        with (
+            patch.object(
+                scanner,
+                "QA_SEARCH_TERMS",
+                ["QA", "Quality Assurance", "Analista de Testes"],
+            ),
+            patch.object(scanner, "get_active_career_sources", return_value=sources),
+            patch.object(scanner, "async_playwright", return_value=FakePlaywrightContext()),
+            patch.object(scanner, "GupyAdapter", return_value=adapter) as gupy,
+            patch.object(scanner, "insert_discovered_job", return_value=1) as insert_job,
+            patch.object(scanner, "mark_source_checked") as mark_checked,
+            redirect_stdout(output),
+        ):
+            result = asyncio.run(scanner.run_scanner(platform="gupy"))
+
+        self.assertEqual(result, {"discovered": 1, "new": 1})
+        gupy.assert_called_once()
+        self.assertEqual(adapter.get_jobs.await_count, 3)
+        self.assertEqual(
+            [call.args[0] for call in adapter.search.await_args_list],
+            ["QA", "Quality Assurance"],
+        )
+        insert_job.assert_called_once()
+        mark_checked.assert_called_once_with(1, discovered_jobs=1)
+
     def test_future_or_invalid_check_timestamp_is_not_eligible(self) -> None:
         future = datetime.now(timezone.utc) + timedelta(hours=1)
         self.assertTrue(

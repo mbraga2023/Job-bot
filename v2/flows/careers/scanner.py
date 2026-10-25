@@ -98,6 +98,8 @@ async def run_scanner(platform: str = "search_all") -> dict[str, int]:
 
     if platform == "inhire":
         sources = [s for s in sources if is_inhire_url(s["careers_url"])]
+    elif platform == "gupy":
+        sources = [s for s in sources if is_gupy_url(s["careers_url"])]
 
     # Apply 24-hour rate limit
     eligible_sources = []
@@ -139,6 +141,10 @@ async def run_scanner(platform: str = "search_all") -> dict[str, int]:
                 final_url = await navigate_to_source(page, url, config.timeout_ms)
                 if final_url != url:
                     print(f"  [PAGE] Source redirected to {final_url}", flush=True)
+                if platform == "gupy" and not is_gupy_url(final_url):
+                    raise RuntimeError(
+                        f"Gupy source redirected outside gupy.io: {final_url}"
+                    )
                 inhire = is_inhire_url(final_url)
                 if inhire:
                     adapter = InHireAdapter(page)
@@ -157,8 +163,31 @@ async def run_scanner(platform: str = "search_all") -> dict[str, int]:
                 jobs = await adapter.get_jobs(company_name=company)
                 print(f"  [PAGE] Found {len(jobs)} job listing(s).", flush=True)
 
-                # If no jobs or adapter supports searching, try searching QA terms
-                if not jobs and hasattr(adapter, "search"):
+                if platform == "gupy":
+                    jobs_by_url = {job.url: job for job in jobs}
+                    for term in QA_SEARCH_TERMS[:2]:
+                        print(f"  [SEARCH] Searching for '{term}'...", flush=True)
+                        searched = await adapter.search(term)
+                        if not searched:
+                            print(
+                                "  [SEARCH] Gupy search field is unavailable.",
+                                flush=True,
+                            )
+                            break
+
+                        print(f"  [SEARCH] Search started for '{term}'.", flush=True)
+                        await page.wait_for_timeout(2000)
+                        term_jobs = await adapter.get_jobs(company_name=company)
+                        for job in term_jobs:
+                            jobs_by_url[job.url] = job
+                        print(
+                            f"  [SEARCH] Found {len(term_jobs)} job listing(s) "
+                            f"for '{term}'.",
+                            flush=True,
+                        )
+                    jobs = list(jobs_by_url.values())
+                # If no jobs or adapter supports searching, try the top QA terms.
+                elif not jobs and hasattr(adapter, "search"):
                     for term in QA_SEARCH_TERMS[:2]:  # Try top terms (e.g. 'QA', 'Quality Assurance')
                         print(f"  [SEARCH] Searching for '{term}'...", flush=True)
                         searched = await adapter.search(term)

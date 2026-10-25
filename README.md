@@ -113,9 +113,14 @@ python v2\main.py careers import path\to\sources.json
 python v2\main.py careers detect-apis --limit 500
 python v2\main.py careers scan --platform search_all
 python v2\main.py careers scan --platform inhire
+python v2\main.py careers scan --platform gupy
 python v2\main.py careers validate --limit 500
 python v2\main.py careers open --limit 10
 ```
+
+The dashboard's Career Pages flow can scan all sources, InHire sources only, or
+Gupy sources only. Gupy-only scans match source URLs containing `gupy.io` and
+search the top QA terms using Gupy's live search field.
 
 Career source JSON must be an array of objects with a `company` and
 `careers_url`. `search_url` and `source_type` are optional:

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import unittest
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 from v2.flows.careers.adapters.generic import GenericAdapter
 from v2.flows.careers.adapters.gupy import GupyAdapter
@@ -52,6 +52,31 @@ class TestGenericAdapterFiltering(unittest.IsolatedAsyncioTestCase):
 
 
 class TestGupyAdapterFiltering(unittest.IsolatedAsyncioTestCase):
+    async def test_search_fills_gupy_field_and_presses_enter(self) -> None:
+        locator = type(
+            "SearchLocator",
+            (),
+            {
+                "first": None,
+                "is_visible": AsyncMock(return_value=True),
+                "fill": AsyncMock(),
+                "press": AsyncMock(),
+                "click": AsyncMock(),
+            },
+        )()
+        locator.first = locator
+        page = MagicMock()
+        page.locator.return_value = locator
+        adapter = GupyAdapter(page)
+
+        searched = await adapter.search("Quality Assurance")
+
+        self.assertTrue(searched)
+        page.locator.assert_called_once_with("#job-search-input")
+        locator.fill.assert_awaited_once_with("Quality Assurance")
+        locator.press.assert_awaited_once_with("Enter")
+        locator.click.assert_not_awaited()
+
     async def test_only_qa_job_cards_are_returned(self) -> None:
         adapter = GupyAdapter(AsyncMock())
         adapter.page.wait_for_load_state = AsyncMock()
