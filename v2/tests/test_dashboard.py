@@ -28,11 +28,34 @@ class FakeProcess:
         return self.returncode
 
 
+class FakeManagedProcess:
+    def __init__(self) -> None:
+        self.returncode: int | None = None
+        self.terminated = False
+        self.killed = False
+
+    def poll(self) -> int | None:
+        return self.returncode
+
+    def terminate(self) -> None:
+        self.terminated = True
+
+    def kill(self) -> None:
+        self.killed = True
+        self.returncode = -9
+
+    def wait(self, timeout: float | None = None) -> int:
+        self.returncode = 0
+        return self.returncode
+
+
 class TestDashboardCommandLogs(unittest.TestCase):
     def setUp(self) -> None:
         with server.ACTIVE_PROCESS_LOCK:
             server.ACTIVE_PROCESS = None
             server.CURRENT_COMMAND = None
+        with server.OLLAMA_PROCESS_LOCK:
+            server.OLLAMA_PROCESS = None
         with server.COMMAND_OUTPUT_LOCK:
             server.COMMAND_OUTPUT.clear()
 
@@ -90,6 +113,12 @@ class TestDashboardCommandLogs(unittest.TestCase):
         self.assertIn('fetch("/api/ollama/status")', server.PAGE_HTML)
         self.assertIn('fetch("/api/ollama/start"', server.PAGE_HTML)
 
+    def test_dashboard_has_close_control_and_fallback(self) -> None:
+        self.assertIn('id="close-dashboard"', server.PAGE_HTML)
+        self.assertIn('fetch("/api/close"', server.PAGE_HTML)
+        self.assertIn("window.close()", server.PAGE_HTML)
+        self.assertIn("Dashboard stopped. You can close this tab.", server.PAGE_HTML)
+
     def test_ollama_status_reports_api_unavailability(self) -> None:
         with patch.object(server, "urlopen", side_effect=URLError("offline")):
             self.assertFalse(server.is_ollama_running())
@@ -109,6 +138,73 @@ class TestDashboardCommandLogs(unittest.TestCase):
         self.assertEqual(popen.call_args.kwargs["stdin"], server.subprocess.DEVNULL)
         self.assertEqual(popen.call_args.kwargs["stdout"], server.subprocess.DEVNULL)
         self.assertEqual(popen.call_args.kwargs["stderr"], server.subprocess.DEVNULL)
+
+    def test_close_stops_only_dashboard_owned_ollama(self) -> None:
+        process = FakeManagedProcess()
+        server.OLLAMA_PROCESS = process
+        self.addCleanup(setattr, server, "OLLAMA_PROCESS", None)
+
+        succeeded, error = server.stop_dashboard_ollama()
+
+        self.assertTrue(succeeded)
+        self.assertIsNone(error)
+        self.assertTrue(process.terminated)
+        self.assertIsNone(server.OLLAMA_PROCESS)
+
+    def test_close_leaves_external_ollama_unmanaged(self) -> None:
+        server.OLLAMA_PROCESS = None
+
+        with patch.object(server, "stop_external_ollama", return_value=(True, None)) as stop:
+            succeeded, error = server.stop_dashboard_ollama()
+
+        self.assertTrue(succeeded)
+        self.assertIsNone(error)
+        self.assertIsNone(server.OLLAMA_PROCESS)
+        stop.assert_called_once_with()
+
+    def test_close_stops_external_ollama_listener_by_pid(self) -> None:
+        query = server.subprocess.CompletedProcess(
+            args=[],
+            returncode=0,
+            stdout='[{"Id":5184,"Name":"ollama"}]',
+            stderr="",
+        )
+        stopped = server.subprocess.CompletedProcess(
+            args=[],
+            returncode=0,
+            stdout="",
+            stderr="",
+        )
+        with (
+            patch.object(server.sys, "platform", "win32"),
+            patch.object(server.shutil, "which", return_value="powershell.exe"),
+            patch.object(server.subprocess, "run", side_effect=[query, stopped]) as run,
+        ):
+            succeeded, error = server.stop_external_ollama()
+
+        self.assertTrue(succeeded)
+        self.assertIsNone(error)
+        self.assertEqual(run.call_count, 2)
+        self.assertIn("Get-NetTCPConnection -LocalPort 11434", run.call_args_list[0].args[0][-1])
+        self.assertIn("Get-Process -Id 5184", run.call_args_list[1].args[0][-1])
+
+    def test_close_does_not_stop_a_different_listener_on_ollama_port(self) -> None:
+        query = server.subprocess.CompletedProcess(
+            args=[],
+            returncode=0,
+            stdout='[{"Id":4321,"Name":"python"}]',
+            stderr="",
+        )
+        with (
+            patch.object(server.sys, "platform", "win32"),
+            patch.object(server.shutil, "which", return_value="powershell.exe"),
+            patch.object(server.subprocess, "run", return_value=query) as run,
+        ):
+            succeeded, error = server.stop_external_ollama()
+
+        self.assertFalse(succeeded)
+        self.assertIn("not Ollama", error)
+        run.assert_called_once()
 
     def test_import_career_reports_success_and_duplicate(self) -> None:
         httpd = ThreadingHTTPServer(("127.0.0.1", 0), server.DashboardHandler)
@@ -164,6 +260,30 @@ class TestDashboardCommandLogs(unittest.TestCase):
 
         self.assertEqual(status, {"running": False})
         self.assertEqual(start, {"started": True, "error": None})
+
+    def test_close_endpoint_stops_owned_services_then_shuts_down_server(self) -> None:
+        httpd = ThreadingHTTPServer(("127.0.0.1", 0), server.DashboardHandler)
+        thread = Thread(target=httpd.serve_forever, daemon=True)
+        thread.start()
+        self.addCleanup(httpd.server_close)
+        self.addCleanup(httpd.shutdown)
+
+        with (
+            patch.object(server, "stop_dashboard_ollama", return_value=(True, None)) as stop_ollama,
+            patch.object(server, "stop_active_command", return_value=(True, None)) as stop_command,
+            patch.object(server, "request_server_shutdown") as shutdown,
+        ):
+            request = Request(
+                f"http://127.0.0.1:{httpd.server_port}/api/close",
+                method="POST",
+            )
+            with urlopen(request) as response:
+                result = json.load(response)
+
+        self.assertEqual(result, {"closed": True})
+        stop_ollama.assert_called_once_with()
+        stop_command.assert_called_once_with()
+        shutdown.assert_called_once_with(httpd)
 
 
 if __name__ == "__main__":

@@ -79,6 +79,155 @@ def start_ollama() -> tuple[bool, bool, str | None]:
     return True, True, None
 
 
+def stop_dashboard_ollama() -> tuple[bool, str | None]:
+    """Stop Ollama, including an instance already running before this dashboard."""
+    global OLLAMA_PROCESS
+    with OLLAMA_PROCESS_LOCK:
+        process = OLLAMA_PROCESS
+        if process is not None:
+            if process.poll() is not None:
+                OLLAMA_PROCESS = None
+                return True, None
+            try:
+                process.terminate()
+                process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                try:
+                    process.kill()
+                    process.wait(timeout=5)
+                except (OSError, subprocess.TimeoutExpired) as exc:
+                    return False, f"Could not stop dashboard-started Ollama: {exc}"
+            except OSError as exc:
+                return False, f"Could not stop dashboard-started Ollama: {exc}"
+
+            OLLAMA_PROCESS = None
+            return True, None
+
+    return stop_external_ollama()
+
+
+def stop_external_ollama() -> tuple[bool, str | None]:
+    """Stop an Ollama process listening on port 11434 without killing other apps."""
+    if sys.platform != "win32":
+        return False, "Cannot identify an independently started Ollama process on this platform."
+
+    powershell = shutil.which("powershell")
+    if powershell is None:
+        return False, "PowerShell is required to find the Ollama process listening on port 11434."
+
+    query_script = (
+        "$ErrorActionPreference = 'Stop'; "
+        "$connections = @(Get-NetTCPConnection -LocalPort 11434 -State Listen "
+        "-ErrorAction SilentlyContinue); "
+        "$processes = @($connections | Select-Object -ExpandProperty OwningProcess -Unique | "
+        "ForEach-Object { $p = Get-Process -Id $_ -ErrorAction SilentlyContinue; "
+        "if ($p) { [pscustomobject]@{ Id = $p.Id; Name = $p.ProcessName } } }); "
+        "ConvertTo-Json -InputObject $processes -Compress"
+    )
+    try:
+        result = subprocess.run(
+            [powershell, "-NoProfile", "-NonInteractive", "-Command", query_script],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=10,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return False, f"Could not identify the Ollama listener: {exc}"
+
+    if result.returncode != 0:
+        detail = result.stderr.strip() or "PowerShell returned an error."
+        return False, f"Could not identify the Ollama listener: {detail}"
+
+    try:
+        processes = json.loads(result.stdout.strip() or "[]")
+    except json.JSONDecodeError as exc:
+        return False, f"Could not parse the Ollama listener details: {exc}"
+
+    if isinstance(processes, dict):
+        processes = [processes]
+    if not isinstance(processes, list):
+        return False, "PowerShell returned invalid Ollama listener details."
+
+    pids: list[int] = []
+    for process in processes:
+        if not isinstance(process, dict):
+            return False, "PowerShell returned invalid Ollama listener details."
+        process_id = process.get("Id")
+        process_name = process.get("Name")
+        if not isinstance(process_id, int) or process_id <= 0 or not isinstance(process_name, str):
+            return False, "PowerShell returned invalid Ollama listener details."
+        if process_name.casefold() != "ollama":
+            return False, (
+                f"Port 11434 is owned by '{process_name}', not Ollama; "
+                "the dashboard left it running."
+            )
+        pids.append(process_id)
+
+    for process_id in pids:
+        stop_script = (
+            f"$p = Get-Process -Id {process_id} -ErrorAction SilentlyContinue; "
+            "if ($p -and $p.ProcessName -ine 'ollama') { "
+            "throw 'The listener process changed; refusing to stop it.' }; "
+            f"Stop-Process -Id {process_id}; "
+            f"Wait-Process -Id {process_id} -Timeout 5 -ErrorAction SilentlyContinue; "
+            f"Get-Process -Id {process_id} -ErrorAction SilentlyContinue | "
+            "Where-Object ProcessName -EQ 'ollama' | "
+            "Stop-Process -Force -ErrorAction SilentlyContinue"
+        )
+        try:
+            result = subprocess.run(
+                [powershell, "-NoProfile", "-NonInteractive", "-Command", stop_script],
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=10,
+                check=False,
+            )
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            return False, f"Could not stop Ollama process {process_id}: {exc}"
+        if result.returncode != 0:
+            detail = result.stderr.strip() or "PowerShell returned an error."
+            return False, f"Could not stop Ollama process {process_id}: {detail}"
+
+    return True, None
+
+
+def stop_active_command() -> tuple[bool, str | None]:
+    """Stop the command currently running from the dashboard, if any."""
+    with ACTIVE_PROCESS_LOCK:
+        process = ACTIVE_PROCESS
+        if process is None or process.poll() is not None:
+            return True, None
+
+        try:
+            process.terminate()
+            append_output("\n>> Command stopped because the dashboard is closing.\n")
+        except OSError as exc:
+            return False, f"Could not stop the active command: {exc}"
+
+    try:
+        process.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        try:
+            process.kill()
+            process.wait(timeout=5)
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            return False, f"Could not stop the active command: {exc}"
+    except OSError as exc:
+        return False, f"Could not stop the active command: {exc}"
+
+    return True, None
+
+
+def request_server_shutdown(httpd: ThreadingHTTPServer) -> None:
+    """Stop serve_forever from a separate thread after the close response is sent."""
+    threading.Thread(target=httpd.shutdown, daemon=True).start()
+
+
 def append_output(text: str) -> None:
     """Append text to shared output log."""
     with COMMAND_OUTPUT_LOCK:
@@ -181,6 +330,8 @@ PAGE_HTML = """<!doctype html>
     button.danger:hover:not(:disabled) { background: #ef4444; }
     button.warning { background: #b45309; }
     button.warning:hover:not(:disabled) { background: #d97706; }
+    button.close-dashboard { background: #b91c1c; }
+    button.close-dashboard:hover:not(:disabled) { background: #dc2626; }
     
     /* Terminal */
     .terminal-panel { background: #131b2e; border: 1px solid #1e293b; border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; height: calc(100vh - 220px); }
@@ -212,6 +363,7 @@ PAGE_HTML = """<!doctype html>
       <button id="ollama-start" class="secondary" onclick="startOllama()">Start Ollama</button>
       <span id="run-status" class="badge">Idle</span>
       <button class="secondary" onclick="refreshStats()" style="padding:6px 12px; font-size:12px;">Refresh Stats</button>
+      <button id="close-dashboard" class="close-dashboard" onclick="closeDashboard()">CLOSE</button>
     </div>
   </header>
 
@@ -372,6 +524,24 @@ PAGE_HTML = """<!doctype html>
       } finally {
         button.textContent = "Start Ollama";
         refreshOllamaStatus();
+      }
+    }
+
+    async function closeDashboard() {
+      if (!window.confirm("Close the dashboard and stop the Ollama service on port 11434?")) return;
+
+      const button = document.getElementById("close-dashboard");
+      button.disabled = true;
+      try {
+        const response = await fetch("/api/close", { method: "POST" });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || "Could not close the dashboard.");
+
+        document.body.innerHTML = "<main><h2>Dashboard stopped. You can close this tab.</h2></main>";
+        window.close();
+      } catch (error) {
+        button.disabled = false;
+        showSnackbar(error.message || "Could not close the dashboard.", "error");
       }
     }
 
@@ -625,6 +795,27 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps(response).encode("utf-8"))
             return
 
+        if parsed.path == "/api/close":
+            ollama_stopped, error = stop_dashboard_ollama()
+            if ollama_stopped:
+                command_stopped, error = stop_active_command()
+            else:
+                command_stopped = False
+
+            if not ollama_stopped or not command_stopped:
+                self.send_response(503)
+                response = {"closed": False, "error": error}
+            else:
+                self.send_response(200)
+                response = {"closed": True}
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps(response).encode("utf-8"))
+            self.wfile.flush()
+            if response["closed"]:
+                request_server_shutdown(self.server)
+            return
+
         if parsed.path == "/api/non-qa-jobs":
             content_length = int(self.headers.get("Content-Length", 0))
             body = self.rfile.read(content_length).decode("utf-8")
@@ -694,4 +885,5 @@ def run_server(port: int = DEFAULT_PORT, open_browser: bool = True) -> None:
         httpd.serve_forever()
     except KeyboardInterrupt:
         print("\nShutting down dashboard...")
+    finally:
         httpd.server_close()

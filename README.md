@@ -72,9 +72,12 @@ python v2\main.py dashboard --no-browser
 
 The dashboard provides controls for the Telegram/LinkedIn and company-career
 flows, database statistics, and command logs. It also shows whether the local
-Ollama API is online and can start Ollama when it is offline; stopping Ollama
-is not available from the dashboard. The **Connect to Recruiters** button is
-reserved for a future workflow.
+Ollama API is online and can start Ollama when it is offline. The **CLOSE**
+button stops any active dashboard command and the Ollama process listening on
+port 11434, then shuts down the dashboard server. The dashboard verifies the
+listener is `ollama` before stopping it. Browser settings may prevent the
+dashboard tab from closing automatically; if so, close it manually.
+The **Connect to Recruiters** button is reserved for a future workflow.
 
 ### Telegram and LinkedIn flow
 
