@@ -26,6 +26,7 @@ from v2.dashboard.pages.companies import PAGE_HTML as COMPANIES_PAGE_HTML
 from v2.dashboard.pages.dashboard import PAGE_HTML as DASHBOARD_PAGE_HTML
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+STYLESHEET_PATH = Path(__file__).resolve().parent / "style" / "dashboard.css"
 MAIN_SCRIPT = PROJECT_ROOT / "v2" / "main.py"
 HOST = "127.0.0.1"
 DEFAULT_PORT = 8766
@@ -320,6 +321,13 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.end_headers()
             self.wfile.write(COMPANIES_PAGE_HTML.encode("utf-8"))
+            return
+
+        if parsed.path == "/style/dashboard.css":
+            self.send_response(200)
+            self.send_header("Content-Type", "text/css; charset=utf-8")
+            self.end_headers()
+            self.wfile.write(STYLESHEET_PATH.read_bytes())
             return
 
         if parsed.path == "/api/companies":

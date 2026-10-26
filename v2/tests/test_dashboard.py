@@ -126,6 +126,12 @@ class TestDashboardCommandLogs(unittest.TestCase):
         self.assertIn('id="add-company-form"', server.COMPANIES_PAGE_HTML)
         self.assertIn('fetch("/api/companies")', server.COMPANIES_PAGE_HTML)
 
+    def test_pages_use_shared_stylesheet_and_header_component(self) -> None:
+        for page in (server.PAGE_HTML, server.COMPANIES_PAGE_HTML):
+            self.assertIn('href="/style/dashboard.css"', page)
+            self.assertNotIn("<style>", page)
+            self.assertIn('class="site-header"', page)
+
     def test_ollama_status_reports_api_unavailability(self) -> None:
         with patch.object(server, "urlopen", side_effect=URLError("offline")):
             self.assertFalse(server.is_ollama_running())
@@ -261,10 +267,15 @@ class TestDashboardCommandLogs(unittest.TestCase):
         ]) as get_sources:
             with urlopen(f"http://127.0.0.1:{httpd.server_port}/companies") as response:
                 page = response.read().decode("utf-8")
+            with urlopen(f"http://127.0.0.1:{httpd.server_port}/style/dashboard.css") as response:
+                stylesheet = response.read().decode("utf-8")
+                stylesheet_content_type = response.headers["Content-Type"]
             with urlopen(f"http://127.0.0.1:{httpd.server_port}/api/companies") as response:
                 companies = json.load(response)
 
         self.assertIn("Add Company Career Page", page)
+        self.assertIn(".site-header", stylesheet)
+        self.assertEqual(stylesheet_content_type, "text/css; charset=utf-8")
         self.assertEqual(len(companies["companies"]), 1)
         self.assertEqual(companies["companies"][0]["company"], "Example")
         get_sources.assert_called_once_with()

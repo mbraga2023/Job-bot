@@ -1,75 +1,17 @@
 """Dashboard page view."""
 
+from v2.dashboard.components.header import render_header
+
 PAGE_HTML = """<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Job-bot v2.0 Dashboard</title>
-  <style>
-    :root { color-scheme: dark; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    body { margin: 0; background: #0b0f19; color: #e2e8f0; }
-    header { background: #131b2e; border-bottom: 1px solid #1e293b; padding: 16px 32px; display: flex; justify-content: space-between; align-items: center; gap: 24px; }
-    header h1 { margin: 0; font-size: 20px; font-weight: 700; color: #60a5fa; }
-    .tabs { display: flex; gap: 8px; }
-    .tabs a { padding: 9px 14px; border-radius: 8px; color: #94a3b8; text-decoration: none; font-size: 14px; font-weight: 600; }
-    .tabs a:hover, .tabs a.active { background: #1e293b; color: #f8fafc; }
-    .badge { background: #1e293b; color: #94a3b8; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
-    .badge.ollama-online { background: #14532d; color: #bbf7d0; }
-    .badge.ollama-offline { background: #7f1d1d; color: #fecaca; }
-    main { max-width: 1400px; margin: 32px auto; padding: 0 24px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: 32px; }
-    
-    /* Stats Bar */
-    .stats-container { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 8px; }
-    .stat-card { background: #131b2e; border: 1px solid #1e293b; border-radius: 12px; padding: 18px 24px; }
-    .stat-card .label { font-size: 13px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; }
-    .stat-card .value { font-size: 28px; font-weight: 700; margin-top: 6px; color: #f8fafc; }
-    
-    /* Flow Cards */
-    .flow-card { background: #131b2e; border: 1px solid #1e293b; border-radius: 12px; padding: 24px; margin-bottom: 24px; }
-    .flow-card h2 { margin: 0 0 16px 0; font-size: 17px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
-    .actions-grid { display: flex; flex-wrap: wrap; gap: 12px; }
-    
-    button { border: 0; border-radius: 8px; padding: 10px 18px; background: #2563eb; color: white; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.15s ease; }
-    button:hover:not(:disabled) { background: #3b82f6; transform: translateY(-1px); }
-    button:disabled { opacity: 0.45; cursor: not-allowed; }
-    button.secondary { background: #1e293b; color: #cbd5e1; border: 1px solid #334155; }
-    button.secondary:hover:not(:disabled) { background: #334155; }
-    button.danger { background: #dc2626; }
-    button.danger:hover:not(:disabled) { background: #ef4444; }
-    button.warning { background: #b45309; }
-    button.warning:hover:not(:disabled) { background: #d97706; }
-    button.close-dashboard { background: #b91c1c; }
-    button.close-dashboard:hover:not(:disabled) { background: #dc2626; }
-    
-    /* Terminal */
-    .terminal-panel { background: #131b2e; border: 1px solid #1e293b; border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; height: calc(100vh - 220px); }
-    .terminal-header { background: #0f172a; padding: 12px 18px; border-bottom: 1px solid #1e293b; display: flex; justify-content: space-between; align-items: center; }
-    .terminal-header h3 { margin: 0; font-size: 14px; color: #94a3b8; }
-    pre { margin: 0; padding: 18px; flex: 1; background: #080c14; color: #a5f3fc; font-family: "Cascadia Code", Consolas, monospace; font-size: 13px; line-height: 1.5; overflow: auto; white-space: pre-wrap; word-break: break-all; }
-    
-    .snackbar { position: fixed; left: 50%; bottom: 24px; z-index: 200; padding: 12px 20px; border-radius: 8px; color: #fff; font-size: 14px; box-shadow: 0 8px 24px rgba(0,0,0,0.35); opacity: 0; pointer-events: none; transform: translate(-50%, 12px); transition: opacity 0.2s ease, transform 0.2s ease; }
-    .snackbar.show { opacity: 1; transform: translate(-50%, 0); }
-    .snackbar.success { background: #15803d; }
-    .snackbar.error { background: #b91c1c; }
-    .snackbar.info { background: #334155; }
-  </style>
+  <link rel="stylesheet" href="/style/dashboard.css">
 </head>
-<body>
-  <header>
-    <h1>Job-bot <span style="color:#94a3b8; font-weight:400;">Version 2.0</span></h1>
-    <nav class="tabs" aria-label="Main navigation">
-      <a class="active" href="/">Dashboard</a>
-      <a href="/companies">Companies</a>
-    </nav>
-    <div style="display:flex; align-items:center; gap:12px;">
-      <span id="ollama-status" class="badge ollama-offline" role="status" aria-live="polite">Ollama: checking</span>
-      <button id="ollama-start" class="secondary" onclick="startOllama()">Start Ollama</button>
-      <span id="run-status" class="badge">Idle</span>
-      <button class="secondary" onclick="refreshStats()" style="padding:6px 12px; font-size:12px;">Refresh Stats</button>
-      <button id="close-dashboard" class="close-dashboard" onclick="closeDashboard()">CLOSE</button>
-    </div>
-  </header>
+<body class="dashboard-page">
+  <!-- SHARED_HEADER -->
 
   <main>
     <div class="stats-container">
@@ -108,14 +50,14 @@ PAGE_HTML = """<!doctype html>
       <!-- Flow 2 -->
       <div class="flow-card">
         <h2>🌐 Flow 2: Company Career Pages</h2>
-        <div style="margin-bottom:14px; display:flex; gap:16px;">
-          <label style="font-size:14px; color:#cbd5e1; cursor:pointer;">
+        <div class="platform-options">
+          <label class="platform-option">
             <input type="radio" name="career-platform" value="search_all" checked> Search All
           </label>
-          <label style="font-size:14px; color:#cbd5e1; cursor:pointer;">
+          <label class="platform-option">
             <input type="radio" name="career-platform" value="inhire"> InHire Only
           </label>
-          <label style="font-size:14px; color:#cbd5e1; cursor:pointer;">
+          <label class="platform-option">
             <input type="radio" name="career-platform" value="gupy"> Gupy Only
           </label>
         </div>
@@ -142,9 +84,9 @@ PAGE_HTML = """<!doctype html>
     <section class="terminal-panel">
       <div class="terminal-header">
         <h3>Live Command Output</h3>
-        <div style="display:flex; gap:8px;">
-          <button class="secondary" style="padding:4px 10px; font-size:12px;" onclick="copyLogs()">Copy</button>
-          <button id="btn-stop" class="danger" style="padding:4px 10px; font-size:12px;" onclick="stopCommand()" disabled>Stop</button>
+        <div class="terminal-actions">
+          <button class="secondary button-small" onclick="copyLogs()">Copy</button>
+          <button id="btn-stop" class="danger button-small" onclick="stopCommand()" disabled>Stop</button>
         </div>
       </div>
       <pre id="terminal-output">Ready. Select a workflow stage to begin.</pre>
@@ -230,8 +172,7 @@ PAGE_HTML = """<!doctype html>
       document.getElementById("terminal-output").textContent = ">> Starting " + label + "...\\n";
       document.getElementById("btn-stop").disabled = false;
       document.getElementById("run-status").textContent = "Running";
-      document.getElementById("run-status").style.background = "#2563eb";
-      document.getElementById("run-status").style.color = "#ffffff";
+      document.getElementById("run-status").className = "badge running";
 
       try {
         const response = await fetch("/api/run", {
@@ -300,12 +241,10 @@ PAGE_HTML = """<!doctype html>
         const statusEl = document.getElementById("run-status");
         if (data.running) {
           statusEl.textContent = "Running: " + (data.command || "");
-          statusEl.style.background = "#2563eb";
-          statusEl.style.color = "#ffffff";
+          statusEl.className = "badge running";
         } else {
           statusEl.textContent = "Idle";
-          statusEl.style.background = "#1e293b";
-          statusEl.style.color = "#94a3b8";
+          statusEl.className = "badge";
           if (commandNeedsStatsRefresh) {
             commandNeedsStatsRefresh = false;
             await refreshStats();
@@ -337,3 +276,15 @@ PAGE_HTML = """<!doctype html>
 </body>
 </html>
 """
+
+PAGE_HTML = PAGE_HTML.replace(
+    "<!-- SHARED_HEADER -->",
+    render_header(
+        "dashboard",
+        """<span id="ollama-status" class="badge ollama-offline" role="status" aria-live="polite">Ollama: checking</span>
+    <button id="ollama-start" class="secondary" onclick="startOllama()">Start Ollama</button>
+    <span id="run-status" class="badge">Idle</span>
+    <button class="secondary button-refresh" onclick="refreshStats()">Refresh Stats</button>
+    <button id="close-dashboard" class="close-dashboard" onclick="closeDashboard()">CLOSE</button>""",
+    ),
+)

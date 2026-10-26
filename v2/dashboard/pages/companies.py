@@ -1,58 +1,21 @@
 """Companies page view."""
 
+from v2.dashboard.components.header import render_header
+
 PAGE_HTML = """<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Job-bot v2.0 Companies</title>
-  <style>
-    :root { color-scheme: dark; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    body { margin: 0; background: #0b0f19; color: #e2e8f0; }
-    header { background: #131b2e; border-bottom: 1px solid #1e293b; padding: 16px 32px; display: flex; justify-content: space-between; align-items: center; gap: 24px; }
-    header h1 { margin: 0; font-size: 20px; font-weight: 700; color: #60a5fa; }
-    .tabs { display: flex; gap: 8px; }
-    .tabs a { padding: 9px 14px; border-radius: 8px; color: #94a3b8; text-decoration: none; font-size: 14px; font-weight: 600; }
-    .tabs a:hover, .tabs a.active { background: #1e293b; color: #f8fafc; }
-    main { max-width: 1200px; margin: 32px auto; padding: 0 24px; }
-    .panel { background: #131b2e; border: 1px solid #1e293b; border-radius: 12px; padding: 24px; margin-bottom: 24px; }
-    h2 { margin: 0 0 18px; font-size: 18px; }
-    form { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; align-items: end; }
-    label { display: block; font-size: 13px; color: #94a3b8; margin-bottom: 6px; }
-    input { width: 100%; box-sizing: border-box; background: #0b0f19; border: 1px solid #334155; border-radius: 6px; padding: 10px; color: #f8fafc; font-size: 14px; }
-    button { border: 0; border-radius: 8px; padding: 10px 18px; background: #2563eb; color: white; font-size: 14px; font-weight: 500; cursor: pointer; }
-    button:hover:not(:disabled) { background: #3b82f6; }
-    button:disabled { opacity: 0.45; cursor: not-allowed; }
-    .table-wrap { overflow-x: auto; }
-    table { width: 100%; border-collapse: collapse; text-align: left; }
-    th, td { padding: 12px 14px; border-bottom: 1px solid #1e293b; }
-    th { color: #94a3b8; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
-    td a { color: #93c5fd; }
-    .status { color: #86efac; }
-    .status.inactive { color: #fca5a5; }
-    .empty { color: #94a3b8; text-align: center; padding: 28px; }
-    .message { min-height: 20px; margin: 14px 0 0; color: #94a3b8; }
-    .message.success { color: #86efac; }
-    .message.error { color: #fca5a5; }
-    @media (max-width: 760px) {
-      header { flex-wrap: wrap; padding: 16px 20px; }
-      main { padding: 0 16px; }
-      .panel { padding: 18px; }
-    }
-  </style>
+  <link rel="stylesheet" href="/style/dashboard.css">
 </head>
-<body>
-  <header>
-    <h1>Job-bot <span style="color:#94a3b8; font-weight:400;">Version 2.0</span></h1>
-    <nav class="tabs" aria-label="Main navigation">
-      <a href="/">Dashboard</a>
-      <a class="active" href="/companies">Companies</a>
-    </nav>
-  </header>
+<body class="companies-page">
+  <!-- SHARED_HEADER -->
   <main>
     <section class="panel">
       <h2>Add Company Career Page</h2>
-      <form id="add-company-form">
+      <form id="add-company-form" class="company-form">
         <div>
           <label for="company">Company name</label>
           <input id="company" name="company" required placeholder="e.g. Nubank">
@@ -198,3 +161,5 @@ PAGE_HTML = """<!doctype html>
 </body>
 </html>
 """
+
+PAGE_HTML = PAGE_HTML.replace("<!-- SHARED_HEADER -->", render_header("companies"))
