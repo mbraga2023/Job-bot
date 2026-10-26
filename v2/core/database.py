@@ -43,6 +43,7 @@ def init_db(db_path: Path | None = None) -> None:
                 company TEXT NOT NULL,
                 careers_url TEXT NOT NULL UNIQUE,
                 search_url TEXT,
+                is_international INTEGER NOT NULL DEFAULT 0,
                 source_type TEXT DEFAULT 'CAREER_PAGE',
                 api_url TEXT,
                 api_method TEXT,
@@ -56,6 +57,14 @@ def init_db(db_path: Path | None = None) -> None:
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         """)
+        career_source_columns = {
+            row["name"] for row in conn.execute("PRAGMA table_info(career_sources)")
+        }
+        if "is_international" not in career_source_columns:
+            conn.execute(
+                "ALTER TABLE career_sources "
+                "ADD COLUMN is_international INTEGER NOT NULL DEFAULT 0"
+            )
 
         # Table 2: Centralized Jobs
         conn.execute("""
@@ -207,7 +216,7 @@ def get_career_sources() -> list[dict[str, Any]]:
     """Retrieve all career sources ordered by company."""
     with get_connection() as conn:
         cursor = conn.execute("""
-            SELECT id, company, careers_url, search_url, active
+            SELECT id, company, careers_url, search_url, is_international, active
             FROM career_sources
             ORDER BY company COLLATE NOCASE ASC
         """)
@@ -219,15 +228,61 @@ def insert_career_source(
     careers_url: str,
     search_url: str | None = None,
     source_type: str = "CAREER_PAGE",
+    is_international: bool = False,
 ) -> int:
     """Insert or ignore a career source."""
     with get_connection() as conn:
         cursor = conn.execute("""
-            INSERT OR IGNORE INTO career_sources (company, careers_url, search_url, source_type)
-            VALUES (?, ?, ?, ?)
-        """, (company.strip(), careers_url.strip(), search_url.strip() if search_url else None, source_type))
+            INSERT OR IGNORE INTO career_sources (
+                company, careers_url, search_url, source_type, is_international
+            )
+            VALUES (?, ?, ?, ?, ?)
+        """, (
+            company.strip(),
+            careers_url.strip(),
+            search_url.strip() if search_url else None,
+            source_type,
+            int(is_international),
+        ))
         conn.commit()
         return cursor.lastrowid or 0
+
+
+def update_career_source(
+    source_id: int,
+    company: str,
+    careers_url: str,
+    search_url: str | None = None,
+    is_international: bool = False,
+) -> bool:
+    """Update a career source and return whether it exists."""
+    with get_connection() as conn:
+        cursor = conn.execute("""
+            UPDATE career_sources
+            SET company = ?, careers_url = ?, search_url = ?, is_international = ?,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        """, (
+            company.strip(),
+            careers_url.strip(),
+            search_url.strip() if search_url else None,
+            int(is_international),
+            source_id,
+        ))
+        conn.commit()
+        return cursor.rowcount > 0
+
+
+def set_career_source_active(source_id: int, active: bool) -> bool:
+    """Activate or deactivate a career source, returning whether it exists."""
+    with get_connection() as conn:
+        cursor = conn.execute("""
+            UPDATE career_sources
+            SET active = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        """, (int(active), source_id))
+        conn.commit()
+        return cursor.rowcount > 0
 
 
 def update_source_api_info(

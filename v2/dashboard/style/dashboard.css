@@ -306,6 +306,36 @@ pre {
   font-size: 14px;
 }
 
+.company-form .checkbox-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #cbd5e1;
+}
+
+.company-form .checkbox-field input {
+  width: auto;
+  margin: 0;
+  accent-color: #2563eb;
+}
+
+.company-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.company-actions input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 140px;
+  padding: 8px;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  background: #0b0f19;
+  color: #f8fafc;
+}
+
 .table-wrap {
   overflow-x: auto;
 }

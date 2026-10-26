@@ -10,7 +10,7 @@ from http.server import ThreadingHTTPServer
 from threading import Thread
 from urllib.request import Request, urlopen
 from unittest.mock import patch
-from urllib.error import URLError
+from urllib.error import HTTPError, URLError
 
 from v2.dashboard import server
 
@@ -250,6 +250,7 @@ class TestDashboardCommandLogs(unittest.TestCase):
                     data=json.dumps({
                         "company": "Example",
                         "careers_url": "https://example.com/careers",
+                        "is_international": True,
                     }).encode("utf-8"),
                     headers={"Content-Type": "application/json"},
                     method="POST",
@@ -262,6 +263,12 @@ class TestDashboardCommandLogs(unittest.TestCase):
             [{"ok": True, "duplicate": False}, {"ok": True, "duplicate": True}],
         )
         self.assertEqual(insert.call_count, 2)
+        insert.assert_any_call(
+            "Example",
+            "https://example.com/careers",
+            None,
+            is_international=True,
+        )
         self.assertIn("This careers website is already registered.", server.COMPANIES_PAGE_HTML)
         self.assertIn("Company added successfully.", server.COMPANIES_PAGE_HTML)
 
@@ -278,6 +285,7 @@ class TestDashboardCommandLogs(unittest.TestCase):
                 "company": "Example",
                 "careers_url": "https://example.com/careers",
                 "search_url": None,
+                "is_international": 1,
                 "active": 1,
             }
         ]) as get_sources:
@@ -294,7 +302,92 @@ class TestDashboardCommandLogs(unittest.TestCase):
         self.assertEqual(stylesheet_content_type, "text/css; charset=utf-8")
         self.assertEqual(len(companies["companies"]), 1)
         self.assertEqual(companies["companies"][0]["company"], "Example")
+        self.assertEqual(companies["companies"][0]["is_international"], 1)
         get_sources.assert_called_once_with()
+
+    def test_companies_page_has_edit_and_soft_delete_actions(self) -> None:
+        self.assertIn('textContent = "Edit"', server.COMPANIES_PAGE_HTML)
+        self.assertIn('company.active ? "Deactivate" : "Reactivate"', server.COMPANIES_PAGE_HTML)
+        self.assertIn('method: "PUT"', server.COMPANIES_PAGE_HTML)
+        self.assertIn('method: "PATCH"', server.COMPANIES_PAGE_HTML)
+        self.assertIn("<th>Actions</th>", server.COMPANIES_PAGE_HTML)
+        self.assertIn("<th>International</th>", server.COMPANIES_PAGE_HTML)
+        self.assertIn('is_international: form.is_international.checked', server.COMPANIES_PAGE_HTML)
+        self.assertIn('["is_international", Boolean(company.is_international), "checkbox"]', server.COMPANIES_PAGE_HTML)
+        self.assertIn('value.length > 30 ? value.slice(0, 27) + "..." : value', server.COMPANIES_PAGE_HTML)
+
+    def test_company_update_and_status_endpoints(self) -> None:
+        httpd = ThreadingHTTPServer(("127.0.0.1", 0), server.DashboardHandler)
+        thread = Thread(target=httpd.serve_forever, daemon=True)
+        thread.start()
+        self.addCleanup(httpd.server_close)
+        self.addCleanup(httpd.shutdown)
+        base_url = f"http://127.0.0.1:{httpd.server_port}/api/companies/42"
+
+        with (
+            patch.object(server, "update_career_source", return_value=True) as update_source,
+            patch.object(server, "set_career_source_active", return_value=True) as set_active,
+        ):
+            update_request = Request(
+                base_url,
+                data=json.dumps({
+                    "company": "Example",
+                    "careers_url": "https://example.com/careers",
+                    "search_url": "",
+                    "is_international": True,
+                }).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+                method="PUT",
+            )
+            with urlopen(update_request) as response:
+                updated = json.load(response)
+
+            status_request = Request(
+                base_url,
+                data=json.dumps({"active": False}).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+                method="PATCH",
+            )
+            with urlopen(status_request) as response:
+                status = json.load(response)
+
+        self.assertEqual(updated, {"ok": True})
+        self.assertEqual(status, {"ok": True, "active": False})
+        update_source.assert_called_once_with(
+            42,
+            "Example",
+            "https://example.com/careers",
+            None,
+            True,
+        )
+        set_active.assert_called_once_with(42, False)
+
+    def test_company_update_reports_duplicate_careers_url(self) -> None:
+        httpd = ThreadingHTTPServer(("127.0.0.1", 0), server.DashboardHandler)
+        thread = Thread(target=httpd.serve_forever, daemon=True)
+        thread.start()
+        self.addCleanup(httpd.server_close)
+        self.addCleanup(httpd.shutdown)
+
+        with patch.object(server, "update_career_source", side_effect=server.sqlite3.IntegrityError):
+            request = Request(
+                f"http://127.0.0.1:{httpd.server_port}/api/companies/42",
+                data=json.dumps({
+                    "company": "Example",
+                    "careers_url": "https://example.com/careers",
+                    "is_international": False,
+                }).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+                method="PUT",
+            )
+            with self.assertRaises(HTTPError) as error:
+                urlopen(request)
+
+        self.assertEqual(error.exception.code, 409)
+        self.assertEqual(
+            json.load(error.exception),
+            {"error": "That careers URL is already registered."},
+        )
 
     def test_ollama_status_and_start_endpoints(self) -> None:
         httpd = ThreadingHTTPServer(("127.0.0.1", 0), server.DashboardHandler)

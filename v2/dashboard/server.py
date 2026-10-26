@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import sqlite3
 import subprocess
 import sys
 import threading
@@ -21,6 +22,8 @@ from v2.core.database import (
     get_database_stats,
     get_non_qa_job_count,
     insert_career_source,
+    set_career_source_active,
+    update_career_source,
 )
 from v2.dashboard.pages.companies import PAGE_HTML as COMPANIES_PAGE_HTML
 from v2.dashboard.pages.dashboard import PAGE_HTML as DASHBOARD_PAGE_HTML
@@ -302,6 +305,30 @@ def run_command_in_background(cmd_args: list[str], label: str) -> bool:
 class DashboardHandler(BaseHTTPRequestHandler):
     """HTTP request handler for local web UI and JSON endpoints."""
 
+    def _read_json_body(self) -> dict:
+        content_length = int(self.headers.get("Content-Length", 0))
+        body = self.rfile.read(content_length).decode("utf-8")
+        data = json.loads(body) if body else {}
+        if not isinstance(data, dict):
+            raise ValueError("A JSON object is required.")
+        return data
+
+    def _send_json(self, status_code: int, payload: dict) -> None:
+        self.send_response(status_code)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        self.wfile.write(json.dumps(payload).encode("utf-8"))
+
+    def _company_id(self) -> int | None:
+        parts = urlsplit(self.path).path.strip("/").split("/")
+        if len(parts) != 3 or parts[:2] != ["api", "companies"]:
+            return None
+        try:
+            company_id = int(parts[2])
+        except ValueError:
+            return None
+        return company_id if company_id > 0 else None
+
     def log_message(self, format, *args):
         # Silence default stderr logging
         pass
@@ -472,12 +499,21 @@ class DashboardHandler(BaseHTTPRequestHandler):
             company = data.get("company", "").strip()
             careers_url = data.get("careers_url", "").strip()
             search_url = data.get("search_url", "").strip() or None
+            is_international = data.get("is_international", False)
 
-            if not company or not careers_url:
+            if not isinstance(is_international, bool):
+                self.send_response(400)
+                response = {"ok": False, "error": "is_international must be a boolean."}
+            elif not company or not careers_url:
                 self.send_response(400)
                 response = {"ok": False, "error": "Company and careers URL are required."}
             else:
-                row_id = insert_career_source(company, careers_url, search_url)
+                row_id = insert_career_source(
+                    company,
+                    careers_url,
+                    search_url,
+                    is_international=is_international,
+                )
                 self.send_response(200)
                 response = {"ok": True, "duplicate": row_id == 0}
 
@@ -488,6 +524,73 @@ class DashboardHandler(BaseHTTPRequestHandler):
 
         self.send_response(404)
         self.end_headers()
+
+    def do_PUT(self):
+        company_id = self._company_id()
+        if company_id is None:
+            self._send_json(400, {"error": "A valid company ID is required."})
+            return
+
+        try:
+            data = self._read_json_body()
+        except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
+            self._send_json(400, {"error": f"Invalid request body: {exc}"})
+            return
+
+        company = data.get("company")
+        careers_url = data.get("careers_url")
+        search_url = data.get("search_url", "")
+        is_international = data.get("is_international")
+        if (
+            not isinstance(company, str)
+            or not company.strip()
+            or not isinstance(careers_url, str)
+            or not careers_url.strip()
+            or not isinstance(search_url, str)
+            or not isinstance(is_international, bool)
+        ):
+            self._send_json(
+                400,
+                {"error": "Company, careers URL, and boolean is_international are required."},
+            )
+            return
+
+        try:
+            updated = update_career_source(
+                company_id,
+                company,
+                careers_url,
+                search_url or None,
+                is_international,
+            )
+        except sqlite3.IntegrityError:
+            self._send_json(409, {"error": "That careers URL is already registered."})
+            return
+        if not updated:
+            self._send_json(404, {"error": "Company was not found."})
+            return
+        self._send_json(200, {"ok": True})
+
+    def do_PATCH(self):
+        company_id = self._company_id()
+        if company_id is None:
+            self._send_json(400, {"error": "A valid company ID is required."})
+            return
+
+        try:
+            data = self._read_json_body()
+        except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
+            self._send_json(400, {"error": f"Invalid request body: {exc}"})
+            return
+
+        active = data.get("active")
+        if not isinstance(active, bool):
+            self._send_json(400, {"error": "A boolean active value is required."})
+            return
+        if not set_career_source_active(company_id, active):
+            self._send_json(404, {"error": "Company was not found."})
+            return
+        self._send_json(200, {"ok": True, "active": active})
 
 
 def run_server(port: int = DEFAULT_PORT, open_browser: bool = True) -> None:

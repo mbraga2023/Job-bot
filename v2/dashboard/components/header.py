@@ -51,7 +51,7 @@ def render_header(
         const stats = await response.json();
         if (!response.ok) throw new Error(stats.error || "Could not refresh stats.");
         window.showDashboardMessage(
-          `Active companies: ${{stats.career_sources_active || 0}} · Jobs: ${{stats.jobs_total || 0}}`,
+          `Active companies: ${{stats.career_sources_active || 0}} | Jobs: ${{stats.jobs_total || 0}}`,
           "info"
         );
       }} catch (error) {{

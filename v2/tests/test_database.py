@@ -21,6 +21,8 @@ from v2.core.database import (
     insert_career_source,
     insert_discovered_job,
     mark_source_checked,
+    set_career_source_active,
+    update_career_source,
     update_job_status,
     update_job_validation,
 )
@@ -53,9 +55,18 @@ class TestCentralizedDatabase(unittest.TestCase):
     def test_insert_career_source(self):
         row_id = insert_career_source("TestCorp", "https://test.com/careers")
         self.assertGreater(row_id, 0)
+        international_id = insert_career_source(
+            "GlobalCorp",
+            "https://global.test/careers",
+            is_international=True,
+        )
         # Unique constraint test
         dup_id = insert_career_source("TestCorp", "https://test.com/careers")
         self.assertEqual(dup_id, 0)
+        sources = {source["company"]: source for source in get_career_sources()}
+        self.assertEqual(sources["TestCorp"]["is_international"], 0)
+        self.assertEqual(sources["GlobalCorp"]["is_international"], 1)
+        self.assertGreater(international_id, 0)
 
     def test_get_career_sources_includes_inactive_sources(self):
         source_id = insert_career_source("TestCorp", "https://test.com/careers")
@@ -68,6 +79,60 @@ class TestCentralizedDatabase(unittest.TestCase):
         self.assertEqual(len(sources), 1)
         self.assertEqual(sources[0]["company"], "TestCorp")
         self.assertEqual(sources[0]["active"], 0)
+
+    def test_update_and_deactivate_career_source(self):
+        source_id = insert_career_source("TestCorp", "https://test.com/careers")
+
+        self.assertTrue(update_career_source(
+            source_id,
+            "Updated Corp",
+            "https://updated.test/careers",
+            "https://updated.test/search",
+            is_international=True,
+        ))
+        self.assertTrue(set_career_source_active(source_id, False))
+        self.assertTrue(set_career_source_active(source_id, True))
+        self.assertFalse(update_career_source(
+            9999,
+            "Missing",
+            "https://missing.test/careers",
+        ))
+        self.assertFalse(set_career_source_active(9999, False))
+
+        source = get_career_sources()[0]
+        self.assertEqual(source["company"], "Updated Corp")
+        self.assertEqual(source["careers_url"], "https://updated.test/careers")
+        self.assertEqual(source["search_url"], "https://updated.test/search")
+        self.assertEqual(source["is_international"], 1)
+        self.assertEqual(source["active"], 1)
+
+    def test_init_db_adds_international_column_to_existing_database(self):
+        legacy_path = Path(self.temp_dir.name) / "legacy_jobs.db"
+        with get_connection(legacy_path) as conn:
+            conn.execute("""
+                CREATE TABLE career_sources (
+                    id INTEGER PRIMARY KEY,
+                    company TEXT NOT NULL,
+                    careers_url TEXT NOT NULL UNIQUE,
+                    search_url TEXT,
+                    source_type TEXT DEFAULT 'CAREER_PAGE',
+                    active INTEGER DEFAULT 1
+                )
+            """)
+            conn.execute(
+                "INSERT INTO career_sources (company, careers_url) VALUES (?, ?)",
+                ("LegacyCo", "https://legacy.test/careers"),
+            )
+            conn.commit()
+
+        init_db(legacy_path)
+
+        with get_connection(legacy_path) as conn:
+            source = conn.execute(
+                "SELECT is_international FROM career_sources WHERE company = ?",
+                ("LegacyCo",),
+            ).fetchone()
+        self.assertEqual(source["is_international"], 0)
 
     def test_successful_source_check_clears_previous_error(self):
         source_id = insert_career_source("TestCorp", "https://test.com/careers")
