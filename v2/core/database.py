@@ -203,6 +203,17 @@ def get_active_career_sources() -> list[dict[str, Any]]:
         return [dict(r) for r in cursor.fetchall()]
 
 
+def get_career_sources() -> list[dict[str, Any]]:
+    """Retrieve all career sources ordered by company."""
+    with get_connection() as conn:
+        cursor = conn.execute("""
+            SELECT id, company, careers_url, search_url, active
+            FROM career_sources
+            ORDER BY company COLLATE NOCASE ASC
+        """)
+        return [dict(row) for row in cursor.fetchall()]
+
+
 def insert_career_source(
     company: str,
     careers_url: str,

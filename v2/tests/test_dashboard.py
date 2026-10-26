@@ -119,6 +119,13 @@ class TestDashboardCommandLogs(unittest.TestCase):
         self.assertIn("window.close()", server.PAGE_HTML)
         self.assertIn("Dashboard stopped. You can close this tab.", server.PAGE_HTML)
 
+    def test_dashboard_and_companies_pages_are_separate(self) -> None:
+        self.assertIn('href="/companies">Companies</a>', server.PAGE_HTML)
+        self.assertNotIn("import-modal", server.PAGE_HTML)
+        self.assertIn('href="/">Dashboard</a>', server.COMPANIES_PAGE_HTML)
+        self.assertIn('id="add-company-form"', server.COMPANIES_PAGE_HTML)
+        self.assertIn('fetch("/api/companies")', server.COMPANIES_PAGE_HTML)
+
     def test_ollama_status_reports_api_unavailability(self) -> None:
         with patch.object(server, "urlopen", side_effect=URLError("offline")):
             self.assertFalse(server.is_ollama_running())
@@ -233,9 +240,34 @@ class TestDashboardCommandLogs(unittest.TestCase):
             [{"ok": True, "duplicate": False}, {"ok": True, "duplicate": True}],
         )
         self.assertEqual(insert.call_count, 2)
-        self.assertIn('id="snackbar"', server.PAGE_HTML)
-        self.assertIn("Website already registered.", server.PAGE_HTML)
-        self.assertIn("Career source added successfully.", server.PAGE_HTML)
+        self.assertIn("This careers website is already registered.", server.COMPANIES_PAGE_HTML)
+        self.assertIn("Company added successfully.", server.COMPANIES_PAGE_HTML)
+
+    def test_companies_page_and_list_endpoint(self) -> None:
+        httpd = ThreadingHTTPServer(("127.0.0.1", 0), server.DashboardHandler)
+        thread = Thread(target=httpd.serve_forever, daemon=True)
+        thread.start()
+        self.addCleanup(httpd.server_close)
+        self.addCleanup(httpd.shutdown)
+
+        with patch.object(server, "get_career_sources", return_value=[
+            {
+                "id": 1,
+                "company": "Example",
+                "careers_url": "https://example.com/careers",
+                "search_url": None,
+                "active": 1,
+            }
+        ]) as get_sources:
+            with urlopen(f"http://127.0.0.1:{httpd.server_port}/companies") as response:
+                page = response.read().decode("utf-8")
+            with urlopen(f"http://127.0.0.1:{httpd.server_port}/api/companies") as response:
+                companies = json.load(response)
+
+        self.assertIn("Add Company Career Page", page)
+        self.assertEqual(len(companies["companies"]), 1)
+        self.assertEqual(companies["companies"][0]["company"], "Example")
+        get_sources.assert_called_once_with()
 
     def test_ollama_status_and_start_endpoints(self) -> None:
         httpd = ThreadingHTTPServer(("127.0.0.1", 0), server.DashboardHandler)

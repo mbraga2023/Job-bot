@@ -9,6 +9,7 @@ from pathlib import Path
 from v2.config import config
 from v2.core.database import (
     get_connection,
+    get_career_sources,
     get_database_stats,
     get_non_qa_job_count,
     get_job_by_id,
@@ -55,6 +56,18 @@ class TestCentralizedDatabase(unittest.TestCase):
         # Unique constraint test
         dup_id = insert_career_source("TestCorp", "https://test.com/careers")
         self.assertEqual(dup_id, 0)
+
+    def test_get_career_sources_includes_inactive_sources(self):
+        source_id = insert_career_source("TestCorp", "https://test.com/careers")
+        with get_connection(self.db_path) as conn:
+            conn.execute("UPDATE career_sources SET active = 0 WHERE id = ?", (source_id,))
+            conn.commit()
+
+        sources = get_career_sources()
+
+        self.assertEqual(len(sources), 1)
+        self.assertEqual(sources[0]["company"], "TestCorp")
+        self.assertEqual(sources[0]["active"], 0)
 
     def test_successful_source_check_clears_previous_error(self):
         source_id = insert_career_source("TestCorp", "https://test.com/careers")
