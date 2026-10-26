@@ -131,6 +131,22 @@ class TestDashboardCommandLogs(unittest.TestCase):
             self.assertIn('href="/style/dashboard.css"', page)
             self.assertNotIn("<style>", page)
             self.assertIn('class="site-header"', page)
+            self.assertIn('id="ollama-status"', page)
+            self.assertIn('id="ollama-start"', page)
+            self.assertIn('id="run-status"', page)
+            self.assertIn("Refresh Stats", page)
+            self.assertIn('id="close-dashboard"', page)
+            self.assertIn('id="snackbar"', page)
+            self.assertEqual(page.count('id="snackbar"'), 1)
+
+        self.assertIn(
+            '<a href="/companies" class="active" aria-current="page">Companies</a>',
+            server.COMPANIES_PAGE_HTML,
+        )
+        self.assertIn(
+            '<a href="/" class="active" aria-current="page">Dashboard</a>',
+            server.PAGE_HTML,
+        )
 
     def test_ollama_status_reports_api_unavailability(self) -> None:
         with patch.object(server, "urlopen", side_effect=URLError("offline")):

@@ -93,8 +93,6 @@ PAGE_HTML = """<!doctype html>
     </section>
   </main>
 
-  <div id="snackbar" class="snackbar" role="status" aria-live="polite"></div>
-
   <script>
     async function refreshStats() {
       try {
@@ -108,61 +106,6 @@ PAGE_HTML = """<!doctype html>
         document.getElementById("stat-manual").textContent = data.jobs_by_status.MANUAL || 0;
       } catch (e) {
         console.error("Failed to load stats", e);
-      }
-    }
-
-    async function refreshOllamaStatus() {
-      const status = document.getElementById("ollama-status");
-      const button = document.getElementById("ollama-start");
-      try {
-        const response = await fetch("/api/ollama/status");
-        const result = await response.json();
-        if (!response.ok) throw new Error(result.error || "Ollama status unavailable.");
-        status.textContent = result.running ? "Ollama: Online" : "Ollama: Offline";
-        status.className = "badge " + (result.running ? "ollama-online" : "ollama-offline");
-        button.disabled = result.running;
-      } catch (error) {
-        status.textContent = "Ollama: Status unavailable";
-        status.className = "badge ollama-offline";
-        button.disabled = false;
-      }
-    }
-
-    async function startOllama() {
-      const button = document.getElementById("ollama-start");
-      button.disabled = true;
-      button.textContent = "Starting...";
-      try {
-        const response = await fetch("/api/ollama/start", { method: "POST" });
-        const result = await response.json();
-        if (!response.ok) throw new Error(result.error || "Could not start Ollama.");
-        showSnackbar(
-          result.started ? "Ollama is starting." : "Ollama is already online.",
-          "success"
-        );
-      } catch (error) {
-        showSnackbar(error.message || "Could not start Ollama.", "error");
-      } finally {
-        button.textContent = "Start Ollama";
-        refreshOllamaStatus();
-      }
-    }
-
-    async function closeDashboard() {
-      if (!window.confirm("Close the dashboard and stop the Ollama service on port 11434?")) return;
-
-      const button = document.getElementById("close-dashboard");
-      button.disabled = true;
-      try {
-        const response = await fetch("/api/close", { method: "POST" });
-        const result = await response.json();
-        if (!response.ok) throw new Error(result.error || "Could not close the dashboard.");
-
-        document.body.innerHTML = "<main><h2>Dashboard stopped. You can close this tab.</h2></main>";
-        window.close();
-      } catch (error) {
-        button.disabled = false;
-        showSnackbar(error.message || "Could not close the dashboard.", "error");
       }
     }
 
@@ -257,20 +200,11 @@ PAGE_HTML = """<!doctype html>
       navigator.clipboard.writeText(document.getElementById("terminal-output").textContent);
     }
 
-    let snackbarTimeout;
     function showSnackbar(message, type = "info") {
-      const snackbar = document.getElementById("snackbar");
-      snackbar.textContent = message;
-      snackbar.className = "snackbar " + type + " show";
-      clearTimeout(snackbarTimeout);
-      snackbarTimeout = setTimeout(() => {
-        snackbar.classList.remove("show");
-      }, 3500);
+      window.showDashboardMessage(message, type);
     }
 
     setInterval(pollLogs, 1000);
-    setInterval(refreshOllamaStatus, 5000);
-    refreshOllamaStatus();
     refreshStats();
   </script>
 </body>
@@ -279,12 +213,5 @@ PAGE_HTML = """<!doctype html>
 
 PAGE_HTML = PAGE_HTML.replace(
     "<!-- SHARED_HEADER -->",
-    render_header(
-        "dashboard",
-        """<span id="ollama-status" class="badge ollama-offline" role="status" aria-live="polite">Ollama: checking</span>
-    <button id="ollama-start" class="secondary" onclick="startOllama()">Start Ollama</button>
-    <span id="run-status" class="badge">Idle</span>
-    <button class="secondary button-refresh" onclick="refreshStats()">Refresh Stats</button>
-    <button id="close-dashboard" class="close-dashboard" onclick="closeDashboard()">CLOSE</button>""",
-    ),
+    render_header("dashboard"),
 )
