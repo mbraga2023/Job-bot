@@ -30,18 +30,28 @@ class LinkedInAnalyzer:
     """Extracts job application status, remote eligibility, and direct apply link from LinkedIn."""
 
     async def get_application_url(self, page: Page) -> str:
-        """Return the href of an application link if LinkedIn exposes one."""
-        locator = page.get_by_role(
-            "link",
-            name=re.compile(r"\bapply\b|candidate-se agora", re.IGNORECASE),
-        ).first
+        """Return an external application link, excluding LinkedIn job recommendations."""
         try:
-            if await locator.count():
-                href = await locator.get_attribute("href")
-                if href:
-                    return urljoin(page.url, href)
+            links = page.get_by_role(
+                "link",
+                name=re.compile(r"\bapply\b|candidate-se agora", re.IGNORECASE),
+            )
+            link_count = await links.count()
         except Exception:
-            pass
+            return ""
+
+        for index in range(link_count):
+            try:
+                href = await links.nth(index).get_attribute("href")
+                if href:
+                    application_url = urljoin(page.url, href)
+                    parsed_url = urlsplit(application_url)
+                    host = (parsed_url.hostname or "").casefold()
+                    is_linkedin_url = host == "linkedin.com" or host.endswith(".linkedin.com")
+                    if parsed_url.scheme in {"http", "https"} and not is_linkedin_url:
+                        return application_url
+            except Exception:
+                continue
         return ""
 
     async def analyze(self, page: Page) -> dict:
@@ -110,6 +120,14 @@ class LinkedInAnalyzer:
         for button_index in range(await buttons.count()):
             if await buttons.nth(button_index).is_visible():
                 return True
+
+        try:
+            buttons = page.get_by_role("button", name=button_name)
+            for button_index in range(await buttons.count()):
+                if await buttons.nth(button_index).is_visible():
+                    return True
+        except Exception:
+            pass
 
         return False
 

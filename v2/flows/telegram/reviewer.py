@@ -11,7 +11,10 @@ from v2.core.database import get_jobs_for_review, update_job_status
 MAX_JOBS_PER_BATCH = 10
 
 
-def run(statuses: Sequence[str] = ("OPEN", "VALIDATED"), limit: int | None = None) -> None:
+def run(
+    statuses: Sequence[str] = ("OPEN", "VALIDATED", "EASY_APPLY"),
+    limit: int | None = None,
+) -> None:
     """Retrieve eligible Telegram jobs, open them in Chrome, and mark status MANUAL."""
     batch_limit = min(limit, MAX_JOBS_PER_BATCH) if limit and limit > 0 else MAX_JOBS_PER_BATCH
     jobs = get_jobs_for_review(

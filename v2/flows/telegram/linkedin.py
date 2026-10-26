@@ -48,6 +48,7 @@ async def run_linkedin_validator(limit: int = 100) -> None:
         page = context.pages[0] if context.pages else await context.new_page()
 
         opened_count = 0
+        easy_apply_count = 0
         closed_count = 0
         recruiter_count = 0
 
@@ -89,14 +90,21 @@ async def run_linkedin_validator(limit: int = 100) -> None:
                     continue
 
                 analysis = await analyzer.analyze(page)
-                app_url = await analyzer.get_application_url(page)
-
                 status = analysis.get("job_status", "OPEN")
                 if status == "CLOSED":
                     closed_count += 1
                     update_job_status(job["id"], "CLOSED", discard_reason="LINKEDIN_CLOSED")
                     print(f" [CLOSED] {job.get('company')} - {job.get('title')}")
+                elif analysis.get("easy_apply"):
+                    easy_apply_count += 1
+                    update_job_validation(
+                        job_id=job["id"],
+                        status="EASY_APPLY",
+                        remote=1 if analysis.get("remote") else (0 if analysis.get("remote") is False else None),
+                    )
+                    print(f" [EASY APPLY] {job.get('company')} - {job.get('title')}")
                 else:
+                    app_url = await analyzer.get_application_url(page)
                     opened_count += 1
                     update_job_validation(
                         job_id=job["id"],
@@ -115,6 +123,7 @@ async def run_linkedin_validator(limit: int = 100) -> None:
     print("[SUMMARY] LINKEDIN VERIFICATION METRICS")
     print("=" * 60)
     print(f" Confirmed OPEN   : {opened_count}")
+    print(f" Easy Apply       : {easy_apply_count}")
     print(f" Confirmed CLOSED : {closed_count}")
     print(f" Recruiter pages  : {recruiter_count}")
     print("=" * 60 + "\n")

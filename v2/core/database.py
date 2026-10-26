@@ -90,7 +90,7 @@ def init_db(db_path: Path | None = None) -> None:
                 raw_data TEXT,
 
                 -- State Progression:
-                -- DISCOVERED -> VALIDATED -> OPEN -> MANUAL (or DISCARDED / CLOSED / EXTRACTION_FAILED)
+                -- DISCOVERED -> VALIDATED -> OPEN / EASY_APPLY -> MANUAL (or DISCARDED / CLOSED / EXTRACTION_FAILED)
                 status TEXT NOT NULL DEFAULT 'DISCOVERED',
                 discard_reason TEXT,
 

@@ -39,7 +39,7 @@ class TestReviewBatches(unittest.TestCase):
 
         mock_get_jobs.assert_called_once_with(
             pipeline="TELEGRAM",
-            statuses=("OPEN", "VALIDATED"),
+            statuses=("OPEN", "VALIDATED", "EASY_APPLY"),
             limit=10,
             remote_only=False,
         )
