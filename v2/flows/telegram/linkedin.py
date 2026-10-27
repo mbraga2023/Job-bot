@@ -112,7 +112,16 @@ async def run_linkedin_validator(limit: int = 100) -> None:
                         application_url=app_url if app_url else None,
                         remote=1 if analysis.get("remote") else (0 if analysis.get("remote") is False else None),
                     )
-                    print(f" [OPEN] {job.get('company')} - {job.get('title')}")
+                    if app_url:
+                        print(
+                            f" [OPEN] {job.get('company')} - {job.get('title')} "
+                            f"(Apply URL: {app_url})"
+                        )
+                    else:
+                        print(
+                            f" [OPEN] {job.get('company')} - {job.get('title')} "
+                            "(Apply URL not found; existing URL left unchanged)"
+                        )
 
                 await asyncio.sleep(2.0)
 

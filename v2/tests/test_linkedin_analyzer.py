@@ -72,6 +72,40 @@ class TestLinkedInAnalyzer(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(application_url, "https://apply.example.com/jobs/123")
 
+    async def test_application_url_unwraps_linkedin_apply_redirect(self) -> None:
+        page = Mock(url="https://www.linkedin.com/jobs/view/123")
+        links = Mock()
+        links.count = AsyncMock(return_value=1)
+        links.nth.return_value.get_attribute = AsyncMock(
+            return_value=(
+                "https://www.linkedin.com/redir/redirect?"
+                "url=https%3A%2F%2Fapply.example.com%2Fjobs%2F123"
+            )
+        )
+        page.get_by_role.return_value = links
+
+        application_url = await self.analyzer.get_application_url(page)
+
+        self.assertEqual(application_url, "https://apply.example.com/jobs/123")
+
+    async def test_application_url_returns_linkedin_safety_destination_unchanged(self) -> None:
+        safety_url = (
+            "https://www.linkedin.com/safety/go/?url="
+            "https%3A%2F%2Fjob-boards.greenhouse.io%2Filia%2Fjobs%2F6211264004"
+            "&urlhash=Sbsu&mt=9oV84o6xbzFW0Lo_L-r5ZS9NIyK4Mhgoqtpx10ZjVJmT6FnpTDR21_lUhjvi9DmGwdOWCW3UFUNDdxaCxMJ0Y0mcsxY"
+            "&isSdui=true&lipi=urn%3Ali%3Apage%3Ad_flagship3_job_details%3BkjeXYXgPT8%2BwVNE5lO%2FXAg%3D%3D"
+        )
+        page = Mock(url="https://www.linkedin.com/jobs/view/4475564872/")
+        safety_links = Mock()
+        safety_links.count = AsyncMock(return_value=1)
+        safety_links.nth.return_value.get_attribute = AsyncMock(return_value=safety_url)
+        page.locator.return_value = safety_links
+
+        application_url = await self.analyzer.get_application_url(page)
+
+        self.assertEqual(application_url, safety_url)
+        page.get_by_role.assert_not_called()
+
     def test_workplace_detection_excludes_hybrid_and_onsite(self) -> None:
         for workplace in ("hybrid", "híbrido", "onsite", "on-site", "presencial"):
             with self.subTest(workplace=workplace):

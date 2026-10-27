@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from urllib.parse import urljoin, urlsplit
+from urllib.parse import parse_qs, urljoin, urlsplit
 from playwright.async_api import Page, TimeoutError as PlaywrightTimeoutError
 
 
@@ -30,7 +30,25 @@ class LinkedInAnalyzer:
     """Extracts job application status, remote eligibility, and direct apply link from LinkedIn."""
 
     async def get_application_url(self, page: Page) -> str:
-        """Return an external application link, excluding LinkedIn job recommendations."""
+        """Return the LinkedIn Apply destination or its external redirect target."""
+        try:
+            safety_links = page.locator('a[href*="/safety/go/"]')
+            for index in range(await safety_links.count()):
+                href = await safety_links.nth(index).get_attribute("href")
+                if not href:
+                    continue
+                application_url = urljoin(page.url, href)
+                parsed_url = urlsplit(application_url)
+                host = (parsed_url.hostname or "").casefold()
+                if (
+                    parsed_url.scheme in {"http", "https"}
+                    and (host == "linkedin.com" or host.endswith(".linkedin.com"))
+                    and parsed_url.path.casefold().startswith("/safety/go/")
+                ):
+                    return application_url
+        except Exception:
+            pass
+
         try:
             links = page.get_by_role(
                 "link",
@@ -48,7 +66,19 @@ class LinkedInAnalyzer:
                     parsed_url = urlsplit(application_url)
                     host = (parsed_url.hostname or "").casefold()
                     is_linkedin_url = host == "linkedin.com" or host.endswith(".linkedin.com")
-                    if parsed_url.scheme in {"http", "https"} and not is_linkedin_url:
+                    if is_linkedin_url and parsed_url.path.casefold().startswith("/redir/"):
+                        redirect_urls = parse_qs(parsed_url.query).get("url", [])
+                        for redirect_url in redirect_urls:
+                            external_url = urljoin(application_url, redirect_url)
+                            external = urlsplit(external_url)
+                            external_host = (external.hostname or "").casefold()
+                            if (
+                                external.scheme in {"http", "https"}
+                                and external_host != "linkedin.com"
+                                and not external_host.endswith(".linkedin.com")
+                            ):
+                                return external_url
+                    elif parsed_url.scheme in {"http", "https"} and not is_linkedin_url:
                         return application_url
             except Exception:
                 continue

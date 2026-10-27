@@ -107,6 +107,8 @@ class TestDashboardCommandLogs(unittest.TestCase):
 
     def test_dashboard_exposes_ollama_status_and_start_control(self) -> None:
         self.assertIn('id="ollama-status"', server.PAGE_HTML)
+        self.assertIn("Ollama API: Online", server.PAGE_HTML)
+        self.assertIn("Python client missing", server.PAGE_HTML)
         self.assertIn("ollama-online", server.PAGE_HTML)
         self.assertIn("ollama-offline", server.PAGE_HTML)
         self.assertIn('id="ollama-start"', server.PAGE_HTML)
@@ -398,6 +400,7 @@ class TestDashboardCommandLogs(unittest.TestCase):
 
         with (
             patch.object(server, "is_ollama_running", return_value=False),
+            patch.object(server, "is_ollama_python_client_available", return_value=True),
             patch.object(server, "start_ollama", return_value=(True, True, None)),
         ):
             with urlopen(f"http://127.0.0.1:{httpd.server_port}/api/ollama/status") as response:
@@ -410,8 +413,30 @@ class TestDashboardCommandLogs(unittest.TestCase):
             with urlopen(request) as response:
                 start = json.load(response)
 
-        self.assertEqual(status, {"running": False})
+        self.assertEqual(
+            status,
+            {"running": False, "python_client_available": True},
+        )
         self.assertEqual(start, {"started": True, "error": None})
+
+    def test_ollama_status_reports_missing_python_client(self) -> None:
+        httpd = ThreadingHTTPServer(("127.0.0.1", 0), server.DashboardHandler)
+        thread = Thread(target=httpd.serve_forever, daemon=True)
+        thread.start()
+        self.addCleanup(httpd.server_close)
+        self.addCleanup(httpd.shutdown)
+
+        with (
+            patch.object(server, "is_ollama_running", return_value=True),
+            patch.object(server, "is_ollama_python_client_available", return_value=False),
+        ):
+            with urlopen(f"http://127.0.0.1:{httpd.server_port}/api/ollama/status") as response:
+                status = json.load(response)
+
+        self.assertEqual(
+            status,
+            {"running": True, "python_client_available": False},
+        )
 
     def test_close_endpoint_stops_owned_services_then_shuts_down_server(self) -> None:
         httpd = ThreadingHTTPServer(("127.0.0.1", 0), server.DashboardHandler)

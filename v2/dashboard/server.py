@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import os
 import shutil
@@ -54,6 +55,11 @@ def is_ollama_running() -> bool:
             return response.status == 200
     except (URLError, TimeoutError, OSError):
         return False
+
+
+def is_ollama_python_client_available() -> bool:
+    """Check whether the Python client is importable by this interpreter."""
+    return importlib.util.find_spec("ollama") is not None
 
 
 def start_ollama() -> tuple[bool, bool, str | None]:
@@ -374,10 +380,18 @@ class DashboardHandler(BaseHTTPRequestHandler):
 
         if parsed.path == "/api/ollama/status":
             running = is_ollama_running()
+            client_available = is_ollama_python_client_available()
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.end_headers()
-            self.wfile.write(json.dumps({"running": running}).encode("utf-8"))
+            self.wfile.write(
+                json.dumps(
+                    {
+                        "running": running,
+                        "python_client_available": client_available,
+                    }
+                ).encode("utf-8")
+            )
             return
 
         if parsed.path == "/api/non-qa-jobs":

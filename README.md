@@ -72,7 +72,10 @@ python v2\main.py dashboard --no-browser
 
 The dashboard provides controls for the Telegram/LinkedIn and company-career
 flows, database statistics, and command logs. It also shows whether the local
-Ollama API is online and can start Ollama when it is offline. The **CLOSE**
+Ollama API is online and can start Ollama when it is offline. This indicates
+that the Ollama service responds; the Python client must also be installed in
+the interpreter running the dashboard. The dashboard launcher prefers the
+project's `.venv`, and the badge reports if its Python client is missing. The **CLOSE**
 button stops any active dashboard command and the Ollama process listening on
 port 11434, then shuts down the dashboard server. The dashboard verifies the
 listener is `ollama` before stopping it. Browser settings may prevent the

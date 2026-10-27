@@ -24,7 +24,7 @@ def render_header(
       {companies_link}
     </nav>
     <div class="header-actions">
-      <span id="ollama-status" class="badge ollama-offline" role="status" aria-live="polite">Ollama: checking</span>
+      <span id="ollama-status" class="badge ollama-offline" role="status" aria-live="polite">Ollama API: checking</span>
       <button id="ollama-start" class="secondary" onclick="window.startDashboardOllama()">Start Ollama</button>
       <span id="run-status" class="badge">Idle</span>
       <button class="secondary button-refresh" onclick="window.refreshDashboardStats()">Refresh Stats</button>
@@ -66,11 +66,18 @@ def render_header(
         const response = await fetch("/api/ollama/status");
         const result = await response.json();
         if (!response.ok) throw new Error(result.error || "Ollama status unavailable.");
-        status.textContent = result.running ? "Ollama: Online" : "Ollama: Offline";
-        status.className = "badge " + (result.running ? "ollama-online" : "ollama-offline");
+        status.textContent = result.running ? "Ollama API: Online" : "Ollama API: Offline";
+        if (!result.python_client_available) {{
+          status.textContent += " | Python client missing";
+        }}
+        const ollamaReady = result.running && result.python_client_available;
+        status.className = "badge " + (ollamaReady ? "ollama-online" : "ollama-offline");
+        status.title = result.python_client_available
+          ? ""
+          : "Install dependencies with .venv/Scripts/python.exe -m pip install -r requirements.txt";
         button.disabled = result.running;
       }} catch (error) {{
-        status.textContent = "Ollama: Status unavailable";
+        status.textContent = "Ollama API: Status unavailable";
         status.className = "badge ollama-offline";
         button.disabled = false;
       }}
