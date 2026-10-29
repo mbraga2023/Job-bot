@@ -28,6 +28,8 @@ from v2.core.database import (
 )
 from v2.dashboard.pages.companies import PAGE_HTML as COMPANIES_PAGE_HTML
 from v2.dashboard.pages.dashboard import PAGE_HTML as DASHBOARD_PAGE_HTML
+from v2.dashboard.pages.test_insights import PAGE_HTML as TEST_INSIGHTS_PAGE_HTML
+from v2.dashboard.insights import get_repository_test_insights, get_test_coverage
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 STYLESHEET_PATH = Path(__file__).resolve().parent / "style" / "dashboard.css"
@@ -356,6 +358,13 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self.wfile.write(COMPANIES_PAGE_HTML.encode("utf-8"))
             return
 
+        if parsed.path == "/test-insights":
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.end_headers()
+            self.wfile.write(TEST_INSIGHTS_PAGE_HTML.encode("utf-8"))
+            return
+
         if parsed.path == "/style/dashboard.css":
             self.send_response(200)
             self.send_header("Content-Type", "text/css; charset=utf-8")
@@ -376,6 +385,29 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self.send_header("Content-Type", "application/json")
             self.end_headers()
             self.wfile.write(json.dumps(stats).encode("utf-8"))
+            return
+
+        if parsed.path == "/api/test-insights":
+            raw_days = parse_qs(parsed.query).get("days", ["30"])[0]
+            try:
+                data = get_repository_test_insights(int(raw_days))
+            except ValueError as exc:
+                self._send_json(400, {"error": str(exc)})
+                return
+            except (OSError, subprocess.SubprocessError) as exc:
+                self._send_json(503, {"error": f"Could not read repository Git history: {exc}"})
+                return
+            self._send_json(200, data)
+            return
+
+        if parsed.path == "/api/test-coverage":
+            try:
+                data = get_test_coverage()
+            except (OSError, RuntimeError, subprocess.SubprocessError) as exc:
+                detail = getattr(exc, "stderr", None) or str(exc)
+                self._send_json(503, {"error": f"Could not measure test coverage: {detail}"})
+                return
+            self._send_json(200, data)
             return
 
         if parsed.path == "/api/ollama/status":

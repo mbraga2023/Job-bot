@@ -82,6 +82,16 @@ listener is `ollama` before stopping it. Browser settings may prevent the
 dashboard tab from closing automatically; if so, close it manually.
 The **Connect to Recruiters** button is reserved for a future workflow.
 
+The **Test Insights** tab (`/test-insights`) uses the repository's Git history
+to display recent code changes by area and lists existing related v2 test
+files. These are change-activity indicators, not defect probabilities:
+the project does not currently record defect history by module, test
+execution history, or measured coverage for training a predictive model.
+The **Cobertura de código** card runs the v2 unit-test suite on request and
+measures executed Python statement lines across v2 production code using
+Python's standard-library tracer. It reports the test run's failure/error
+counts alongside the measured percentage; it is not branch coverage.
+
 ### Telegram and LinkedIn flow
 
 Run each stage independently:

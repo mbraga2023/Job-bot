@@ -4,7 +4,7 @@ from typing import Literal
 
 
 def render_header(
-    active_page: Literal["dashboard", "companies"],
+    active_page: Literal["dashboard", "companies", "test-insights"],
 ) -> str:
     """Render the shared title, navigation, and dashboard controls."""
     dashboard_link = (
@@ -17,11 +17,17 @@ def render_header(
         if active_page == "companies"
         else '<a href="/companies">Companies</a>'
     )
+    test_insights_link = (
+        '<a href="/test-insights" class="active" aria-current="page">Test Insights</a>'
+        if active_page == "test-insights"
+        else '<a href="/test-insights">Test Insights</a>'
+    )
     return f"""<header class="site-header">
     <h1>Job-bot <span>Version 2.0</span></h1>
     <nav class="tabs" aria-label="Main navigation">
       {dashboard_link}
       {companies_link}
+      {test_insights_link}
     </nav>
     <div class="header-actions">
       <span id="ollama-status" class="badge ollama-offline" role="status" aria-live="polite">Ollama API: checking</span>

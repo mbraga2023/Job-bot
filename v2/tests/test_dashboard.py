@@ -128,8 +128,81 @@ class TestDashboardCommandLogs(unittest.TestCase):
         self.assertIn('id="add-company-form"', server.COMPANIES_PAGE_HTML)
         self.assertIn('fetch("/api/companies")', server.COMPANIES_PAGE_HTML)
 
+    def test_test_insights_page_uses_real_repository_data(self) -> None:
+        page = server.TEST_INSIGHTS_PAGE_HTML
+        self.assertIn('href="/test-insights" class="active" aria-current="page">Test Insights</a>', page)
+        self.assertIn('id="period-filter"', page)
+        self.assertIn('id="module-filter"', page)
+        self.assertIn('id="refresh-insights"', page)
+        self.assertIn('id="priority-rows"', page)
+        self.assertIn('id="activity-map"', page)
+        self.assertIn('id="test-priority-rows"', page)
+        self.assertIn('id="kpi-coverage"', page)
+        self.assertIn('id="measure-coverage"', page)
+        self.assertIn('class="insights-sidebar"', page)
+        self.assertIn('class="insights-panels"', page)
+        self.assertIn('id="activity-chart"', page)
+        self.assertIn("MAPA DE ATIVIDADE", page)
+        self.assertIn('fetch(`/api/test-insights?days=${periodFilter.value}`)', page)
+        self.assertIn("histórico Git e agrupa arquivos Python", page)
+        self.assertIn("não prova que o código apresenta defeitos", page)
+        self.assertNotIn("const modules = [", page)
+        self.assertIn("PONTES, A. B.", page)
+
+    def test_test_coverage_endpoint_returns_measured_suite_results(self) -> None:
+        httpd = ThreadingHTTPServer(("127.0.0.1", 0), server.DashboardHandler)
+        thread = Thread(target=httpd.serve_forever, daemon=True)
+        thread.start()
+        self.addCleanup(httpd.server_close)
+        self.addCleanup(httpd.shutdown)
+        payload = {
+            "coverage_percent": 42.5,
+            "covered_lines": 425,
+            "total_lines": 1000,
+            "tests_run": 104,
+            "test_failures": 0,
+            "test_errors": 0,
+            "test_issues": [],
+            "generated_at": "2026-10-29T20:00-03:00",
+        }
+
+        with patch.object(server, "get_test_coverage", return_value=payload) as get_coverage:
+            with urlopen(f"http://127.0.0.1:{httpd.server_port}/api/test-coverage") as response:
+                self.assertEqual(response.status, 200)
+                self.assertEqual(json.load(response), payload)
+
+        get_coverage.assert_called_once_with()
+
+    def test_repository_insights_endpoint_returns_live_data(self) -> None:
+        httpd = ThreadingHTTPServer(("127.0.0.1", 0), server.DashboardHandler)
+        thread = Thread(target=httpd.serve_forever, daemon=True)
+        thread.start()
+        self.addCleanup(httpd.server_close)
+        self.addCleanup(httpd.shutdown)
+        payload = {"days": 7, "summary": {"commits": 2, "files_changed": 3}, "modules": [], "trend": []}
+
+        with patch.object(server, "get_repository_test_insights", return_value=payload) as get_insights:
+            with urlopen(f"http://127.0.0.1:{httpd.server_port}/api/test-insights?days=7") as response:
+                self.assertEqual(response.status, 200)
+                self.assertEqual(json.load(response), payload)
+
+        get_insights.assert_called_once_with(7)
+
+    def test_repository_insights_endpoint_reports_invalid_period(self) -> None:
+        httpd = ThreadingHTTPServer(("127.0.0.1", 0), server.DashboardHandler)
+        thread = Thread(target=httpd.serve_forever, daemon=True)
+        thread.start()
+        self.addCleanup(httpd.server_close)
+        self.addCleanup(httpd.shutdown)
+
+        with self.assertRaises(HTTPError) as error:
+            urlopen(f"http://127.0.0.1:{httpd.server_port}/api/test-insights?days=14")
+
+        self.assertEqual(error.exception.code, 400)
+        self.assertEqual(json.load(error.exception), {"error": "Period must be 7, 30, or 90 days."})
+
     def test_pages_use_shared_stylesheet_and_header_component(self) -> None:
-        for page in (server.PAGE_HTML, server.COMPANIES_PAGE_HTML):
+        for page in (server.PAGE_HTML, server.COMPANIES_PAGE_HTML, server.TEST_INSIGHTS_PAGE_HTML):
             self.assertIn('href="/style/dashboard.css"', page)
             self.assertNotIn("<style>", page)
             self.assertIn('class="site-header"', page)
@@ -148,6 +221,10 @@ class TestDashboardCommandLogs(unittest.TestCase):
         self.assertIn(
             '<a href="/" class="active" aria-current="page">Dashboard</a>',
             server.PAGE_HTML,
+        )
+        self.assertIn(
+            '<a href="/test-insights" class="active" aria-current="page">Test Insights</a>',
+            server.TEST_INSIGHTS_PAGE_HTML,
         )
 
     def test_ollama_status_reports_api_unavailability(self) -> None:
