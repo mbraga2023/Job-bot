@@ -9,6 +9,7 @@ import unittest
 from io import BytesIO
 from datetime import date, timedelta
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from v2.dashboard import insights
@@ -17,7 +18,7 @@ from v2.dashboard import insights
 class TestRepositoryInsights(unittest.TestCase):
     def passing_scenario_outcomes(self) -> dict[str, str]:
         outcomes = {}
-        for module_id, scenarios in insights.SCENARIO_CATALOG.items():
+        for scenarios in insights.SCENARIO_CATALOG.values():
             for scenario in scenarios:
                 for test_case in scenario["test_cases"]:
                     filename, method = test_case.split("::")
@@ -217,7 +218,7 @@ class TestRepositoryInsights(unittest.TestCase):
 
     def test_github_defect_history_reports_missing_token_without_network_call(self) -> None:
         with (
-            patch.object(insights, "get_env", side_effect=lambda name, default=None: default),
+            patch.object(insights, "get_env", return_value=None),
             patch.object(insights, "_github_api_get") as api_get,
         ):
             data = insights.get_github_defect_history()
@@ -251,7 +252,75 @@ class TestRepositoryInsights(unittest.TestCase):
         self.assertEqual(request.get_header("Accept"), "application/vnd.github+json")
         self.assertNotIn(token, json.dumps(data))
 
-    def test_coverage_analysis_does_not_claim_defect_prediction_without_history(self) -> None:
+    def test_ollama_analysis_uses_local_measured_evidence_and_validates_module_ids(self) -> None:
+        scenario_coverage = {
+            "coverage_percent": 75.0,
+            "measured_modules": 1,
+            "modules": [{
+                "id": "careers",
+                "name": "Fluxo de carreiras",
+                "scenario_coverage_percent": 75.0,
+                "covered_scenarios": 3,
+                "total_scenarios": 4,
+                "risk_weight_percent": 60.0,
+                "recent_commits": 4,
+                "severity_weighted_defects": None,
+                "scenarios": [{"name": "Validação de fonte", "status": "uncovered"}],
+            }],
+            "missing_risk_inputs": ["mapped GitHub defect history"],
+        }
+        response = SimpleNamespace(message=SimpleNamespace(content=json.dumps({
+            "priority_module_ids": ["careers"],
+        })))
+        with patch("ollama.Client") as client_class:
+            client_class.return_value.chat.return_value = response
+            result = insights.analyze_test_risk_with_ollama(
+                scenario_coverage,
+                [{"id": "careers", "coverage_percent": 42.0, "branch_coverage_percent": 35.0}],
+                {"status": "no_labeled_defects"},
+            )
+
+        self.assertEqual(result["status"], "available")
+        self.assertEqual(result["kind"], "qualitative_local_llm_review")
+        self.assertEqual(result["priorities"][0]["module_name"], "Fluxo de carreiras")
+        call = client_class.return_value.chat.call_args.kwargs
+        self.assertEqual(call["model"], insights.config.ollama_model)
+        prompt = " ".join(message["content"] for message in call["messages"])
+        self.assertIn("probabilities", prompt)
+        self.assertIn("scenario_gaps", prompt)
+        self.assertNotIn("source code", prompt)
+
+    def test_ollama_analysis_reports_unavailable_when_service_fails(self) -> None:
+        import ollama
+
+        scenario_coverage = {
+            "coverage_percent": 50.0,
+            "measured_modules": 1,
+            "modules": [{
+                "id": "careers",
+                "name": "Fluxo de carreiras",
+                "scenario_coverage_percent": 50.0,
+                "covered_scenarios": 1,
+                "total_scenarios": 2,
+                "risk_weight_percent": 100.0,
+                "recent_commits": 1,
+                "severity_weighted_defects": None,
+                "scenarios": [{"name": "Teste de navegação", "status": "uncovered"}],
+            }],
+            "missing_risk_inputs": ["mapped GitHub defect history"],
+        }
+        with patch("ollama.Client", side_effect=ollama.RequestError("connection refused")):
+            result = insights.analyze_test_risk_with_ollama(
+                scenario_coverage,
+                [],
+                {"status": "no_labeled_defects"},
+            )
+
+        self.assertEqual(result["status"], "unavailable")
+        self.assertIn("connection refused", result["reason"])
+        self.assertEqual(result["priorities"], [])
+
+    def test_coverage_analysis_runs_qualitative_ai_analysis_without_claiming_prediction(self) -> None:
         coverage_data = {
             "tests_run": 114,
             "test_outcomes": self.passing_scenario_outcomes(),
@@ -273,6 +342,16 @@ class TestRepositoryInsights(unittest.TestCase):
                 "get_github_defect_history",
                 return_value={"status": "unavailable", "files": {}, "reason": "No token"},
             ),
+            patch.object(
+                insights,
+                "analyze_test_risk_with_ollama",
+                return_value={
+                    "status": "available",
+                    "kind": "qualitative_local_llm_review",
+                    "summary": "Prioritize untested scenarios.",
+                    "priorities": [],
+                },
+            ) as analyze_ai,
         ):
             data = insights.get_coverage_analysis(7)
 
@@ -284,7 +363,9 @@ class TestRepositoryInsights(unittest.TestCase):
             "mapped GitHub defect history",
             data["risk_weighted_scenario_coverage"]["missing_risk_inputs"],
         )
-        self.assertEqual(data["defect_prediction"]["status"], "unavailable")
+        self.assertEqual(data["ai_risk_analysis"]["status"], "available")
+        self.assertEqual(data["ai_risk_analysis"]["kind"], "qualitative_local_llm_review")
+        analyze_ai.assert_called_once()
         self.assertEqual(data["analysis_period_days"], 7)
         self.assertNotIn("test_outcomes", data)
         get_insights.assert_called_once_with(7)

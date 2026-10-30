@@ -143,14 +143,17 @@ class TestDashboardCommandLogs(unittest.TestCase):
         self.assertIn('id="flow-attention"', page)
         self.assertIn('id="flow-attention-groups"', page)
         self.assertIn('id="risk-weighted-coverage"', page)
-        self.assertIn('id="defect-prediction-value"', page)
+        self.assertIn('id="ai-analysis-value"', page)
+        self.assertIn('id="ai-analysis-content"', page)
         self.assertIn("COBERTURA DE CENÁRIOS PONDERADA POR RISCO", page)
         self.assertIn("renderFlowAttention(result.flows)", page)
         self.assertIn("renderScenarioRiskCoverage(scenarioCoverage)", page)
         self.assertIn("branch_coverage_percent", page)
         self.assertIn("risk_weighted_scenario_coverage", page)
         self.assertIn("Cobertura de cenário =", page)
-        self.assertIn("PREDIÇÃO DE DEFEITOS", page)
+        self.assertIn("ANÁLISE ASSISTIDA POR IA", page)
+        self.assertIn("renderAiRiskAnalysis(result.ai_risk_analysis)", page)
+        self.assertIn("não é uma previsão de defeitos", page)
         self.assertIn('class="insights-sidebar"', page)
         self.assertIn('class="insights-panels"', page)
         self.assertIn('id="activity-chart"', page)
@@ -185,9 +188,11 @@ class TestDashboardCommandLogs(unittest.TestCase):
                 "modules": [],
                 "excluded_modules": [],
             },
-            "defect_prediction": {
-                "status": "unavailable",
-                "reason": "No validated model",
+            "ai_risk_analysis": {
+                "status": "available",
+                "kind": "qualitative_local_llm_review",
+                "summary": "Prioritize missing scenarios.",
+                "priorities": [],
             },
             "defect_history": {
                 "status": "unavailable",

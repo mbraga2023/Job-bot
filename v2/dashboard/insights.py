@@ -13,7 +13,7 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import quote
 from urllib.request import Request, urlopen
 
-from v2.config import get_env
+from v2.config import config, get_env
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 TEST_DIRECTORY = PROJECT_ROOT / "v2" / "tests"
@@ -1045,6 +1045,219 @@ def calculate_risk_weighted_scenario_coverage(
             "Cobertura indisponível: faltam cenários executados ou dados de risco."
         ),
     }
+
+
+def analyze_test_risk_with_ollama(
+    scenario_coverage: dict[str, Any],
+    flows: list[dict[str, Any]],
+    defect_history: dict[str, Any],
+) -> dict[str, Any]:
+    """Generate an evidence-bound qualitative review using the local Ollama model."""
+    modules = scenario_coverage.get("modules", [])
+    data_limitations = (
+        defect_history.get("reason")
+        if defect_history.get("status") != "available" else None
+    )
+    if not modules:
+        return {
+            "status": "unavailable",
+            "model": config.ollama_model,
+            "reason": "Não há cenários medidos para análise.",
+            "data_limitations": data_limitations,
+            "summary": None,
+            "priorities": [],
+        }
+
+    flow_by_id = {flow["id"]: flow for flow in flows}
+    evidence = []
+    candidate_module_ids: set[str] = set()
+    for module in modules:
+        flow = flow_by_id.get(module["id"], {})
+        line_coverage = flow.get("coverage_percent")
+        branch_coverage = flow.get("branch_coverage_percent")
+        scenario_gaps = [
+            scenario["name"]
+            for scenario in module["scenarios"]
+            if scenario["status"] != "covered"
+        ]
+        priority_evidence = []
+        if scenario_gaps:
+            priority_evidence.append("catalog_scenario_gaps")
+        if line_coverage is not None and line_coverage < 80:
+            priority_evidence.append("line_coverage_below_80_percent")
+        if branch_coverage is not None and branch_coverage < 80:
+            priority_evidence.append("branch_coverage_below_80_percent")
+        if (module["severity_weighted_defects"] or 0) > 0:
+            priority_evidence.append("mapped_historical_defects")
+        if (
+            scenario_gaps
+            or (line_coverage is not None and line_coverage < 80)
+            or (branch_coverage is not None and branch_coverage < 80)
+            or (module["severity_weighted_defects"] or 0) > 0
+        ):
+            candidate_module_ids.add(module["id"])
+        evidence.append({
+            "module": module["id"],
+            "name": module["name"],
+            "scenario_coverage_percent": module["scenario_coverage_percent"],
+            "covered_scenarios": module["covered_scenarios"],
+            "total_scenarios": module["total_scenarios"],
+            "risk_weight_percent": module["risk_weight_percent"],
+            "recent_commits": module["recent_commits"],
+            "mapped_defects": module["severity_weighted_defects"],
+            "line_coverage_percent": line_coverage,
+            "branch_coverage_percent": branch_coverage,
+            "scenario_gaps": scenario_gaps,
+            "priority_evidence": priority_evidence,
+        })
+    context = {
+        "modules": evidence,
+        "testing_priority_candidates": sorted(candidate_module_ids),
+        "missing_risk_inputs": scenario_coverage["missing_risk_inputs"],
+        "github_defect_history": {
+            "status": defect_history.get("status"),
+            "explanation": defect_history.get("reason"),
+            "mapped_defects": defect_history.get("mapped_defects"),
+        },
+    }
+    valid_module_ids = candidate_module_ids
+    factual_summary = (
+        f"{scenario_coverage['coverage_percent']}% de cobertura ponderada "
+        f"nos cenários inventariados em {scenario_coverage['measured_modules']} módulos."
+    )
+    if not valid_module_ids:
+        return {
+            "status": "available",
+            "model": config.ollama_model,
+            "summary": factual_summary,
+            "priorities": [],
+            "kind": "qualitative_local_llm_review",
+            "data_limitations": data_limitations,
+        }
+    try:
+        import ollama
+    except ImportError as exc:
+        return {
+            "status": "unavailable",
+            "model": config.ollama_model,
+            "reason": f"Cliente Python do Ollama indisponível: {exc}",
+            "data_limitations": data_limitations,
+            "summary": None,
+            "priorities": [],
+        }
+
+    try:
+        response = ollama.Client(timeout=60).chat(
+            model=config.ollama_model,
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are a cautious software test reviewer. Analyze only the "
+                        "provided measurements. Your only task is ranking eligible module "
+                        "IDs for testing attention. Missing GitHub defect labels or mapped "
+                        "issues mean defect history is unknown, not that defects do not "
+                        "exist. Do not invent modules, test gaps, defect records, or "
+                        "probabilities. Never recommend GitHub configuration work. Select "
+                        "only from testing_priority_candidates and return no more than two "
+                        "IDs. The scenario catalog is limited; 100% does not mean complete "
+                        "product coverage."
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": (
+                        "Return only JSON containing priority_module_ids, an array of zero "
+                        "to two module IDs ranked highest attention first. Pick only modules "
+                        "with measured priority_evidence. Do not return prose.\n"
+                        f"Evidence: {json.dumps(context, ensure_ascii=False)}"
+                    ),
+                },
+            ],
+            format={
+                "type": "object",
+                "properties": {
+                    "priority_module_ids": {
+                        "type": "array",
+                        "items": {"type": "string", "enum": sorted(valid_module_ids)},
+                        "maxItems": 2,
+                    },
+                },
+                "required": ["priority_module_ids"],
+                "additionalProperties": False,
+            },
+            options={"temperature": 0, "num_predict": 64},
+        )
+        content = response.message.content
+        if not content:
+            raise ValueError("Ollama retornou uma análise vazia.")
+        result = json.loads(content)
+        if (
+            not isinstance(result, dict)
+            or not isinstance(result.get("priority_module_ids"), list)
+        ):
+            raise ValueError("Ollama retornou uma análise em formato inválido.")
+        priorities = []
+        module_evidence = {item["module"]: item for item in evidence}
+        for module_id in result["priority_module_ids"][:2]:
+            if module_id not in valid_module_ids:
+                raise ValueError("Ollama retornou uma prioridade sem evidência válida.")
+            item = module_evidence[module_id]
+            reasons = item["priority_evidence"]
+            observations = []
+            actions = []
+            if item["scenario_gaps"]:
+                observations.append(
+                    f"{len(item['scenario_gaps'])} cenário(s) do catálogo não coberto(s)."
+                )
+                actions.append(
+                    "Adicionar testes para: " + ", ".join(item["scenario_gaps"]) + "."
+                )
+            if "line_coverage_below_80_percent" in reasons:
+                observations.append(
+                    f"Cobertura de linhas: {item['line_coverage_percent']}%."
+                )
+                actions.append("Priorizar testes para linhas executáveis ainda não cobertas.")
+            if "branch_coverage_below_80_percent" in reasons:
+                observations.append(
+                    f"Cobertura de branches: {item['branch_coverage_percent']}%."
+                )
+                actions.append("Adicionar casos que exercitem branches ainda não cobertos.")
+            if "mapped_historical_defects" in reasons:
+                observations.append(
+                    f"{item['mapped_defects']} pontos de severidade em defeitos mapeados."
+                )
+                actions.append("Criar testes de regressão para os defeitos mapeados.")
+            if not actions:
+                continue
+            priorities.append({
+                "module_id": module_id,
+                "module_name": next(
+                    module["name"] for module in modules
+                    if module["id"] == module_id
+                ),
+                "observation": " ".join(observations),
+                "action": " ".join(actions),
+            })
+        return {
+            "status": "available",
+            "model": config.ollama_model,
+            "summary": factual_summary,
+            "priorities": priorities[:2],
+            "kind": "qualitative_local_llm_review",
+            "data_limitations": data_limitations,
+        }
+    except (ollama.RequestError, ollama.ResponseError, OSError, TimeoutError, ValueError) as exc:
+        return {
+            "status": "unavailable",
+            "model": config.ollama_model,
+            "reason": f"Análise local do Ollama indisponível: {exc}",
+            "data_limitations": data_limitations,
+            "summary": None,
+            "priorities": [],
+        }
+
+
 def get_coverage_analysis(days: int = 30) -> dict[str, Any]:
     """Combine measured coverage with GitHub defect and Git activity signals."""
     if days not in (7, 30, 90):
@@ -1077,12 +1290,10 @@ def get_coverage_analysis(days: int = 30) -> dict[str, Any]:
     coverage_data.pop("test_outcomes", None)
     if activity_error and coverage_data["risk_weighted_scenario_coverage"]["status"] == "unavailable":
         coverage_data["risk_weighted_scenario_coverage"]["reason"] = activity_error
-    coverage_data["defect_prediction"] = {
-        "status": "unavailable",
-        "reason": (
-            "O índice de atenção é heurístico; ainda não há um modelo de probabilidade "
-            "treinado e validado cronologicamente."
-        ),
-    }
+    coverage_data["ai_risk_analysis"] = analyze_test_risk_with_ollama(
+        coverage_data["risk_weighted_scenario_coverage"],
+        coverage_data["flows"],
+        defect_history,
+    )
     coverage_data["analysis_period_days"] = days
     return coverage_data

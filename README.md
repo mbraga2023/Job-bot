@@ -138,11 +138,17 @@ needed. Issue-to-file links are considered reliable only through merged PR
 closing references; unmapped issues remain unknown.
 
 Risk weights are transparent prioritization signals, not validated
-probabilities. The dashboard does not present a validated ML prediction:
-that remains unavailable until enough mapped historical defects exist to train
-and chronologically evaluate a model. Missing GitHub access or issue mappings
-are shown as unavailable or listed as missing inputs, not silently treated as
-zero mapped defects.
+probabilities. When the local Ollama service is available, the dashboard sends
+the measured module aggregates (scenario and line/branch coverage, recent
+commit counts, mapped-defect severity when available, and catalogued gaps) to
+the configured `OLLAMA_MODEL` for a concise qualitative testing-priority
+review. It does not send source code or issue text. The model must ground
+recommendations in those measurements; its output is labeled as AI-assisted
+analysis, never as a defect probability or a validated prediction. If Ollama
+is offline or returns invalid output, the dashboard reports the analysis as
+unavailable and preserves the deterministic coverage and risk metrics.
+Missing GitHub access or issue mappings are listed as missing inputs, not
+silently treated as zero mapped defects.
 
 ### Telegram and LinkedIn flow
 

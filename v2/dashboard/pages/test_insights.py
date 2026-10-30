@@ -94,11 +94,12 @@ PAGE_HTML = """<!doctype html>
             <small id="risk-weighted-details">Meça a cobertura para calcular</small>
           </div>
           <div>
-            <p class="eyebrow">PREDIÇÃO DE DEFEITOS</p>
-            <strong id="defect-prediction-value">Indisponível</strong>
-            <small id="defect-prediction-details">Não há histórico confiável de defeitos mapeados a arquivos.</small>
+            <p class="eyebrow">ANÁLISE ASSISTIDA POR IA · OLLAMA LOCAL</p>
+            <strong id="ai-analysis-value">Aguardando medição</strong>
+            <small id="ai-analysis-details">Análise qualitativa dos dados medidos; não é uma previsão de defeitos.</small>
           </div>
         </div>
+        <div id="ai-analysis-content" class="ai-analysis-content" aria-live="polite"></div>
         <p class="scenario-risk-explainer">Catálogo inicial revisável: a métrica cobre somente os cenários inventariados, não afirma completude dos requisitos. Cobertura de cenário = cenários do catálogo com todos os testes associados executados e aprovados ÷ total inventariado no módulo. Peso normalizado = risco bruto do módulo ÷ soma dos riscos incluídos; risco bruto = 1 + commits recentes + severidade dos defeitos mapeados. Cenários não medidos ficam N/D, nunca 100%.</p>
         <div id="scenario-risk-modules" class="scenario-risk-modules" aria-live="polite">
           <p class="empty">Cobertura por cenário será exibida após a medição.</p>
@@ -504,6 +505,42 @@ PAGE_HTML = """<!doctype html>
       container.replaceChildren(...rows);
     }
 
+    function renderAiRiskAnalysis(analysis) {
+      const value = document.getElementById("ai-analysis-value");
+      const details = document.getElementById("ai-analysis-details");
+      const content = document.getElementById("ai-analysis-content");
+      content.replaceChildren();
+      if (analysis.status !== "available") {
+        value.textContent = "Indisponível";
+        details.textContent = [
+          analysis.reason || "O Ollama local não retornou uma análise.",
+          analysis.data_limitations
+        ].filter(Boolean).join(" ");
+        return;
+      }
+      value.textContent = "Análise pronta";
+      details.textContent =
+        `${analysis.model} · IA local · qualitativa, sem probabilidades preditivas` +
+        (analysis.data_limitations ? ` · ${analysis.data_limitations}` : "");
+      const summary = document.createElement("p");
+      summary.className = "ai-analysis-summary";
+      summary.textContent = analysis.summary;
+      const priorities = document.createElement("ul");
+      priorities.className = "ai-analysis-priorities";
+      analysis.priorities.forEach(priority => {
+        const item = document.createElement("li");
+        const title = document.createElement("strong");
+        title.textContent = priority.module_name;
+        const observation = document.createElement("span");
+        observation.textContent = `Evidência: ${priority.observation}`;
+        const action = document.createElement("span");
+        action.textContent = `Próximo passo: ${priority.action}`;
+        item.append(title, observation, action);
+        priorities.appendChild(item);
+      });
+      content.append(summary, priorities);
+    }
+
     async function measureCoverage() {
       const button = document.getElementById("measure-coverage");
       const status = document.getElementById("coverage-status");
@@ -537,14 +574,7 @@ PAGE_HTML = """<!doctype html>
                 : "")
             : scenarioCoverage.reason || "Cobertura de cenários indisponível";
         renderScenarioRiskCoverage(scenarioCoverage);
-        document.getElementById("defect-prediction-value").textContent =
-          result.defect_prediction.status === "available" ? "Experimental" : "Indisponível";
-        const defectHistory = result.defect_history;
-        const historySummary = defectHistory.status === "available"
-          ? `${defectHistory.mapped_defects} defeitos mapeados a arquivos por PRs`
-          : defectHistory.reason;
-        document.getElementById("defect-prediction-details").textContent =
-          `${result.defect_prediction.reason} GitHub: ${historySummary}`;
+        renderAiRiskAnalysis(result.ai_risk_analysis);
         status.className = result.test_failures || result.test_errors
           ? "coverage-status error"
           : "coverage-status success";
@@ -559,6 +589,9 @@ PAGE_HTML = """<!doctype html>
         document.getElementById("risk-weighted-coverage").textContent = "N/D";
         document.getElementById("risk-weighted-details").textContent = "Medição indisponível";
         document.getElementById("scenario-risk-modules").replaceChildren();
+        document.getElementById("ai-analysis-value").textContent = "Indisponível";
+        document.getElementById("ai-analysis-details").textContent = "Medição indisponível";
+        document.getElementById("ai-analysis-content").replaceChildren();
         document.getElementById("flow-attention-groups").replaceChildren();
         status.className = "coverage-status error";
         status.textContent = error.message || "Não foi possível medir a cobertura.";
