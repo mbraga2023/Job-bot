@@ -18,6 +18,7 @@ PAGE_HTML = """<!doctype html>
       <nav>
         <a class="active" href="#overview">◈ <span>Visão geral</span></a>
         <a href="#areas">⌘ <span>Código</span></a>
+        <a href="#flow-attention">▤ <span>Fluxos</span></a>
         <a href="#tests">✓ <span>Testes</span></a>
         <a href="#activity">▥ <span>Atividade</span></a>
         <a href="#references">≡ <span>Referências</span></a>
@@ -73,11 +74,39 @@ PAGE_HTML = """<!doctype html>
             <p>Cobertura de código</p>
             <strong id="kpi-coverage">—</strong>
             <small id="coverage-details">Execute a suíte para medir</small>
+            <small>Branches: <b id="kpi-branch-coverage">—</b></small>
           </div>
           <button id="measure-coverage" class="coverage-action secondary" type="button">Medir</button>
         </article>
       </section>
       <p id="coverage-status" class="coverage-status" role="status" aria-live="polite"></p>
+
+      <section id="flow-attention" class="panel flow-attention-panel">
+        <div class="section-heading">
+          <div><p class="eyebrow">COBERTURA + MUDANÇAS RECENTES</p><h2>Mapa de atenção dos fluxos</h2></div>
+          <div class="attention-legend"><span>Menos atenção</span><i></i><span>Mais atenção</span></div>
+        </div>
+        <p class="attention-explainer">Índice relativo = (1 + commits recentes + severidade histórica mapeada) × fração de linhas sem cobertura, normalizado de 0 a 100. É uma heurística explicável, não probabilidade de defeito.</p>
+        <div class="risk-analysis-summary">
+          <div>
+            <p class="eyebrow">COBERTURA DE CENÁRIOS PONDERADA POR RISCO</p>
+            <strong id="risk-weighted-coverage">—</strong>
+            <small id="risk-weighted-details">Meça a cobertura para calcular</small>
+          </div>
+          <div>
+            <p class="eyebrow">PREDIÇÃO DE DEFEITOS</p>
+            <strong id="defect-prediction-value">Indisponível</strong>
+            <small id="defect-prediction-details">Não há histórico confiável de defeitos mapeados a arquivos.</small>
+          </div>
+        </div>
+        <p class="scenario-risk-explainer">Catálogo inicial revisável: a métrica cobre somente os cenários inventariados, não afirma completude dos requisitos. Cobertura de cenário = cenários do catálogo com todos os testes associados executados e aprovados ÷ total inventariado no módulo. Peso normalizado = risco bruto do módulo ÷ soma dos riscos incluídos; risco bruto = 1 + commits recentes + severidade dos defeitos mapeados. Cenários não medidos ficam N/D, nunca 100%.</p>
+        <div id="scenario-risk-modules" class="scenario-risk-modules" aria-live="polite">
+          <p class="empty">Cobertura por cenário será exibida após a medição.</p>
+        </div>
+        <div id="flow-attention-groups" class="flow-attention-groups">
+          <p class="empty">Clique em “Medir” para comparar cobertura por linha, branch e atividade recente.</p>
+        </div>
+      </section>
 
       <section class="insights-panels">
         <article id="areas" class="panel compact-panel">
@@ -309,6 +338,94 @@ PAGE_HTML = """<!doctype html>
       document.getElementById("test-count-label").textContent = `${tests.length} arquivos`;
     }
 
+    function renderFlowAttention(flows) {
+      const container = document.getElementById("flow-attention-groups");
+      const moduleById = new Map(insights.modules.map(item => [item.id, item]));
+      const groups = flows.map(flow => {
+        const activity = moduleById.get(flow.id);
+        const files = flow.files.map(file => {
+          const commits = activity?.file_commits[file.path] || 0;
+          return { ...file, commits, uncovered: 100 - file.coverage_percent };
+        }).sort((a, b) =>
+          (b.heuristic_risk_score || 0) - (a.heuristic_risk_score || 0) ||
+          a.coverage_percent - b.coverage_percent ||
+          b.commits - a.commits ||
+          a.path.localeCompare(b.path)
+        );
+        return { ...flow, files };
+      }).sort((a, b) =>
+        a.coverage_percent - b.coverage_percent ||
+        b.files.filter(file => file.commits > 0).length -
+          a.files.filter(file => file.commits > 0).length
+      );
+
+      container.replaceChildren(...groups.map(flow => {
+        const group = document.createElement("article");
+        group.className = "flow-attention-group";
+        const heading = document.createElement("div");
+        heading.className = "flow-attention-heading";
+        const title = document.createElement("h3");
+        title.textContent = flow.name;
+        const summary = document.createElement("strong");
+        summary.textContent = `${flow.coverage_percent}% linhas`;
+        heading.append(title, summary);
+
+        const description = document.createElement("p");
+        const changedFiles = flow.files.filter(file => file.commits > 0).length;
+        description.textContent =
+          `${flow.covered_lines} de ${flow.total_lines} linhas cobertas · ` +
+          `${flow.branch_coverage_percent === null ? "branches N/D" : `${flow.branch_coverage_percent}% branches`} · ` +
+          `${changedFiles} ${changedFiles === 1 ? "arquivo alterado" : "arquivos alterados"} no período`;
+
+        const fileRows = document.createElement("div");
+        fileRows.className = "flow-attention-files";
+        flow.files.forEach(file => {
+          const row = document.createElement("div");
+          row.className = "flow-attention-file";
+          const metadata = document.createElement("div");
+          metadata.className = "flow-attention-file-meta";
+          const path = document.createElement("span");
+          path.className = "flow-attention-path";
+          path.textContent = file.path.replace(`v2/flows/${flow.id}/`, "");
+          path.title = file.path;
+          const coverage = document.createElement("strong");
+          const branchCoverage = file.branch_coverage_percent === null
+            ? "N/D"
+            : `${file.branch_coverage_percent}%`;
+          const riskScore = file.heuristic_risk_score === null
+            ? "N/D"
+            : `${file.heuristic_risk_score}/100`;
+          coverage.textContent = file.total_lines
+            ? `L ${file.coverage_percent}% · B ${branchCoverage}`
+            : "N/D";
+          metadata.append(path, coverage);
+
+          const bar = document.createElement("div");
+          bar.className = "attention-meter";
+          bar.setAttribute("role", "img");
+          bar.setAttribute(
+            "aria-label",
+            file.total_lines
+              ? `Índice heurístico ${riskScore}; ${file.coverage_percent}% das linhas cobertas; ${branchCoverage} dos branches cobertos; ${file.commits} commits no período; ${file.historical_defects} defeitos mapeados`
+              : `Sem linhas executáveis mensuráveis; ${file.commits} commits no período`
+          );
+          const uncovered = document.createElement("span");
+          uncovered.style.setProperty("--uncovered", `${file.uncovered}%`);
+          bar.appendChild(uncovered);
+
+          const detail = document.createElement("small");
+          const commitLabel = file.commits === 1 ? "commit" : "commits";
+          detail.textContent = file.total_lines
+            ? `${file.total_lines - file.covered_lines} linhas sem cobertura · índice ${riskScore} · ${file.commits} ${commitLabel} · ${file.historical_defects} defeitos mapeados`
+            : `Sem linhas executáveis · ${file.commits} ${commitLabel}`;
+          row.append(metadata, bar, detail);
+          fileRows.appendChild(row);
+        });
+        group.append(heading, description, fileRows);
+        return group;
+      }));
+    }
+
     function updateDashboard() {
       if (!insights) return;
       const data = selectedModules();
@@ -330,21 +447,104 @@ PAGE_HTML = """<!doctype html>
       renderTestPriority(data);
     }
 
+    function renderScenarioRiskCoverage(coverage) {
+      const container = document.getElementById("scenario-risk-modules");
+      if (!coverage.modules.length) {
+        const message = document.createElement("p");
+        message.className = "empty";
+        message.textContent = coverage.reason || "Cobertura de cenários indisponível.";
+        container.replaceChildren(message);
+        return;
+      }
+      const rows = coverage.modules.map(module => {
+        const row = document.createElement("div");
+        row.className = "scenario-risk-row";
+        const heading = document.createElement("div");
+        heading.className = "scenario-risk-heading";
+        const name = document.createElement("strong");
+        name.textContent = module.name;
+        const values = document.createElement("span");
+        values.textContent =
+          `${module.covered_scenarios}/${module.total_scenarios} cenários · ` +
+          `${module.scenario_coverage_percent}% · ` +
+          `${module.risk_weight_percent === null ? "peso N/D" : `peso ${module.risk_weight_percent}%`}`;
+        heading.append(name, values);
+        const meter = document.createElement("div");
+        meter.className = "scenario-risk-meter";
+        meter.setAttribute("role", "img");
+        meter.setAttribute(
+          "aria-label",
+          `${module.name}: ${module.scenario_coverage_percent}% dos cenários cobertos, ` +
+          `peso de risco normalizado ${module.risk_weight_percent}%`
+        );
+        const fill = document.createElement("span");
+        fill.style.setProperty("--scenario-coverage", `${module.scenario_coverage_percent}%`);
+        meter.appendChild(fill);
+        const details = document.createElement("details");
+        const summary = document.createElement("summary");
+        summary.textContent = "Ver cenários inventariados";
+        const list = document.createElement("ul");
+        module.scenarios.forEach(scenario => {
+          const item = document.createElement("li");
+          item.textContent = `${scenario.status === "covered" ? "Coberto" : "Não coberto"} · ${scenario.name}`;
+          list.appendChild(item);
+        });
+        details.append(summary, list);
+        row.append(heading, meter, details);
+        return row;
+      });
+      if (coverage.excluded_modules.length) {
+        const unknown = document.createElement("p");
+        unknown.className = "scenario-risk-missing";
+        unknown.textContent = coverage.excluded_modules
+          .map(module => `${module.name}: N/D (${module.reason})`)
+          .join(" · ");
+        rows.push(unknown);
+      }
+      container.replaceChildren(...rows);
+    }
+
     async function measureCoverage() {
       const button = document.getElementById("measure-coverage");
       const status = document.getElementById("coverage-status");
       button.disabled = true;
       button.textContent = "Medindo…";
       status.className = "coverage-status";
-      status.textContent = "Executando a suíte v2 e medindo linhas de código executadas…";
+      status.textContent = "Executando a suíte v2 e medindo cobertura de cenários, linhas e branches…";
       try {
-        const response = await fetch("/api/test-coverage");
+        const response = await fetch(`/api/test-coverage?days=${periodFilter.value}`);
         const result = await response.json();
         if (!response.ok) throw new Error(result.error || "Não foi possível medir a cobertura.");
         document.getElementById("kpi-coverage").textContent = `${result.coverage_percent}%`;
         document.getElementById("coverage-details").textContent =
-          `${result.covered_lines} de ${result.total_lines} linhas de código`;
+          `${result.covered_lines} de ${result.total_lines} linhas · ${result.coverage_tool} ${result.coverage_tool_version}`;
+        document.getElementById("kpi-branch-coverage").textContent =
+          result.branch_coverage_percent === null
+            ? "N/D"
+            : `${result.branch_coverage_percent}% (${result.covered_branches}/${result.total_branches})`;
         const testStatus = `${result.tests_run} testes executados · ${result.test_failures} falhas · ${result.test_errors} erros`;
+        renderFlowAttention(result.flows);
+        const scenarioCoverage = result.risk_weighted_scenario_coverage;
+        document.getElementById("risk-weighted-coverage").textContent =
+          scenarioCoverage.status === "available"
+            ? `${scenarioCoverage.coverage_percent}%`
+            : "N/D";
+        document.getElementById("risk-weighted-details").textContent =
+          scenarioCoverage.status === "available"
+            ? `${scenarioCoverage.measured_modules} módulos · peso normalizado por risco` +
+              (scenarioCoverage.missing_risk_inputs.length
+                ? ` · ausente: ${scenarioCoverage.missing_risk_inputs.join(", ")}`
+                : "")
+            : scenarioCoverage.reason || "Cobertura de cenários indisponível";
+        renderScenarioRiskCoverage(scenarioCoverage);
+        document.getElementById("defect-prediction-value").textContent =
+          result.defect_prediction.status === "available" ? "Experimental" : "Indisponível";
+        const defectHistory = result.defect_history;
+        const historySummary = defectHistory.status === "available"
+          ? `${defectHistory.mapped_defects} defeitos mapeados a arquivos por PRs`
+          : defectHistory.reason;
+        document.getElementById("defect-prediction-details").textContent =
+          `${result.defect_prediction.reason} GitHub: ${historySummary}`;
         status.className = result.test_failures || result.test_errors
           ? "coverage-status error"
           : "coverage-status success";
@@ -355,6 +555,11 @@ PAGE_HTML = """<!doctype html>
       } catch (error) {
         document.getElementById("kpi-coverage").textContent = "—";
         document.getElementById("coverage-details").textContent = "Medição indisponível";
+        document.getElementById("kpi-branch-coverage").textContent = "—";
+        document.getElementById("risk-weighted-coverage").textContent = "N/D";
+        document.getElementById("risk-weighted-details").textContent = "Medição indisponível";
+        document.getElementById("scenario-risk-modules").replaceChildren();
+        document.getElementById("flow-attention-groups").replaceChildren();
         status.className = "coverage-status error";
         status.textContent = error.message || "Não foi possível medir a cobertura.";
       } finally {

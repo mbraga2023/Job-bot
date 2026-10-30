@@ -4,3 +4,4 @@ playwright
 pandas
 openai
 ollama
+coverage>=7.6,<8

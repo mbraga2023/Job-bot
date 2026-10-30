@@ -138,7 +138,19 @@ class TestDashboardCommandLogs(unittest.TestCase):
         self.assertIn('id="activity-map"', page)
         self.assertIn('id="test-priority-rows"', page)
         self.assertIn('id="kpi-coverage"', page)
+        self.assertIn('id="kpi-branch-coverage"', page)
         self.assertIn('id="measure-coverage"', page)
+        self.assertIn('id="flow-attention"', page)
+        self.assertIn('id="flow-attention-groups"', page)
+        self.assertIn('id="risk-weighted-coverage"', page)
+        self.assertIn('id="defect-prediction-value"', page)
+        self.assertIn("COBERTURA DE CENÁRIOS PONDERADA POR RISCO", page)
+        self.assertIn("renderFlowAttention(result.flows)", page)
+        self.assertIn("renderScenarioRiskCoverage(scenarioCoverage)", page)
+        self.assertIn("branch_coverage_percent", page)
+        self.assertIn("risk_weighted_scenario_coverage", page)
+        self.assertIn("Cobertura de cenário =", page)
+        self.assertIn("PREDIÇÃO DE DEFEITOS", page)
         self.assertIn('class="insights-sidebar"', page)
         self.assertIn('class="insights-panels"', page)
         self.assertIn('id="activity-chart"', page)
@@ -157,8 +169,32 @@ class TestDashboardCommandLogs(unittest.TestCase):
         self.addCleanup(httpd.shutdown)
         payload = {
             "coverage_percent": 42.5,
+            "line_coverage_percent": 42.5,
             "covered_lines": 425,
             "total_lines": 1000,
+            "branch_coverage_percent": 50.0,
+            "covered_branches": 50,
+            "total_branches": 100,
+            "flows": [],
+            "risk_weighted_scenario_coverage": {
+                "status": "available",
+                "coverage_percent": 40.0,
+                "measured_modules": 2,
+                "unmeasured_modules": 0,
+                "missing_risk_inputs": [],
+                "modules": [],
+                "excluded_modules": [],
+            },
+            "defect_prediction": {
+                "status": "unavailable",
+                "reason": "No validated model",
+            },
+            "defect_history": {
+                "status": "unavailable",
+                "reason": "Defina GITHUB_TOKEN localmente",
+                "mapped_defects": 0,
+            },
+            "analysis_period_days": 30,
             "tests_run": 104,
             "test_failures": 0,
             "test_errors": 0,
@@ -166,12 +202,12 @@ class TestDashboardCommandLogs(unittest.TestCase):
             "generated_at": "2026-10-29T20:00-03:00",
         }
 
-        with patch.object(server, "get_test_coverage", return_value=payload) as get_coverage:
-            with urlopen(f"http://127.0.0.1:{httpd.server_port}/api/test-coverage") as response:
+        with patch.object(server, "get_coverage_analysis", return_value=payload) as get_coverage:
+            with urlopen(f"http://127.0.0.1:{httpd.server_port}/api/test-coverage?days=30") as response:
                 self.assertEqual(response.status, 200)
                 self.assertEqual(json.load(response), payload)
 
-        get_coverage.assert_called_once_with()
+        get_coverage.assert_called_once_with(30)
 
     def test_repository_insights_endpoint_returns_live_data(self) -> None:
         httpd = ThreadingHTTPServer(("127.0.0.1", 0), server.DashboardHandler)

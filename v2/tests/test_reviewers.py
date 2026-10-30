@@ -61,7 +61,7 @@ class TestReviewBatches(unittest.TestCase):
 
         mock_get_jobs.assert_called_once_with(
             pipeline="CAREER_PAGE",
-            statuses=("VALIDATED",),
+            statuses=("OPEN", "VALIDATED"),
             limit=10,
         )
         self.assertEqual(len(mock_open.call_args.args[0]), 10)

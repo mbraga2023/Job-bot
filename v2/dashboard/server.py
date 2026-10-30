@@ -29,7 +29,10 @@ from v2.core.database import (
 from v2.dashboard.pages.companies import PAGE_HTML as COMPANIES_PAGE_HTML
 from v2.dashboard.pages.dashboard import PAGE_HTML as DASHBOARD_PAGE_HTML
 from v2.dashboard.pages.test_insights import PAGE_HTML as TEST_INSIGHTS_PAGE_HTML
-from v2.dashboard.insights import get_repository_test_insights, get_test_coverage
+from v2.dashboard.insights import (
+    get_coverage_analysis,
+    get_repository_test_insights,
+)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 STYLESHEET_PATH = Path(__file__).resolve().parent / "style" / "dashboard.css"
@@ -402,10 +405,18 @@ class DashboardHandler(BaseHTTPRequestHandler):
 
         if parsed.path == "/api/test-coverage":
             try:
-                data = get_test_coverage()
+                raw_days = parse_qs(parsed.query).get("days", ["30"])[0]
+                try:
+                    days = int(raw_days)
+                except ValueError as exc:
+                    raise ValueError("Period must be 7, 30, or 90 days.") from exc
+                data = get_coverage_analysis(days)
+            except ValueError as exc:
+                self._send_json(400, {"error": str(exc)})
+                return
             except (OSError, RuntimeError, subprocess.SubprocessError) as exc:
                 detail = getattr(exc, "stderr", None) or str(exc)
-                self._send_json(503, {"error": f"Could not measure test coverage: {detail}"})
+                self._send_json(503, {"error": f"Could not analyze test coverage: {detail}"})
                 return
             self._send_json(200, data)
             return

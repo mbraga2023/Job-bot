@@ -1083,6 +1083,254 @@ td a {
   color: #fca5a5;
 }
 
+.flow-attention-panel {
+  margin: 0 0 10px;
+  padding: 14px;
+  border-color: #203b5e;
+  border-radius: 7px;
+  background: linear-gradient(150deg, #102b4d, #0a203d);
+}
+
+.flow-attention-panel .section-heading {
+  align-items: center;
+  margin-bottom: 5px;
+}
+
+.attention-legend {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: #9ab0cd;
+  font-size: 8px;
+  white-space: nowrap;
+}
+
+.attention-legend i {
+  width: 52px;
+  height: 7px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #35b778, #d2cf48 48%, #f2774f 76%, #e34c58);
+}
+
+.attention-explainer {
+  margin: 0 0 12px;
+  color: #849ab7;
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+.risk-analysis-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.risk-analysis-summary > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid #1d3858;
+  border-radius: 5px;
+  background: #0a1e38;
+}
+
+.risk-analysis-summary .eyebrow {
+  margin: 0;
+  font-size: 8px;
+}
+
+.risk-analysis-summary strong {
+  color: #e9f1fc;
+  font-size: 16px;
+}
+
+.risk-analysis-summary small {
+  color: #849ab7;
+  font-size: 8px;
+  line-height: 1.4;
+}
+
+.scenario-risk-explainer {
+  margin: -2px 0 9px;
+  color: #849ab7;
+  font-size: 8px;
+  line-height: 1.45;
+}
+
+.scenario-risk-modules {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px 12px;
+  margin-bottom: 10px;
+}
+
+.scenario-risk-row {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 7px 9px;
+  border: 1px solid #1d3858;
+  border-radius: 5px;
+  background: #0a1e38;
+}
+
+.scenario-risk-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.scenario-risk-heading strong {
+  color: #dce9f8;
+  font-size: 9px;
+}
+
+.scenario-risk-heading span,
+.scenario-risk-missing {
+  color: #849ab7;
+  font-size: 8px;
+  line-height: 1.4;
+  text-align: right;
+}
+
+.scenario-risk-meter {
+  height: 4px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: #1b3555;
+}
+
+.scenario-risk-meter span {
+  display: block;
+  width: var(--scenario-coverage);
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #3178bf, #57c5a1);
+}
+
+.scenario-risk-row details {
+  color: #849ab7;
+  font-size: 8px;
+}
+
+.scenario-risk-row details summary {
+  cursor: pointer;
+}
+
+.scenario-risk-row details ul {
+  display: grid;
+  gap: 3px;
+  margin: 5px 0 0;
+  padding-left: 14px;
+}
+
+.scenario-risk-row details li {
+  line-height: 1.4;
+}
+
+.scenario-risk-missing {
+  grid-column: 1 / -1;
+  margin: 0;
+  text-align: left;
+}
+
+.flow-attention-groups {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.flow-attention-group {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid #1d3858;
+  border-radius: 5px;
+  background: #0a1e38;
+}
+
+.flow-attention-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.flow-attention-heading h3 {
+  margin: 0;
+  color: #e9f1fc;
+  font-size: 11px;
+}
+
+.flow-attention-heading strong {
+  color: #c3d9f3;
+  font-size: 13px;
+}
+
+.flow-attention-group > p {
+  margin: 4px 0 9px;
+  color: #849ab7;
+  font-size: 8px;
+}
+
+.flow-attention-files {
+  display: grid;
+  gap: 7px;
+}
+
+.flow-attention-file {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 26px;
+  align-items: center;
+  gap: 3px 8px;
+}
+
+.flow-attention-file-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  min-width: 0;
+}
+
+.flow-attention-path {
+  overflow: hidden;
+  color: #d7e5f7;
+  font-family: "Cascadia Code", Consolas, monospace;
+  font-size: 8px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.flow-attention-file-meta strong {
+  flex-shrink: 0;
+  color: #c3d9f3;
+  font-size: 8px;
+}
+
+.attention-meter {
+  height: 8px;
+  overflow: hidden;
+  border: 1px solid #24446a;
+  border-radius: 2px;
+  background: #102844;
+}
+
+.attention-meter > span {
+  display: block;
+  width: var(--uncovered);
+  height: 100%;
+  background: linear-gradient(90deg, #35b778, #d2cf48 48%, #f2774f 76%, #e34c58);
+}
+
+.flow-attention-file > small {
+  grid-column: 1 / -1;
+  color: #8199b7;
+  font-size: 7px;
+}
+
 .insights-panels {
   display: grid;
   grid-template-columns: minmax(0, 1.12fr) minmax(0, 0.9fr) minmax(0, 1.08fr);
@@ -1451,6 +1699,10 @@ td a {
     row-gap: 18px;
   }
 
+  .flow-attention-groups {
+    grid-template-columns: 1fr;
+  }
+
   .info-card:nth-child(2) {
     border-right: 0;
   }
@@ -1502,6 +1754,19 @@ td a {
   }
 
   .insights-panels {
+    grid-template-columns: 1fr;
+  }
+
+  .flow-attention-panel .section-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .risk-analysis-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .scenario-risk-modules {
     grid-template-columns: 1fr;
   }
 

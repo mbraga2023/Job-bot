@@ -43,6 +43,9 @@ Optional settings:
 | `VALIDATE_DELAY_MAX` | `5.0` | Maximum delay between Telegram validations |
 | `VALIDATION_LIMIT` | `500` | Default number of Telegram jobs to validate |
 | `OLLAMA_MODEL` | `qwen2.5-coder:1.5b` | Local model used for QA job-title classification |
+| `GITHUB_TOKEN` | unset | Optional read-only GitHub token used by Test Insights to read issues, merged PRs, and changed files |
+| `GITHUB_REPOSITORY` | `mbraga2023/Job-bot` | Repository slug used for GitHub issue history (`owner/repository`) |
+| `GITHUB_DEFECT_LABELS` | `bug,defect,defeito` | Comma-separated issue labels/types treated as defects |
 
 The v2 database is initialized automatically at `database\jobs_v2.db` when a
 CLI command is run.
@@ -84,13 +87,62 @@ The **Connect to Recruiters** button is reserved for a future workflow.
 
 The **Test Insights** tab (`/test-insights`) uses the repository's Git history
 to display recent code changes by area and lists existing related v2 test
-files. These are change-activity indicators, not defect probabilities:
-the project does not currently record defect history by module, test
-execution history, or measured coverage for training a predictive model.
+files. These are change-activity indicators, not defect probabilities.
+Test outcomes are measured on demand; the dashboard does not retain historical
+test-run results. Optional GitHub issue integration can enrich risk analysis
+when configured.
 The **Cobertura de código** card runs the v2 unit-test suite on request and
-measures executed Python statement lines across v2 production code using
-Python's standard-library tracer. It reports the test run's failure/error
-counts alongside the measured percentage; it is not branch coverage.
+measures line and branch coverage across v2 production code with `coverage.py`.
+It reports the test run's failure/error counts alongside coverage, and breaks
+the results down by file for the career and Telegram/LinkedIn flows. Branch
+coverage is unavailable for files without measured branches.
+
+The dashboard also displays **risk-weighted scenario coverage**, separately
+from line and branch coverage. Its initial, explicit scenario inventory is
+`SCENARIO_CATALOG` in `v2/dashboard/insights.py`; each scenario is linked to
+one or more existing unit-test cases. A scenario counts as covered only when
+all linked tests ran and passed. Failed, skipped, or absent linked tests do not
+count as covered. If the suite has not run, scenario coverage is `N/D`, not
+100%. The catalog is an initial, reviewable scope—not an automatically
+complete inventory of every product requirement—and should be maintained as
+requirements and tests change.
+
+For module *i*, scenario coverage `C_i` is its covered catalog scenarios
+divided by its total catalog scenarios. The raw module risk is
+`1 + recent source commits + severity-weighted mapped defects`. The displayed
+normalized module weight `R_i` is its raw risk divided by the sum of raw risks
+for included modules. Risk coverage is
+`sum(R_i * C_i) * 100`. If a risk source is unavailable, the dashboard lists
+that missing input; if both Git and mapped GitHub defect data are unavailable,
+the weighted KPI is `N/D`. Modules without measured scenario coverage are
+excluded from the weighted calculation and reported separately.
+
+The per-file attention map is a different heuristic:
+`risk_weight * uncovered_line_fraction`, normalized to 0–100 against the
+highest-scoring measured file. It is not a coverage metric or a defect
+probability. GitHub defects are counted only when a bug-labeled closed issue
+is linked by a closing keyword to a merged PR, and the file was changed by
+that PR. Severity weights are 5 for Critical/P0, 3 for High/P1, 2 for
+Medium/P2, and 1 when no severity label is present.
+
+The illustrative Payment processing (50, 80%), Authentication (30, 60%),
+and User profile (20, 100%) example calculates to 78%. It is a unit-test
+fixture only and is never used as production dashboard data.
+
+To enable GitHub history, set a **read-only, repository-scoped** `GITHUB_TOKEN`
+in the root `.env` or the dashboard process environment. Grant read access to
+Issues and Pull requests. The token is sent only to `api.github.com`, is never
+returned by the dashboard, and must not be committed or pasted into chat.
+Set `GITHUB_DEFECT_LABELS` to match the repository's actual bug labels if
+needed. Issue-to-file links are considered reliable only through merged PR
+closing references; unmapped issues remain unknown.
+
+Risk weights are transparent prioritization signals, not validated
+probabilities. The dashboard does not present a validated ML prediction:
+that remains unavailable until enough mapped historical defects exist to train
+and chronologically evaluate a model. Missing GitHub access or issue mappings
+are shown as unavailable or listed as missing inputs, not silently treated as
+zero mapped defects.
 
 ### Telegram and LinkedIn flow
 
