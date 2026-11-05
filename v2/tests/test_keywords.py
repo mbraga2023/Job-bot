@@ -79,6 +79,10 @@ class TestKeywords(unittest.TestCase):
             "Analista de Monitoramento",
             "Gestão de qualidade",
             "Assistente de qualidade",
+            "Piping & Mechanical QA Inspector",
+            "Inspector de QA Eléctrico e Instrumentación",
+            "Inspector de QA de Corrosión y Pintura",
+            "Welding QA Inspector",
         )
         for title in titles:
             with self.subTest(title=title):

@@ -95,6 +95,10 @@ NON_QA_TITLE_PREFIXES: tuple[str, ...] = (
     "Analista de Monitoramento",
     "Gestão de qualidade",
     "Assistente de qualidade",
+    "Piping & Mechanical QA Inspector",
+    "Inspector de QA Eléctrico e Instrumentación",
+    "Inspector de QA de Corrosión y Pintura",
+    "Welding QA Inspector",
 )
 
 NON_JOB_TITLE_PATTERN = re.compile(
