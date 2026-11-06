@@ -218,16 +218,28 @@ main {
   gap: 12px;
 }
 
-.platform-options {
-  display: flex;
-  gap: 16px;
+.platform-selector {
+  display: grid;
+  width: fit-content;
+  gap: 6px;
   margin-bottom: 14px;
 }
 
-.platform-option {
-  color: #cbd5e1;
-  font-size: 14px;
-  cursor: pointer;
+.platform-selector label {
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.platform-selector select {
+  min-width: 240px;
+  max-width: 100%;
+  padding: 9px 30px 9px 10px;
+  border: 1px solid #334155;
+  border-radius: 7px;
+  background: #0b0f19;
+  color: #e2e8f0;
+  font: inherit;
 }
 
 .terminal-panel {

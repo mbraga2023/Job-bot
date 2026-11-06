@@ -50,16 +50,15 @@ PAGE_HTML = """<!doctype html>
       <!-- Flow 2 -->
       <div class="flow-card">
         <h2>🌐 Flow 2: Company Career Pages</h2>
-        <div class="platform-options">
-          <label class="platform-option">
-            <input type="radio" name="career-platform" value="search_all" checked> Search All
-          </label>
-          <label class="platform-option">
-            <input type="radio" name="career-platform" value="inhire"> InHire Only
-          </label>
-          <label class="platform-option">
-            <input type="radio" name="career-platform" value="gupy"> Gupy Only
-          </label>
+        <div class="platform-selector">
+          <label for="career-platform">Career website</label>
+          <select id="career-platform" name="career-platform">
+            <option value="search_all" selected>Search All</option>
+            <option value="inhire">InHire Only</option>
+            <option value="gupy">Gupy Only</option>
+            <option value="mindsight">Mindsight Only</option>
+            <option value="conquestone">Conquest One Only</option>
+          </select>
         </div>
         <div class="actions-grid">
           <button onclick="scanCareers()">1. Scan Pages</button>
@@ -134,7 +133,7 @@ PAGE_HTML = """<!doctype html>
     }
 
     function scanCareers() {
-      const selectedPlatform = document.querySelector('input[name="career-platform"]:checked').value;
+      const selectedPlatform = document.getElementById("career-platform").value;
       triggerCommand(["careers", "scan", "--platform", selectedPlatform], "Career Scan (" + selectedPlatform + ")");
     }
 

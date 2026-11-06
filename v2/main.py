@@ -189,7 +189,9 @@ def main() -> None:
         "scan", help="Scan career pages using platform adapters"
     )
     c_scan.add_argument(
-        "--platform", choices=["search_all", "inhire", "gupy"], default="search_all"
+        "--platform",
+        choices=["search_all", "inhire", "gupy", "mindsight", "conquestone"],
+        default="search_all",
     )
 
     c_val = careers_subs.add_parser(

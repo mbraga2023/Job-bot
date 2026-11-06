@@ -16,7 +16,13 @@ from v2.core.database import (
     mark_source_checked,
 )
 from v2.core.keywords import QA_SEARCH_TERMS, is_qa_job_title
-from v2.flows.careers.adapters import GenericAdapter, GupyAdapter, InHireAdapter
+from v2.flows.careers.adapters import (
+    ConquestOneAdapter,
+    GenericAdapter,
+    GupyAdapter,
+    InHireAdapter,
+    MindsightAdapter,
+)
 
 NAVIGATION_ATTEMPTS = 3
 
@@ -31,6 +37,29 @@ def is_gupy_url(url: str) -> bool:
     """Check if URL points to a Gupy portal."""
     domain = urlparse(url).netloc.lower()
     return "gupy.io" in domain
+
+
+def is_mindsight_url(url: str) -> bool:
+    """Check if URL points to a Mindsight career portal."""
+    domain = urlparse(url).netloc.lower().split(":", 1)[0]
+    return domain == "mindsight.com.br" or domain.endswith(".mindsight.com.br")
+
+
+def normalize_mindsight_url(url: str) -> str:
+    """Add the English locale to Mindsight URLs that omit a locale prefix."""
+    parsed = urlparse(url)
+    path_parts = [part for part in parsed.path.split("/") if part]
+    locales = {"en", "pt", "pt-br", "pt-pt"}
+    if path_parts and path_parts[0].casefold() not in locales:
+        path = f"/en/{parsed.path.lstrip('/')}"
+        return parsed._replace(path=path).geturl()
+    return url
+
+
+def is_conquestone_url(url: str) -> bool:
+    """Check if URL points to Conquest One's job board."""
+    domain = urlparse(url).netloc.lower().split(":", 1)[0]
+    return domain == "jobs.conquestone.com"
 
 
 def was_checked_within_24h(source: dict) -> bool:
@@ -100,6 +129,10 @@ async def run_scanner(platform: str = "search_all") -> dict[str, int]:
         sources = [s for s in sources if is_inhire_url(s["careers_url"])]
     elif platform == "gupy":
         sources = [s for s in sources if is_gupy_url(s["careers_url"])]
+    elif platform == "mindsight":
+        sources = [s for s in sources if is_mindsight_url(s["careers_url"])]
+    elif platform == "conquestone":
+        sources = [s for s in sources if is_conquestone_url(s["careers_url"])]
 
     # Apply 24-hour rate limit
     eligible_sources = []
@@ -126,13 +159,25 @@ async def run_scanner(platform: str = "search_all") -> dict[str, int]:
 
     async with async_playwright() as pw:
         browser = await pw.chromium.launch(headless=config.headless)
-        page = await browser.new_page()
+        default_page = await browser.new_page()
+        mindsight_page = None
 
         for idx, source in enumerate(eligible_sources, start=1):
-            url = source["careers_url"]
+            source_url = source["careers_url"]
+            page = default_page
+            if is_mindsight_url(source_url):
+                if mindsight_page is None:
+                    mindsight_page = await browser.new_page(locale="en-US")
+                page = mindsight_page
+
+            url = (
+                normalize_mindsight_url(source_url)
+                if is_mindsight_url(source_url)
+                else source_url
+            )
             company = source["company"]
             print(
-                f"\n[{idx}/{len(eligible_sources)}] Scanning {company} ({url})...",
+                f"\n[{idx}/{len(eligible_sources)}] Scanning {company} ({source_url})...",
                 flush=True,
             )
 
@@ -150,6 +195,10 @@ async def run_scanner(platform: str = "search_all") -> dict[str, int]:
                     adapter = InHireAdapter(page)
                 elif is_gupy_url(final_url):
                     adapter = GupyAdapter(page)
+                elif is_mindsight_url(final_url):
+                    adapter = MindsightAdapter(page)
+                elif is_conquestone_url(final_url):
+                    adapter = ConquestOneAdapter(page)
                 else:
                     adapter = GenericAdapter(page)
 

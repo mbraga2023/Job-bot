@@ -86,7 +86,17 @@ class TestDashboardCommandLogs(unittest.TestCase):
         self.assertEqual(server.PAGE_HTML.count("Continue (next 10)"), 2)
         self.assertIn("triggerCommand(['telegram', 'open'], 'Continue Telegram review')", server.PAGE_HTML)
         self.assertIn("triggerCommand(['careers', 'open'], 'Continue career review')", server.PAGE_HTML)
-        self.assertIn('value="gupy"> Gupy Only', server.PAGE_HTML)
+        self.assertIn('<select id="career-platform" name="career-platform">', server.PAGE_HTML)
+        self.assertIn('<option value="gupy">Gupy Only</option>', server.PAGE_HTML)
+        self.assertIn(
+            '<option value="conquestone">Conquest One Only</option>',
+            server.PAGE_HTML,
+        )
+        self.assertNotIn('type="radio" name="career-platform"', server.PAGE_HTML)
+        self.assertIn(
+            'document.getElementById("career-platform").value',
+            server.PAGE_HTML,
+        )
 
     def test_command_completion_refreshes_dashboard_stats(self) -> None:
         self.assertIn("let commandNeedsStatsRefresh = false;", server.PAGE_HTML)

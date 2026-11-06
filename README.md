@@ -190,13 +190,19 @@ python v2\main.py careers detect-apis --limit 500
 python v2\main.py careers scan --platform search_all
 python v2\main.py careers scan --platform inhire
 python v2\main.py careers scan --platform gupy
+python v2\main.py careers scan --platform mindsight
+python v2\main.py careers scan --platform conquestone
 python v2\main.py careers validate --limit 500
 python v2\main.py careers open --limit 10
 ```
 
-The dashboard's Career Pages flow can scan all sources, InHire sources only, or
-Gupy sources only. Gupy-only scans match source URLs containing `gupy.io` and
-search the top QA terms using Gupy's live search field.
+The dashboard's Career Pages flow can scan all sources, InHire, Gupy, Mindsight,
+or Conquest One sources only. Mindsight-only scans match `mindsight.com.br`
+sources and use the Mindsight portal's listing search and pagination.
+Conquest One-only scans match `jobs.conquestone.com` and follow the job board's
+detail links while traversing its result pages.
+Gupy-only scans match source URLs containing `gupy.io` and search the top QA
+terms using Gupy's live search field.
 During validation, Gupy job pages are parsed for localized title, dates,
 location, job type, work model, description, and requirements before the
 extracted details are passed to the LLM for its final QA/seniority decision.

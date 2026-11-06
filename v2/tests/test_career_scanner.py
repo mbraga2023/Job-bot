@@ -17,10 +17,14 @@ from v2.flows.careers.adapters.base import CareerJobItem
 
 class FakeBrowser:
     def __init__(self) -> None:
-        self.page = FakePage()
+        self.pages: list[FakePage] = []
+        self.page_options: list[dict] = []
 
-    async def new_page(self) -> FakePage:
-        return self.page
+    async def new_page(self, **options) -> FakePage:
+        page = FakePage()
+        self.pages.append(page)
+        self.page_options.append(options)
+        return page
 
     async def close(self) -> None:
         pass
@@ -122,6 +126,12 @@ class TestCareerScanner(unittest.TestCase):
                 "last_checked_at": (now - timedelta(hours=1)).isoformat(),
                 "last_error": "Previous scan failed",
             },
+            {
+                "id": 5,
+                "company": "Mindsight",
+                "careers_url": "https://oportunidades.mindsight.com.br/en/supernova",
+                "last_checked_at": None,
+            },
         ]
         inhire_adapter = type(
             "StubInHireAdapter",
@@ -139,6 +149,14 @@ class TestCareerScanner(unittest.TestCase):
                 "get_jobs": AsyncMock(return_value=[]),
             },
         )()
+        mindsight_adapter = type(
+            "StubMindsightAdapter",
+            (),
+            {
+                "wait_for_page_ready": AsyncMock(),
+                "get_jobs": AsyncMock(return_value=[]),
+            },
+        )()
         playwright_context = FakePlaywrightContext()
 
         with (
@@ -146,6 +164,11 @@ class TestCareerScanner(unittest.TestCase):
             patch.object(scanner, "async_playwright", return_value=playwright_context),
             patch.object(scanner, "InHireAdapter", return_value=inhire_adapter) as inhire,
             patch.object(scanner, "GenericAdapter", return_value=generic_adapter) as generic,
+            patch.object(
+                scanner,
+                "MindsightAdapter",
+                return_value=mindsight_adapter,
+            ) as mindsight,
             patch.object(scanner, "insert_discovered_job"),
             patch.object(scanner, "mark_source_checked") as mark_checked,
         ):
@@ -156,8 +179,193 @@ class TestCareerScanner(unittest.TestCase):
         self.assertEqual(generic.call_count, 1)
         self.assertEqual(
             [call.args[0] for call in mark_checked.call_args_list],
-            [2, 3, 4],
+            [2, 3, 4, 5],
         )
+        mindsight.assert_called_once()
+
+    def test_mindsight_platform_only_scans_mindsight_sources(self) -> None:
+        sources = [
+            {
+                "id": 1,
+                "company": "Mindsight",
+                "careers_url": "https://oportunidades.mindsight.com.br/en/supernova",
+                "last_checked_at": None,
+            },
+            {
+                "id": 2,
+                "company": "Generic",
+                "careers_url": "https://example.com/careers",
+                "last_checked_at": None,
+            },
+        ]
+        adapter = type(
+            "StubMindsightAdapter",
+            (),
+            {
+                "wait_for_page_ready": AsyncMock(),
+                "get_jobs": AsyncMock(return_value=[]),
+            },
+        )()
+
+        with (
+            patch.object(scanner, "get_active_career_sources", return_value=sources),
+            patch.object(scanner, "async_playwright", return_value=FakePlaywrightContext()),
+            patch.object(scanner, "MindsightAdapter", return_value=adapter) as mindsight,
+            patch.object(scanner, "insert_discovered_job"),
+            patch.object(scanner, "mark_source_checked") as mark_checked,
+        ):
+            result = asyncio.run(scanner.run_scanner(platform="mindsight"))
+
+        self.assertEqual(result, {"discovered": 0, "new": 0})
+        mindsight.assert_called_once()
+        mark_checked.assert_called_once_with(1, discovered_jobs=0)
+
+    def test_mindsight_url_detection(self) -> None:
+        self.assertTrue(
+            scanner.is_mindsight_url(
+                "https://oportunidades.mindsight.com.br/en/supernova"
+            )
+        )
+        self.assertFalse(scanner.is_mindsight_url("https://mindsight-careers.example.com"))
+
+    def test_normalizes_locale_less_mindsight_urls(self) -> None:
+        self.assertEqual(
+            scanner.normalize_mindsight_url(
+                "https://oportunidades.mindsight.com.br/supernova"
+            ),
+            "https://oportunidades.mindsight.com.br/en/supernova",
+        )
+        self.assertEqual(
+            scanner.normalize_mindsight_url(
+                "https://oportunidades.mindsight.com.br/en/supernova/"
+            ),
+            "https://oportunidades.mindsight.com.br/en/supernova/",
+        )
+        self.assertEqual(
+            scanner.normalize_mindsight_url(
+                "https://oportunidades.mindsight.com.br/pt/supernova?source=jobbot"
+            ),
+            "https://oportunidades.mindsight.com.br/pt/supernova?source=jobbot",
+        )
+
+    def test_search_all_normalizes_mindsight_source_before_navigation(self) -> None:
+        source = {
+            "id": 6,
+            "company": "Supernova",
+            "careers_url": "https://oportunidades.mindsight.com.br/supernova",
+            "last_checked_at": None,
+        }
+        adapter = type(
+            "StubMindsightAdapter",
+            (),
+            {
+                "wait_for_page_ready": AsyncMock(),
+                "get_jobs": AsyncMock(return_value=[]),
+            },
+        )()
+        playwright_context = FakePlaywrightContext()
+
+        with (
+            patch.object(scanner, "get_active_career_sources", return_value=[source]),
+            patch.object(scanner, "async_playwright", return_value=playwright_context),
+            patch.object(scanner, "MindsightAdapter", return_value=adapter),
+            patch.object(scanner, "insert_discovered_job"),
+            patch.object(scanner, "mark_source_checked"),
+        ):
+            result = asyncio.run(scanner.run_scanner(platform="search_all"))
+
+        self.assertEqual(result, {"discovered": 0, "new": 0})
+        self.assertEqual(
+            playwright_context.browser.pages[1].url,
+            "https://oportunidades.mindsight.com.br/en/supernova",
+        )
+        self.assertEqual(playwright_context.browser.page_options[1], {"locale": "en-US"})
+
+    def test_conquestone_platform_only_scans_conquestone_sources(self) -> None:
+        sources = [
+            {
+                "id": 1,
+                "company": "Conquest One",
+                "careers_url": (
+                    "https://jobs.conquestone.com/jobboard.job.wpsearch.aspx"
+                    "?CustomerID="
+                ),
+                "last_checked_at": None,
+            },
+            {
+                "id": 2,
+                "company": "Generic",
+                "careers_url": "https://example.com/careers",
+                "last_checked_at": None,
+            },
+        ]
+        adapter = type(
+            "StubConquestOneAdapter",
+            (),
+            {
+                "wait_for_page_ready": AsyncMock(),
+                "get_jobs": AsyncMock(return_value=[]),
+            },
+        )()
+
+        with (
+            patch.object(scanner, "get_active_career_sources", return_value=sources),
+            patch.object(scanner, "async_playwright", return_value=FakePlaywrightContext()),
+            patch.object(
+                scanner,
+                "ConquestOneAdapter",
+                return_value=adapter,
+            ) as conquestone,
+            patch.object(scanner, "insert_discovered_job"),
+            patch.object(scanner, "mark_source_checked") as mark_checked,
+        ):
+            result = asyncio.run(scanner.run_scanner(platform="conquestone"))
+
+        self.assertEqual(result, {"discovered": 0, "new": 0})
+        conquestone.assert_called_once()
+        mark_checked.assert_called_once_with(1, discovered_jobs=0)
+
+    def test_conquestone_url_detection(self) -> None:
+        self.assertTrue(
+            scanner.is_conquestone_url(
+                "https://jobs.conquestone.com/jobboard.job.wpsearch.aspx"
+            )
+        )
+        self.assertFalse(
+            scanner.is_conquestone_url("https://conquestone.example.com/careers")
+        )
+
+    def test_search_all_uses_conquestone_adapter(self) -> None:
+        source = {
+            "id": 3,
+            "company": "Conquest One",
+            "careers_url": (
+                "https://jobs.conquestone.com/jobboard.job.wpsearch.aspx?CustomerID="
+            ),
+            "last_checked_at": None,
+        }
+        adapter = type(
+            "StubConquestOneAdapter",
+            (),
+            {
+                "wait_for_page_ready": AsyncMock(),
+                "get_jobs": AsyncMock(return_value=[]),
+            },
+        )()
+
+        with (
+            patch.object(scanner, "get_active_career_sources", return_value=[source]),
+            patch.object(scanner, "async_playwright", return_value=FakePlaywrightContext()),
+            patch.object(scanner, "ConquestOneAdapter", return_value=adapter) as conquestone,
+            patch.object(scanner, "GenericAdapter") as generic,
+            patch.object(scanner, "insert_discovered_job"),
+            patch.object(scanner, "mark_source_checked"),
+        ):
+            result = asyncio.run(scanner.run_scanner(platform="search_all"))
+
+        self.assertEqual(result, {"discovered": 0, "new": 0})
+        conquestone.assert_called_once()
+        generic.assert_not_called()
 
     def test_gupy_only_filters_sources_and_searches_each_term(self) -> None:
         sources = [
