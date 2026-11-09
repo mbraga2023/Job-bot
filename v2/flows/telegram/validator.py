@@ -10,12 +10,17 @@ from typing import Any
 from playwright.async_api import async_playwright
 
 from v2.config import config
-from v2.core.database import get_jobs_for_validation, update_job_validation
+from v2.core.database import (
+    get_jobs_for_validation,
+    update_job_status,
+    update_job_validation,
+)
 from v2.core.date_utils import is_older_than_days, normalize_published_date
 from v2.core.keywords import has_qa_technology, is_qa_job_title
 from v2.core.qa_classifier import review_job_with_ollama
 from v2.core.seniority import evaluate_seniority
 from v2.flows.telegram.analyzers.meupadrinho import MeuPadrinhoAnalyzer
+from v2.flows.telegram.analyzers.linkedin import is_linkedin_person_url
 
 
 async def run_validator(limit: int | None = None) -> None:
@@ -49,19 +54,34 @@ async def run_validator(limit: int | None = None) -> None:
                 headless=config.headless,
             )
 
-        page = browser_context.pages[0] if browser_context.pages else await browser_context.new_page()
+        page = (
+            browser_context.pages[0]
+            if browser_context.pages
+            else await browser_context.new_page()
+        )
 
         validated_count = 0
         discarded_count = 0
         closed_count = 0
+        recruiter_count = 0
 
         try:
             for index, job in enumerate(jobs, start=1):
                 url = job["source_url"]
                 print(f"\n[{index}/{len(jobs)}] Navigating: {url}")
 
+                if is_linkedin_person_url(url):
+                    update_job_status(job["id"], "RECRUITER")
+                    recruiter_count += 1
+                    print(
+                        f" [RECRUITER] ID {job['id']} is a LinkedIn person page; status set to RECRUITER."
+                    )
+                    continue
+
                 try:
-                    await page.goto(url, wait_until="domcontentloaded", timeout=config.timeout_ms)
+                    await page.goto(
+                        url, wait_until="domcontentloaded", timeout=config.timeout_ms
+                    )
                 except Exception as exc:
                     print(f" [!] Navigation failed: {exc}")
                     continue
@@ -69,7 +89,9 @@ async def run_validator(limit: int | None = None) -> None:
                 extracted = await analyzer.analyze(page)
 
                 if extracted.get("rate_limited"):
-                    print(" [!] Rate limited by remote server. Stopping validation early.")
+                    print(
+                        " [!] Rate limited by remote server. Stopping validation early."
+                    )
                     break
 
                 if extracted.get("login_required"):
@@ -108,7 +130,9 @@ async def run_validator(limit: int | None = None) -> None:
                 is_qa = is_qa_job_title(final_title) or has_qa_technology(technologies)
 
                 is_stale = is_older_than_days(pub_date, days=30)
-                is_seniority_ok, seniority_reason = evaluate_seniority(final_title, final_level)
+                is_seniority_ok, seniority_reason = evaluate_seniority(
+                    final_title, final_level
+                )
 
                 status = "VALIDATED"
                 discard_reason = None
@@ -131,12 +155,16 @@ async def run_validator(limit: int | None = None) -> None:
                     status = "DISCARDED"
                     discard_reason = seniority_reason
                     discarded_count += 1
-                    print(f" [DISCARD] {seniority_reason}: {final_company} - {final_title} ({final_level})")
+                    print(
+                        f" [DISCARD] {seniority_reason}: {final_company} - {final_title} ({final_level})"
+                    )
                 elif is_stale:
                     status = "DISCARDED"
                     discard_reason = "STALE_OVER_30_DAYS"
                     discarded_count += 1
-                    print(f" [DISCARD] Stale (>30 days): {final_company} - {final_title}")
+                    print(
+                        f" [DISCARD] Stale (>30 days): {final_company} - {final_title}"
+                    )
                 else:
                     try:
                         llm_review = await review_job_with_ollama(
@@ -151,14 +179,18 @@ async def run_validator(limit: int | None = None) -> None:
                             f" [!] Final Ollama review failed for job {job['id']}; "
                             f"leaving it pending for retry: {exc}"
                         )
-                        delay = random.uniform(config.validate_delay_min, config.validate_delay_max)
+                        delay = random.uniform(
+                            config.validate_delay_min, config.validate_delay_max
+                        )
                         await asyncio.sleep(delay)
                         continue
 
                     if llm_review["eligible"]:
                         status = "VALIDATED"
                         validated_count += 1
-                        print(f" [OK] Final LLM approval: {final_company} - {final_title}")
+                        print(
+                            f" [OK] Final LLM approval: {final_company} - {final_title}"
+                        )
                     else:
                         status = "DISCARDED"
                         discard_reason = "LLM_FINAL_REJECTED"
@@ -182,17 +214,33 @@ async def run_validator(limit: int | None = None) -> None:
                     application_source=app_source,
                     description=extracted.get("description"),
                     technologies=extracted.get("technologies"),
-                    requirements="\n".join(extracted.get("requirements", [])) if isinstance(extracted.get("requirements"), list) else extracted.get("requirements"),
-                    differentials="\n".join(extracted.get("differentials", [])) if isinstance(extracted.get("differentials"), list) else extracted.get("differentials"),
-                    benefits="\n".join(extracted.get("benefits", [])) if isinstance(extracted.get("benefits"), list) else extracted.get("benefits"),
+                    requirements=(
+                        "\n".join(extracted.get("requirements", []))
+                        if isinstance(extracted.get("requirements"), list)
+                        else extracted.get("requirements")
+                    ),
+                    differentials=(
+                        "\n".join(extracted.get("differentials", []))
+                        if isinstance(extracted.get("differentials"), list)
+                        else extracted.get("differentials")
+                    ),
+                    benefits=(
+                        "\n".join(extracted.get("benefits", []))
+                        if isinstance(extracted.get("benefits"), list)
+                        else extracted.get("benefits")
+                    ),
                     published_date=pub_date,
                     discard_reason=discard_reason,
                     ai_status="PROCESSED",
-                    ai_reason=str(llm_review["reason"]) if llm_review is not None else None,
+                    ai_reason=(
+                        str(llm_review["reason"]) if llm_review is not None else None
+                    ),
                 )
 
                 # Delay between requests
-                delay = random.uniform(config.validate_delay_min, config.validate_delay_max)
+                delay = random.uniform(
+                    config.validate_delay_min, config.validate_delay_max
+                )
                 await asyncio.sleep(delay)
 
         finally:
@@ -204,6 +252,7 @@ async def run_validator(limit: int | None = None) -> None:
     print(f" Validated (Active) : {validated_count}")
     print(f" Discarded          : {discarded_count}")
     print(f" Closed / 404       : {closed_count}")
+    print(f" Recruiter pages    : {recruiter_count}")
     print("=" * 60 + "\n")
 
 

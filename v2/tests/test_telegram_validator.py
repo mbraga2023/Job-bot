@@ -42,13 +42,16 @@ class TestTelegramValidatorClassification(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             with (
                 patch.object(validator, "get_jobs_for_validation", return_value=[job]),
-                patch.object(validator, "async_playwright", return_value=FakePlaywrightContext()),
+                patch.object(
+                    validator, "async_playwright", return_value=FakePlaywrightContext()
+                ),
                 patch.object(validator, "MeuPadrinhoAnalyzer") as analyzer_class,
                 patch.object(
                     validator,
                     "review_job_with_ollama",
                     new_callable=AsyncMock,
-                    return_value=final_review or {"eligible": True, "reason": "Approved"},
+                    return_value=final_review
+                    or {"eligible": True, "reason": "Approved"},
                 ) as review,
                 patch.object(validator, "update_job_validation") as update,
                 patch.object(config, "meupadrinho_profile_dir", Path(temp_dir)),
@@ -226,8 +229,12 @@ class TestTelegramValidatorClassification(unittest.TestCase):
 
         review.assert_awaited_once()
         self.assertEqual(update.call_args.kwargs["status"], "DISCARDED")
-        self.assertEqual(update.call_args.kwargs["discard_reason"], "LLM_FINAL_REJECTED")
-        self.assertEqual(update.call_args.kwargs["ai_reason"], "Description is unrelated")
+        self.assertEqual(
+            update.call_args.kwargs["discard_reason"], "LLM_FINAL_REJECTED"
+        )
+        self.assertEqual(
+            update.call_args.kwargs["ai_reason"], "Description is unrelated"
+        )
         self.assertEqual(update.call_args.kwargs["ai_status"], "PROCESSED")
 
     def test_page_not_found_is_marked_processed(self) -> None:
@@ -243,6 +250,35 @@ class TestTelegramValidatorClassification(unittest.TestCase):
         self.assertEqual(update.call_args.kwargs["status"], "CLOSED")
         self.assertEqual(update.call_args.kwargs["ai_status"], "PROCESSED")
 
+    def test_linkedin_person_url_is_marked_recruiter_without_navigation(self) -> None:
+        with (
+            patch.object(
+                validator,
+                "get_jobs_for_validation",
+                return_value=[
+                    {
+                        "id": 33,
+                        "source_url": "https://mx.linkedin.com/in/ivan-carrillo-solache",
+                    }
+                ],
+            ),
+            patch.object(
+                validator, "async_playwright", return_value=FakePlaywrightContext()
+            ),
+            patch.object(validator, "MeuPadrinhoAnalyzer") as analyzer_class,
+            patch.object(validator, "update_job_status") as update_status,
+            patch.object(validator, "update_job_validation") as update_validation,
+            tempfile.TemporaryDirectory() as temp_dir,
+            patch.object(config, "meupadrinho_profile_dir", Path(temp_dir)),
+            patch.object(config, "headless", True),
+        ):
+            analyzer_class.return_value.analyze = AsyncMock()
+            asyncio.run(validator.run_validator(limit=1))
+
+        update_status.assert_called_once_with(33, "RECRUITER")
+        analyzer_class.return_value.analyze.assert_not_awaited()
+        update_validation.assert_not_called()
+
     def test_login_required_warns_and_leaves_job_pending(self) -> None:
         with (
             patch("builtins.print") as print_mock,
@@ -250,15 +286,21 @@ class TestTelegramValidatorClassification(unittest.TestCase):
                 "v2.flows.telegram.validator.review_job_with_ollama",
                 new_callable=AsyncMock,
             ) as review,
-            patch.object(validator, "get_jobs_for_validation", return_value=[
-                {
-                    "id": 29,
-                    "source_url": "https://example.com/job/29",
-                    "title": "QA Engineer Pleno",
-                    "remote": 1,
-                }
-            ]),
-            patch.object(validator, "async_playwright", return_value=FakePlaywrightContext()),
+            patch.object(
+                validator,
+                "get_jobs_for_validation",
+                return_value=[
+                    {
+                        "id": 29,
+                        "source_url": "https://example.com/job/29",
+                        "title": "QA Engineer Pleno",
+                        "remote": 1,
+                    }
+                ],
+            ),
+            patch.object(
+                validator, "async_playwright", return_value=FakePlaywrightContext()
+            ),
             patch.object(validator, "MeuPadrinhoAnalyzer") as analyzer_class,
             patch.object(validator, "update_job_validation") as update,
             tempfile.TemporaryDirectory() as temp_dir,
@@ -298,7 +340,11 @@ class TestTelegramValidatorClassification(unittest.TestCase):
                             }
                         ],
                     ),
-                    patch.object(validator, "async_playwright", return_value=FakePlaywrightContext()),
+                    patch.object(
+                        validator,
+                        "async_playwright",
+                        return_value=FakePlaywrightContext(),
+                    ),
                     patch.object(validator, "MeuPadrinhoAnalyzer") as analyzer_class,
                     patch.object(validator, "update_job_validation") as update,
                     patch.object(config, "meupadrinho_profile_dir", Path(temp_dir)),
@@ -359,7 +405,9 @@ class TestMeuPadrinhoRemoteExtraction(unittest.TestCase):
         self.assertFalse(self.analyzer.extract_header(lines)["remote"])
 
     def test_login_page_is_detected_from_url_or_explicit_prompt(self) -> None:
-        login_url_page = SimpleNamespace(url="https://meupadrinho.com.br/login?next=/vaga/123")
+        login_url_page = SimpleNamespace(
+            url="https://meupadrinho.com.br/login?next=/vaga/123"
+        )
         prompt_page = SimpleNamespace(url="https://meupadrinho.com.br/vaga/123")
         job_page = SimpleNamespace(url="https://meupadrinho.com.br/vaga/123")
 
