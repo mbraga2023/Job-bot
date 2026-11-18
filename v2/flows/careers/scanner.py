@@ -25,6 +25,7 @@ from v2.flows.careers.adapters import (
 )
 
 NAVIGATION_ATTEMPTS = 3
+MAX_CONCURRENT_SCANS = 5
 
 
 def is_inhire_url(url: str) -> bool:
@@ -121,6 +122,147 @@ async def navigate_to_source(page, url: str, timeout_ms: int) -> str:
     raise RuntimeError(f"Could not navigate to {url} after {NAVIGATION_ATTEMPTS} attempts")
 
 
+async def scan_source(
+    idx: int,
+    total_sources: int,
+    source: dict,
+    browser,
+    semaphore: asyncio.Semaphore,
+    platform: str,
+) -> tuple[int, int]:
+    """Scan one career source in an isolated browser page."""
+    async with semaphore:
+        source_url = source["careers_url"]
+        company = source["company"]
+        page = None
+        try:
+            page = await browser.new_page(
+                **({"locale": "en-US"} if is_mindsight_url(source_url) else {})
+            )
+            url = (
+                normalize_mindsight_url(source_url)
+                if is_mindsight_url(source_url)
+                else source_url
+            )
+            print(
+                f"\n[{idx}/{total_sources}] Scanning {company} ({source_url})...",
+                flush=True,
+            )
+            print(f"  [PAGE] Opening {url}...", flush=True)
+            final_url = await navigate_to_source(page, url, config.timeout_ms)
+            if final_url != url:
+                print(f"  [PAGE] Source redirected to {final_url}", flush=True)
+            if platform == "gupy" and not is_gupy_url(final_url):
+                raise RuntimeError(
+                    f"Gupy source redirected outside gupy.io: {final_url}"
+                )
+
+            inhire = is_inhire_url(final_url)
+            if inhire:
+                adapter = InHireAdapter(page)
+            elif is_gupy_url(final_url):
+                adapter = GupyAdapter(page)
+            elif is_mindsight_url(final_url):
+                adapter = MindsightAdapter(page)
+            elif is_conquestone_url(final_url):
+                adapter = ConquestOneAdapter(page)
+            else:
+                adapter = GenericAdapter(page)
+
+            print("  [PAGE] Page loaded; waiting for job listings...", flush=True)
+            if hasattr(adapter, "wait_for_page_ready"):
+                await adapter.wait_for_page_ready()
+
+            if inhire:
+                print("  [INHIRE] Reading the job list...", flush=True)
+            jobs = await adapter.get_jobs(company_name=company)
+            print(f"  [PAGE] Found {len(jobs)} job listing(s).", flush=True)
+
+            if platform == "gupy":
+                jobs_by_url = {job.url: job for job in jobs}
+                for term in QA_SEARCH_TERMS[:2]:
+                    print(f"  [SEARCH] Searching for '{term}'...", flush=True)
+                    searched = await adapter.search(term)
+                    if not searched:
+                        print(
+                            "  [SEARCH] Gupy search field is unavailable.",
+                            flush=True,
+                        )
+                        break
+
+                    print(f"  [SEARCH] Search started for '{term}'.", flush=True)
+                    await page.wait_for_timeout(2000)
+                    term_jobs = await adapter.get_jobs(company_name=company)
+                    for job in term_jobs:
+                        jobs_by_url[job.url] = job
+                    print(
+                        f"  [SEARCH] Found {len(term_jobs)} job listing(s) "
+                        f"for '{term}'.",
+                        flush=True,
+                    )
+                jobs = list(jobs_by_url.values())
+            elif not jobs and hasattr(adapter, "search"):
+                for term in QA_SEARCH_TERMS[:2]:
+                    print(f"  [SEARCH] Searching for '{term}'...", flush=True)
+                    searched = await adapter.search(term)
+                    if not searched:
+                        print(
+                            f"  [SEARCH] Search field not available for '{term}'.",
+                            flush=True,
+                        )
+                        continue
+
+                    print(f"  [SEARCH] Search submitted for '{term}'.", flush=True)
+                    await page.wait_for_timeout(2000)
+                    jobs = await adapter.get_jobs(company_name=company)
+                    print(
+                        f"  [SEARCH] Found {len(jobs)} job listing(s) "
+                        f"for '{term}'.",
+                        flush=True,
+                    )
+                    if jobs:
+                        break
+
+            source_new = 0
+            for item in jobs:
+                if not is_qa_job_title(item.title):
+                    print(
+                        f"  [-] Skipping non-QA or untitled listing: "
+                        f"{item.title or item.url}",
+                        flush=True,
+                    )
+                    continue
+
+                job_id = insert_discovered_job(
+                    pipeline="CAREER_PAGE",
+                    career_source_id=source["id"],
+                    source_url=item.url,
+                    title=item.title or None,
+                    company=company,
+                    location=item.location,
+                    external_id=item.external_id,
+                    published_date=item.published_date,
+                    raw_data=item.raw_data,
+                )
+                if job_id:
+                    source_new += 1
+                    print(f"  [+] Discovered: {item.title or 'Unknown'} -> {item.url}")
+
+            mark_source_checked(source["id"], discovered_jobs=len(jobs))
+            print(
+                f"  [OK] Checked. Found {len(jobs)} total ({source_new} new).",
+                flush=True,
+            )
+            return len(jobs), source_new
+        except Exception as exc:
+            print(f"  [!] Failed to scan {company}: {exc}", flush=True)
+            mark_source_checked(source["id"], error=str(exc))
+            return 0, 0
+        finally:
+            if page is not None:
+                await page.close()
+
+
 async def run_scanner(platform: str = "search_all") -> dict[str, int]:
     """Scan company career pages using platform adapters and save discovered jobs."""
     sources = get_active_career_sources()
@@ -154,147 +296,28 @@ async def run_scanner(platform: str = "search_all") -> dict[str, int]:
     print(f"[SCAN] Scanning {len(eligible_sources)} career source(s)...")
     print("=" * 60)
 
-    total_discovered = 0
-    new_jobs_count = 0
-
     async with async_playwright() as pw:
         browser = await pw.chromium.launch(headless=config.headless)
-        default_page = await browser.new_page()
-        mindsight_page = None
-
-        for idx, source in enumerate(eligible_sources, start=1):
-            source_url = source["careers_url"]
-            page = default_page
-            if is_mindsight_url(source_url):
-                if mindsight_page is None:
-                    mindsight_page = await browser.new_page(locale="en-US")
-                page = mindsight_page
-
-            url = (
-                normalize_mindsight_url(source_url)
-                if is_mindsight_url(source_url)
-                else source_url
-            )
-            company = source["company"]
-            print(
-                f"\n[{idx}/{len(eligible_sources)}] Scanning {company} ({source_url})...",
-                flush=True,
-            )
-
-            try:
-                print(f"  [PAGE] Opening {url}...", flush=True)
-                final_url = await navigate_to_source(page, url, config.timeout_ms)
-                if final_url != url:
-                    print(f"  [PAGE] Source redirected to {final_url}", flush=True)
-                if platform == "gupy" and not is_gupy_url(final_url):
-                    raise RuntimeError(
-                        f"Gupy source redirected outside gupy.io: {final_url}"
+        try:
+            semaphore = asyncio.Semaphore(MAX_CONCURRENT_SCANS)
+            results = await asyncio.gather(
+                *(
+                    scan_source(
+                        idx,
+                        len(eligible_sources),
+                        source,
+                        browser,
+                        semaphore,
+                        platform,
                     )
-                inhire = is_inhire_url(final_url)
-                if inhire:
-                    adapter = InHireAdapter(page)
-                elif is_gupy_url(final_url):
-                    adapter = GupyAdapter(page)
-                elif is_mindsight_url(final_url):
-                    adapter = MindsightAdapter(page)
-                elif is_conquestone_url(final_url):
-                    adapter = ConquestOneAdapter(page)
-                else:
-                    adapter = GenericAdapter(page)
-
-                print("  [PAGE] Page loaded; waiting for job listings...", flush=True)
-                if hasattr(adapter, "wait_for_page_ready"):
-                    await adapter.wait_for_page_ready()
-
-                # Get initial jobs
-                if inhire:
-                    print("  [INHIRE] Reading the job list...", flush=True)
-                jobs = await adapter.get_jobs(company_name=company)
-                print(f"  [PAGE] Found {len(jobs)} job listing(s).", flush=True)
-
-                if platform == "gupy":
-                    jobs_by_url = {job.url: job for job in jobs}
-                    for term in QA_SEARCH_TERMS[:2]:
-                        print(f"  [SEARCH] Searching for '{term}'...", flush=True)
-                        searched = await adapter.search(term)
-                        if not searched:
-                            print(
-                                "  [SEARCH] Gupy search field is unavailable.",
-                                flush=True,
-                            )
-                            break
-
-                        print(f"  [SEARCH] Search started for '{term}'.", flush=True)
-                        await page.wait_for_timeout(2000)
-                        term_jobs = await adapter.get_jobs(company_name=company)
-                        for job in term_jobs:
-                            jobs_by_url[job.url] = job
-                        print(
-                            f"  [SEARCH] Found {len(term_jobs)} job listing(s) "
-                            f"for '{term}'.",
-                            flush=True,
-                        )
-                    jobs = list(jobs_by_url.values())
-                # If no jobs or adapter supports searching, try the top QA terms.
-                elif not jobs and hasattr(adapter, "search"):
-                    for term in QA_SEARCH_TERMS[:2]:  # Try top terms (e.g. 'QA', 'Quality Assurance')
-                        print(f"  [SEARCH] Searching for '{term}'...", flush=True)
-                        searched = await adapter.search(term)
-                        if not searched:
-                            print(
-                                f"  [SEARCH] Search field not available for '{term}'.",
-                                flush=True,
-                            )
-                            continue
-
-                        print(f"  [SEARCH] Search submitted for '{term}'.", flush=True)
-                        await page.wait_for_timeout(2000)
-                        jobs = await adapter.get_jobs(company_name=company)
-                        print(
-                            f"  [SEARCH] Found {len(jobs)} job listing(s) for '{term}'.",
-                            flush=True,
-                        )
-                        if jobs:
-                            break
-
-                source_new = 0
-                for item in jobs:
-                    if not is_qa_job_title(item.title):
-                        print(
-                            f"  [-] Skipping non-QA or untitled listing: "
-                            f"{item.title or item.url}",
-                            flush=True,
-                        )
-                        continue
-
-                    job_id = insert_discovered_job(
-                        pipeline="CAREER_PAGE",
-                        career_source_id=source["id"],
-                        source_url=item.url,
-                        title=item.title or None,
-                        company=company,
-                        location=item.location,
-                        external_id=item.external_id,
-                        published_date=item.published_date,
-                        raw_data=item.raw_data,
-                    )
-                    if job_id:
-                        source_new += 1
-                        new_jobs_count += 1
-                        print(f"  [+] Discovered: {item.title or 'Unknown'} -> {item.url}")
-
-                total_discovered += len(jobs)
-                mark_source_checked(source["id"], discovered_jobs=len(jobs))
-                print(
-                    f"  [OK] Checked. Found {len(jobs)} total ({source_new} new).",
-                    flush=True,
+                    for idx, source in enumerate(eligible_sources, start=1)
                 )
+            )
+        finally:
+            await browser.close()
 
-            except Exception as exc:
-                print(f"  [!] Failed to scan {company}: {exc}", flush=True)
-                mark_source_checked(source["id"], error=str(exc))
-
-        await browser.close()
+    total_discovered = sum(discovered for discovered, _ in results)
+    new_jobs_count = sum(new for _, new in results)
 
     print("\n" + "=" * 60)
     print("[SUMMARY] SCANNING METRICS")

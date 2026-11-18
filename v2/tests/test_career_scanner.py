@@ -33,12 +33,16 @@ class FakeBrowser:
 class FakePage:
     def __init__(self) -> None:
         self.url = "about:blank"
+        self.closed = False
 
     async def goto(self, *args, **kwargs) -> None:
         self.url = args[0]
 
     async def wait_for_timeout(self, _milliseconds: int) -> None:
         pass
+
+    async def close(self) -> None:
+        self.closed = True
 
 
 class FakePlaywrightContext:
@@ -57,6 +61,52 @@ class FakePlaywrightContext:
 
 
 class TestCareerScanner(unittest.TestCase):
+    def test_sources_are_scanned_concurrently_with_isolated_pages(self) -> None:
+        sources = [
+            {
+                "id": idx,
+                "company": f"Company {idx}",
+                "careers_url": f"https://example{idx}.com/careers",
+                "last_checked_at": None,
+            }
+            for idx in range(1, 7)
+        ]
+        active_scans = 0
+        peak_scans = 0
+
+        class TrackingAdapter:
+            async def wait_for_page_ready(self) -> None:
+                nonlocal active_scans, peak_scans
+                active_scans += 1
+                peak_scans = max(peak_scans, active_scans)
+                try:
+                    await asyncio.sleep(0.01)
+                finally:
+                    active_scans -= 1
+
+            async def get_jobs(self, company_name: str) -> list:
+                return []
+
+        playwright_context = FakePlaywrightContext()
+
+        with (
+            patch.object(scanner, "get_active_career_sources", return_value=sources),
+            patch.object(scanner, "async_playwright", return_value=playwright_context),
+            patch.object(
+                scanner,
+                "GenericAdapter",
+                side_effect=lambda _page: TrackingAdapter(),
+            ),
+            patch.object(scanner, "insert_discovered_job"),
+            patch.object(scanner, "mark_source_checked"),
+        ):
+            result = asyncio.run(scanner.run_scanner(platform="search_all"))
+
+        self.assertEqual(result, {"discovered": 0, "new": 0})
+        self.assertEqual(peak_scans, scanner.MAX_CONCURRENT_SCANS)
+        self.assertEqual(len(playwright_context.browser.pages), len(sources))
+        self.assertTrue(all(page.closed for page in playwright_context.browser.pages))
+
     def test_navigation_retries_transient_dns_failures(self) -> None:
         page = type("Page", (), {})()
         page.url = "https://example.com/careers"
@@ -276,10 +326,10 @@ class TestCareerScanner(unittest.TestCase):
 
         self.assertEqual(result, {"discovered": 0, "new": 0})
         self.assertEqual(
-            playwright_context.browser.pages[1].url,
+            playwright_context.browser.pages[0].url,
             "https://oportunidades.mindsight.com.br/en/supernova",
         )
-        self.assertEqual(playwright_context.browser.page_options[1], {"locale": "en-US"})
+        self.assertEqual(playwright_context.browser.page_options[0], {"locale": "en-US"})
 
     def test_conquestone_platform_only_scans_conquestone_sources(self) -> None:
         sources = [
