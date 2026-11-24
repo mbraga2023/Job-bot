@@ -5,6 +5,8 @@ from __future__ import annotations
 import asyncio
 import json
 import unittest
+from contextlib import redirect_stdout
+from io import StringIO
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -16,9 +18,236 @@ from v2.flows.careers.validator import (
     is_gupy_remote_work_model,
     run_validator,
 )
+from v2.flows.careers import validator
 
 
 class TestCareerValidatorTitleChecks(unittest.TestCase):
+    def run_validation(
+        self,
+        job: dict,
+        page_text: str = "",
+        *,
+        h1_text: str | None = None,
+        goto_error: Exception | None = None,
+        body_error: Exception | None = None,
+        decision: dict | None = None,
+    ):
+        body = MagicMock()
+        body.inner_text = AsyncMock(side_effect=body_error, return_value=page_text)
+        heading = MagicMock()
+        heading.first = heading
+        heading.is_visible = AsyncMock(return_value=h1_text is not None)
+        heading.inner_text = AsyncMock(return_value=h1_text or "")
+        page = MagicMock()
+        page.goto = AsyncMock(side_effect=goto_error)
+        page.locator.side_effect = lambda selector: body if selector == "body" else heading
+        browser = SimpleNamespace(
+            new_page=AsyncMock(return_value=page),
+            close=AsyncMock(),
+        )
+        playwright = SimpleNamespace(
+            chromium=SimpleNamespace(launch=AsyncMock(return_value=browser))
+        )
+        playwright_context = AsyncMock()
+        playwright_context.__aenter__.return_value = playwright
+
+        with (
+            patch.object(validator, "get_jobs_for_validation", return_value=[job]),
+            patch.object(validator, "async_playwright", return_value=playwright_context),
+            patch.object(
+                validator,
+                "classify_title_with_ollama",
+                new_callable=AsyncMock,
+                return_value=decision or {
+                    "is_qa_mid_level": True,
+                    "reason": "Accepted",
+                },
+            ) as classify,
+            patch.object(validator, "update_job_validation") as update,
+            patch.object(validator.asyncio, "sleep", new_callable=AsyncMock) as sleep,
+            patch.object(validator.random, "uniform", return_value=1.5),
+            redirect_stdout(StringIO()),
+        ):
+            asyncio.run(run_validator(limit=1))
+
+        return page, browser, classify, update, sleep
+
+    def test_empty_queue_does_not_start_playwright(self) -> None:
+        with (
+            patch.object(validator, "get_jobs_for_validation", return_value=[]),
+            patch.object(validator, "async_playwright") as start_browser,
+            redirect_stdout(StringIO()),
+        ):
+            asyncio.run(run_validator(limit=1))
+
+        start_browser.assert_not_called()
+
+    def test_known_title_rejected_by_ai_before_navigation(self) -> None:
+        page, browser, classify, update, _sleep = self.run_validation(
+            {
+                "id": 51,
+                "company": "Example",
+                "source_url": "https://example.com/careers/51",
+                "title": "QA Engineer Pleno",
+            },
+            decision={"is_qa_mid_level": False, "reason": "Not eligible"},
+        )
+
+        classify.assert_awaited_once_with("QA Engineer Pleno")
+        page.goto.assert_not_awaited()
+        browser.close.assert_awaited_once()
+        update.assert_called_once_with(
+            job_id=51,
+            status="DISCARDED",
+            discard_reason="LLM_REJECTED: Not eligible",
+            ai_status="PROCESSED",
+            ai_reason="Not eligible",
+        )
+
+    def test_navigation_failure_leaves_job_pending_and_closes_browser(self) -> None:
+        page, browser, _classify, update, _sleep = self.run_validation(
+            {
+                "id": 52,
+                "source_url": "https://example.com/careers/52",
+                "title": "",
+            },
+            goto_error=RuntimeError("navigation failed"),
+        )
+
+        page.goto.assert_awaited_once()
+        browser.close.assert_awaited_once()
+        update.assert_not_called()
+
+    def test_h1_title_is_classified_and_validated_with_extracted_details(self) -> None:
+        page_text = "About the role\nBuild tests with Playwright"
+        page, _browser, classify, update, sleep = self.run_validation(
+            {
+                "id": 53,
+                "company": "Example",
+                "source_url": "https://example.com/careers/53",
+                "title": "",
+            },
+            page_text,
+            h1_text="QA Engineer Pleno",
+        )
+
+        classify.assert_awaited_once_with("QA Engineer Pleno", job_details=None)
+        page.locator.assert_any_call("h1")
+        update.assert_called_once_with(
+            job_id=53,
+            status="VALIDATED",
+            title="QA Engineer Pleno",
+            location=None,
+            remote=None,
+            level=None,
+            contract=None,
+            application_url="https://example.com/careers/53",
+            application_source="CAREER_PAGE",
+            description=page_text,
+            technologies=["Playwright"],
+            requirements=None,
+            benefits=None,
+            published_date=None,
+            ai_status="PROCESSED",
+            ai_reason="Accepted",
+        )
+        sleep.assert_awaited_once_with(1.5)
+
+    def test_non_qa_extracted_title_is_discarded_without_classification(self) -> None:
+        _page, _browser, classify, update, _sleep = self.run_validation(
+            {
+                "id": 54,
+                "source_url": "https://example.com/careers/54",
+                "title": "",
+            },
+            "Position: Molder - Weekend Night Shift",
+        )
+
+        classify.assert_not_awaited()
+        update.assert_called_once_with(
+            job_id=54,
+            status="DISCARDED",
+            title="Molder - Weekend Night Shift",
+            discard_reason="TITLE_NOT_QA_ROLE",
+            ai_status="PROCESSED",
+            ai_reason="TITLE_NOT_QA_ROLE",
+        )
+
+    def test_stale_and_senior_jobs_are_discarded_after_classification(self) -> None:
+        cases = (
+            (
+                {
+                    "id": 55,
+                    "source_url": "https://example.com/careers/55",
+                    "title": "QA Engineer Pleno",
+                    "published_date": "2020-01-01",
+                },
+                "Job Title: QA Engineer Pleno",
+                "STALE_OVER_30_DAYS",
+            ),
+            (
+                {
+                    "id": 56,
+                    "source_url": "https://example.com/careers/56",
+                    "title": "QA Engineer Senior",
+                },
+                "Job Title: QA Engineer Senior",
+                "SENIORITY_SENIOR",
+            ),
+        )
+        for job, page_text, expected_reason in cases:
+            with self.subTest(reason=expected_reason):
+                _page, _browser, classify, update, sleep = self.run_validation(
+                    job,
+                    page_text,
+                )
+
+                classify.assert_awaited_once_with(job["title"])
+                self.assertEqual(update.call_args.kwargs["status"], "DISCARDED")
+                self.assertEqual(
+                    update.call_args.kwargs["discard_reason"],
+                    expected_reason,
+                )
+                sleep.assert_awaited_once()
+
+    def test_gupy_final_title_rejection_includes_extracted_context(self) -> None:
+        page_text = """# QA Engineer Pleno
+Modelo de trabalho: Remoto
+Requisitos e qualificações
+Experiência com testes
+"""
+        _page, _browser, classify, update, _sleep = self.run_validation(
+            {
+                "id": 57,
+                "source_url": "https://example.gupy.io/jobs/57",
+                "title": "",
+            },
+            page_text,
+            decision={"is_qa_mid_level": False, "reason": "Intern role"},
+        )
+
+        classify.assert_awaited_once()
+        title, = classify.await_args.args
+        self.assertEqual(title, "QA Engineer Pleno")
+        self.assertEqual(classify.await_args.kwargs["job_details"]["work_model"], "Remoto")
+        self.assertEqual(update.call_args.kwargs["discard_reason"], "LLM_REJECTED: Intern role")
+
+    def test_ollama_invalid_json_uses_rule_based_classification(self) -> None:
+        client = SimpleNamespace(
+            chat=AsyncMock(
+                return_value=SimpleNamespace(
+                    message=SimpleNamespace(content="not json")
+                )
+            )
+        )
+        with patch("ollama.AsyncClient", return_value=client), redirect_stdout(StringIO()):
+            decision = asyncio.run(
+                classify_title_with_ollama("QA Engineer Pleno")
+            )
+
+        self.assertTrue(decision["is_qa_mid_level"])
+        self.assertEqual(decision["reason"], "Matched QA mid-level")
+
     def test_extracts_and_normalizes_labeled_title(self) -> None:
         title = extract_labeled_job_title(
             "Company: Example\nJob Title:\n  QA Engineer - Pleno  \nLocation: Remote"

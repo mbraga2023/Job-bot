@@ -23,6 +23,7 @@ MODULES = (
         "name": "Core e configuração",
         "path": "v2/core/",
         "tests": (
+            "test_browser.py",
             "test_config.py",
             "test_database.py",
             "test_date_utils.py",
@@ -37,8 +38,10 @@ MODULES = (
         "path": "v2/flows/careers/",
         "tests": (
             "test_career_adapters.py",
+            "test_career_api_detector.py",
             "test_career_scanner.py",
             "test_career_validator.py",
+            "test_career_importer.py",
             "test_migration.py",
         ),
     },
