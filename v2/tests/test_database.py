@@ -11,6 +11,7 @@ from v2.core.database import (
     get_connection,
     get_career_sources,
     get_database_stats,
+    get_job_market_insights,
     get_non_qa_job_count,
     get_job_by_id,
     get_job_by_source_url,
@@ -249,6 +250,68 @@ class TestCentralizedDatabase(unittest.TestCase):
         self.assertEqual(stats["jobs_total"], 2)
         self.assertEqual(stats["jobs_by_pipeline"]["TELEGRAM"], 1)
         self.assertEqual(stats["jobs_by_pipeline"]["CAREER_PAGE"], 1)
+
+    def test_job_market_insights_aggregate_extracted_job_attributes(self):
+        first_id = insert_discovered_job(
+            pipeline="TELEGRAM",
+            source_url="https://example.com/jobs/1",
+            title=" QA Engineer ",
+            remote=1,
+            level="Mid-level",
+            contract="clt",
+        )
+        second_id = insert_discovered_job(
+            pipeline="CAREER_PAGE",
+            source_url="https://example.com/jobs/2",
+            title="qa   engineer",
+            remote=1,
+            level="Mid-level",
+            contract="CLT ✨ verificada por IA!",
+        )
+        insert_discovered_job(
+            pipeline="TELEGRAM",
+            source_url="https://example.com/jobs/3",
+            title="Test Analyst",
+            remote=0,
+            contract="PJ ✨ verificada por IA! ❤️ Candidatura simplificada linkedin!",
+        )
+        old_job_id = insert_discovered_job(
+            pipeline="TELEGRAM",
+            source_url="https://example.com/jobs/old",
+            title="Old QA Engineer",
+            remote=0,
+            level="Senior",
+            contract="Full-time",
+        )
+        with get_connection(self.db_path) as conn:
+            conn.execute(
+                "UPDATE jobs SET first_seen_at = datetime('now', '-31 days') WHERE id = ?",
+                (old_job_id,),
+            )
+            conn.commit()
+        update_job_validation(first_id, "VALIDATED", technologies=["Python", "python", "Playwright"])
+        update_job_validation(second_id, "VALIDATED", technologies=["Python", "SQL"])
+
+        insights = get_job_market_insights()
+
+        self.assertEqual(insights["total_jobs"], 3)
+        self.assertEqual(insights["remote_jobs"], 2)
+        self.assertEqual(insights["remote_percent"], 66.7)
+        self.assertEqual(insights["titles_count"], 2)
+        self.assertEqual(insights["jobs_with_skills"], 2)
+        self.assertEqual(insights["top_skills"], [
+            {"name": "Python", "count": 2, "percent": 66.7},
+            {"name": "Playwright", "count": 1, "percent": 33.3},
+            {"name": "SQL", "count": 1, "percent": 33.3},
+        ])
+        self.assertEqual(insights["top_titles"][0], {"name": "QA Engineer", "count": 2})
+        self.assertEqual(insights["levels"], [{"name": "Mid-level", "count": 2}])
+        self.assertEqual(insights["contracts"], [
+            {"name": "CLT", "count": 2},
+            {"name": "PJ", "count": 1},
+        ])
+        self.assertEqual(insights["period_days"], 30)
+        self.assertEqual(get_job_market_insights(None)["total_jobs"], 4)
 
     def test_delete_non_qa_jobs_preserves_qa_and_requires_current_preview(self):
         qa_job_id = insert_discovered_job(

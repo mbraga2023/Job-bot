@@ -230,6 +230,15 @@ SCENARIO_CATALOG = {
     ),
     "dashboard": (
         {
+            "id": "jobs-market-insights",
+            "name": "Estatísticas de vagas na página Jobs Info",
+            "test_cases": (
+                "test_database.py::test_job_market_insights_aggregate_extracted_job_attributes",
+                "test_dashboard.py::test_jobs_info_page_shows_market_statistics_and_navigation",
+                "test_dashboard.py::test_jobs_info_endpoint_returns_database_insights",
+            ),
+        },
+        {
             "id": "live-insights-page",
             "name": "Página de insights usa dados reais",
             "test_cases": ("test_dashboard.py::test_test_insights_page_uses_real_repository_data",),

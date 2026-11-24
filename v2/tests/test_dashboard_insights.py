@@ -136,6 +136,12 @@ class TestRepositoryInsights(unittest.TestCase):
         self.assertEqual(data["modules"][0]["risk_weight_raw"], 6)
         self.assertEqual(data["modules"][0]["risk_weight"], 0.666667)
         self.assertEqual(data["coverage_percent"], 88.9)
+        dashboard = next(module for module in data["modules"] if module["id"] == "dashboard")
+        jobs_info = next(
+            scenario for scenario in dashboard["scenarios"]
+            if scenario["id"] == "jobs-market-insights"
+        )
+        self.assertEqual(jobs_info["status"], "covered")
         self.assertEqual(sum(module["risk_weight"] for module in data["modules"]), 1.0)
         self.assertNotIn("mapped GitHub defect history", data["missing_risk_inputs"])
 

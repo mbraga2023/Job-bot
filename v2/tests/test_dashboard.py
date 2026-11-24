@@ -138,6 +138,57 @@ class TestDashboardCommandLogs(unittest.TestCase):
         self.assertIn('id="add-company-form"', server.COMPANIES_PAGE_HTML)
         self.assertIn('fetch("/api/companies")', server.COMPANIES_PAGE_HTML)
 
+    def test_jobs_info_page_shows_market_statistics_and_navigation(self) -> None:
+        page = server.JOBS_INFO_PAGE_HTML
+        self.assertIn('href="/jobs-info" class="active" aria-current="page">Jobs Info</a>', page)
+        self.assertLess(page.index('href="/companies"'), page.index('href="/jobs-info"'))
+        self.assertLess(page.index('href="/jobs-info"'), page.index('href="/test-insights"'))
+        self.assertIn("Top 10 most wanted skills", page)
+        self.assertIn("skills-denominator", page)
+        self.assertIn("entry.percent", page)
+        self.assertIn('id="period-filter"', page)
+        self.assertIn("Last 30 days", page)
+        self.assertIn("All time", page)
+        self.assertIn("Top 5 most common job titles", page)
+        self.assertIn("Positions by level", page)
+        self.assertIn("Positions by contract", page)
+        self.assertIn(
+            'fetch("/api/jobs-info?period=" + encodeURIComponent(period))',
+            page,
+        )
+
+    def test_jobs_info_endpoint_returns_database_insights(self) -> None:
+        httpd = ThreadingHTTPServer(("127.0.0.1", 0), server.DashboardHandler)
+        thread = Thread(target=httpd.serve_forever, daemon=True)
+        thread.start()
+        self.addCleanup(httpd.server_close)
+        self.addCleanup(httpd.shutdown)
+        payload = {"total_jobs": 3, "remote_percent": 66.7, "top_skills": []}
+
+        with patch.object(server, "get_job_market_insights", return_value=payload) as get_insights:
+            with urlopen(f"http://127.0.0.1:{httpd.server_port}/api/jobs-info?period=30") as response:
+                self.assertEqual(response.status, 200)
+                self.assertEqual(json.load(response), payload)
+
+        get_insights.assert_called_once_with(30)
+
+    def test_jobs_info_endpoint_accepts_all_time_and_rejects_unknown_period(self) -> None:
+        httpd = ThreadingHTTPServer(("127.0.0.1", 0), server.DashboardHandler)
+        thread = Thread(target=httpd.serve_forever, daemon=True)
+        thread.start()
+        self.addCleanup(httpd.server_close)
+        self.addCleanup(httpd.shutdown)
+
+        with patch.object(server, "get_job_market_insights", return_value={"period_days": None}) as get_insights:
+            with urlopen(f"http://127.0.0.1:{httpd.server_port}/api/jobs-info?period=all") as response:
+                self.assertEqual(json.load(response), {"period_days": None})
+        get_insights.assert_called_once_with(None)
+
+        with self.assertRaises(HTTPError) as error:
+            urlopen(f"http://127.0.0.1:{httpd.server_port}/api/jobs-info?period=90")
+        self.assertEqual(error.exception.code, 400)
+        self.assertEqual(json.load(error.exception), {"error": "Period must be 30 days or all time."})
+
     def test_test_insights_page_uses_real_repository_data(self) -> None:
         page = server.TEST_INSIGHTS_PAGE_HTML
         self.assertIn('href="/test-insights" class="active" aria-current="page">Test Insights</a>', page)
@@ -253,7 +304,12 @@ class TestDashboardCommandLogs(unittest.TestCase):
         self.assertEqual(json.load(error.exception), {"error": "Period must be 7, 30, or 90 days."})
 
     def test_pages_use_shared_stylesheet_and_header_component(self) -> None:
-        for page in (server.PAGE_HTML, server.COMPANIES_PAGE_HTML, server.TEST_INSIGHTS_PAGE_HTML):
+        for page in (
+            server.PAGE_HTML,
+            server.COMPANIES_PAGE_HTML,
+            server.JOBS_INFO_PAGE_HTML,
+            server.TEST_INSIGHTS_PAGE_HTML,
+        ):
             self.assertIn('href="/style/dashboard.css"', page)
             self.assertNotIn("<style>", page)
             self.assertIn('class="site-header"', page)

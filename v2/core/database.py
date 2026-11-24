@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 from contextlib import contextmanager
 from datetime import datetime, timezone
@@ -574,3 +575,117 @@ def get_database_stats() -> dict[str, Any]:
             "jobs_by_status": by_status,
             "jobs_by_discard_reason": by_discard,
         }
+
+
+def _normalize_contract(value: str) -> str:
+    """Remove extraction annotations and standardize common contract labels."""
+    normalized = re.sub(
+        r"(?:\s*(?:\u2728\s*verificada\s+por\s+ia!?|\u2764\ufe0f?\s*"
+        r"candidatura\s+simplificada\s+linkedin!?))+\s*$",
+        "",
+        value.strip(),
+        flags=re.IGNORECASE,
+    )
+    normalized = " ".join(normalized.split())
+    canonical_labels = {
+        "clt": "CLT",
+        "pj": "PJ",
+        "meio período": "Meio período",
+        "estágio": "Estágio",
+        "freelancer": "Freelancer",
+    }
+    return canonical_labels.get(normalized.casefold(), normalized)
+
+
+def get_job_market_insights(days: int | None = 30) -> dict[str, Any]:
+    """Aggregate job attributes for Jobs Info, optionally limited by first-seen date."""
+    if days is not None and days < 1:
+        raise ValueError("Period must be a positive number of days or None.")
+
+    init_db()
+    with get_connection() as conn:
+        query = """
+            SELECT title, remote, level, contract, technologies
+            FROM jobs
+        """
+        parameters: tuple[str, ...] = ()
+        if days is not None:
+            query += " WHERE datetime(first_seen_at) >= datetime('now', ?)"
+            parameters = (f"-{days} days",)
+        query += " ORDER BY id"
+        rows = conn.execute(query, parameters).fetchall()
+
+    total_jobs = len(rows)
+    remote_jobs = 0
+    title_counts: dict[str, list[Any]] = {}
+    level_counts: dict[str, list[Any]] = {}
+    contract_counts: dict[str, list[Any]] = {}
+    skill_counts: dict[str, list[Any]] = {}
+    jobs_with_skills = 0
+
+    for row in rows:
+        remote_jobs += int(row["remote"] == 1)
+
+        title = (row["title"] or "").strip()
+        if title:
+            title_key = " ".join(title.split()).casefold()
+            if title_key not in title_counts:
+                title_counts[title_key] = [" ".join(title.split()), 0]
+            title_counts[title_key][1] += 1
+
+        for field, counts in (("level", level_counts), ("contract", contract_counts)):
+            value = (row[field] or "").strip()
+            if field == "contract" and value:
+                value = _normalize_contract(value)
+            if value:
+                key = " ".join(value.split()).casefold()
+                if key not in counts:
+                    counts[key] = [" ".join(value.split()), 0]
+                counts[key][1] += 1
+
+        technologies = row["technologies"]
+        if technologies:
+            try:
+                parsed = json.loads(technologies)
+            except (TypeError, json.JSONDecodeError):
+                parsed = [part.strip() for part in technologies.split(",")]
+            if isinstance(parsed, list):
+                job_skills = {}
+                for skill in parsed:
+                    if not isinstance(skill, str) or not skill.strip():
+                        continue
+                    normalized = " ".join(skill.split()).strip()
+                    job_skills.setdefault(normalized.casefold(), normalized)
+                if job_skills:
+                    jobs_with_skills += 1
+                for key, skill in job_skills.items():
+                    if key not in skill_counts:
+                        skill_counts[key] = [skill, 0]
+                    skill_counts[key][1] += 1
+
+    def ranked(counts: dict[str, list[Any]], limit: int) -> list[dict[str, Any]]:
+        return [
+            {"name": name, "count": count}
+            for name, count in sorted(
+                counts.values(),
+                key=lambda item: (-item[1], item[0].casefold()),
+            )[:limit]
+        ]
+
+    top_skills = ranked(skill_counts, 10)
+    for skill in top_skills:
+        skill["percent"] = round(skill["count"] / total_jobs * 100, 1)
+
+    return {
+        "total_jobs": total_jobs,
+        "remote_jobs": remote_jobs,
+        "remote_percent": round(remote_jobs / total_jobs * 100, 1) if total_jobs else 0,
+        "titles_count": len(title_counts),
+        "skills_count": len(skill_counts),
+        "jobs_with_skills": jobs_with_skills,
+        "period_days": days,
+        "top_skills": top_skills,
+        "top_titles": ranked(title_counts, 5),
+        "levels": ranked(level_counts, len(level_counts)),
+        "contracts": ranked(contract_counts, len(contract_counts)),
+    }

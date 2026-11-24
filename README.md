@@ -85,6 +85,11 @@ listener is `ollama` before stopping it. Browser settings may prevent the
 dashboard tab from closing automatically; if so, close it manually.
 The **Connect to Recruiters** button is reserved for a future workflow.
 
+The **Jobs Info** tab summarizes stored job postings, including the most
+frequently extracted skills and job titles, remote-position share, levels, and
+contract types. These statistics are based on the jobs currently in the
+database.
+
 The **Test Insights** tab (`/test-insights`) uses the repository's Git history
 to display recent code changes by area and lists existing related v2 test
 files. These are change-activity indicators, not defect probabilities.

@@ -21,6 +21,7 @@ from v2.core.database import (
     delete_non_qa_jobs,
     get_career_sources,
     get_database_stats,
+    get_job_market_insights,
     get_non_qa_job_count,
     insert_career_source,
     set_career_source_active,
@@ -28,6 +29,7 @@ from v2.core.database import (
 )
 from v2.dashboard.pages.companies import PAGE_HTML as COMPANIES_PAGE_HTML
 from v2.dashboard.pages.dashboard import PAGE_HTML as DASHBOARD_PAGE_HTML
+from v2.dashboard.pages.jobs_info import PAGE_HTML as JOBS_INFO_PAGE_HTML
 from v2.dashboard.pages.test_insights import PAGE_HTML as TEST_INSIGHTS_PAGE_HTML
 from v2.dashboard.insights import (
     get_coverage_analysis,
@@ -361,6 +363,13 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self.wfile.write(COMPANIES_PAGE_HTML.encode("utf-8"))
             return
 
+        if parsed.path == "/jobs-info":
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.end_headers()
+            self.wfile.write(JOBS_INFO_PAGE_HTML.encode("utf-8"))
+            return
+
         if parsed.path == "/test-insights":
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
@@ -388,6 +397,18 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self.send_header("Content-Type", "application/json")
             self.end_headers()
             self.wfile.write(json.dumps(stats).encode("utf-8"))
+            return
+
+        if parsed.path == "/api/jobs-info":
+            period = parse_qs(parsed.query).get("period", ["30"])[0]
+            if period == "all":
+                days = None
+            elif period == "30":
+                days = 30
+            else:
+                self._send_json(400, {"error": "Period must be 30 days or all time."})
+                return
+            self._send_json(200, get_job_market_insights(days))
             return
 
         if parsed.path == "/api/test-insights":
