@@ -256,6 +256,7 @@ class TestCentralizedDatabase(unittest.TestCase):
             pipeline="TELEGRAM",
             source_url="https://example.com/jobs/1",
             title=" QA Engineer ",
+            company="Acme Labs",
             remote=1,
             level="Mid-level",
             contract="clt",
@@ -264,6 +265,7 @@ class TestCentralizedDatabase(unittest.TestCase):
             pipeline="CAREER_PAGE",
             source_url="https://example.com/jobs/2",
             title="qa   engineer",
+            company="  acme   labs ",
             remote=1,
             level="Mid-level",
             contract="CLT ✨ verificada por IA!",
@@ -272,6 +274,7 @@ class TestCentralizedDatabase(unittest.TestCase):
             pipeline="TELEGRAM",
             source_url="https://example.com/jobs/3",
             title="Test Analyst",
+            company="Beta Inc",
             remote=0,
             contract="PJ ✨ verificada por IA! ❤️ Candidatura simplificada linkedin!",
         )
@@ -306,6 +309,28 @@ class TestCentralizedDatabase(unittest.TestCase):
         ])
         self.assertEqual(insights["top_titles"][0], {"name": "QA Engineer", "count": 2})
         self.assertEqual(insights["levels"], [{"name": "Mid-level", "count": 2}])
+        self.assertEqual(insights["skills_by_level"], [{
+            "name": "Mid-level",
+            "count": 2,
+            "skills": [
+                {"name": "Python", "count": 2, "percent": 100.0},
+                {"name": "Playwright", "count": 1, "percent": 50.0},
+                {"name": "SQL", "count": 1, "percent": 50.0},
+            ],
+        }])
+        self.assertEqual(insights["top_companies"], [
+            {
+                "name": "Acme Labs",
+                "count": 2,
+                "percent": 66.7,
+                "skills": [
+                    {"name": "Python", "count": 2, "percent": 100.0},
+                    {"name": "Playwright", "count": 1, "percent": 50.0},
+                    {"name": "SQL", "count": 1, "percent": 50.0},
+                ],
+            },
+            {"name": "Beta Inc", "count": 1, "percent": 33.3, "skills": []},
+        ])
         self.assertEqual(insights["contracts"], [
             {"name": "CLT", "count": 2},
             {"name": "PJ", "count": 1},

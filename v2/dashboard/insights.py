@@ -1104,6 +1104,152 @@ def _bound_ai_commentary(commentary: str) -> tuple[str, bool]:
     return f"{shortened}…", True
 
 
+def analyze_job_market_with_ollama(market_data: dict[str, Any]) -> dict[str, Any]:
+    """Summarize extracted job-market skill patterns with the local Ollama model."""
+    total_jobs = market_data.get("total_jobs", 0)
+    if not total_jobs:
+        return {
+            "status": "unavailable",
+            "model": config.ollama_model,
+            "reason": "No job postings are available for this period.",
+        }
+
+    context = {
+        "period_days": market_data.get("period_days"),
+        "total_postings": total_jobs,
+        "postings_with_extracted_skills": market_data.get("jobs_with_skills", 0),
+        "overall_top_skills": market_data.get("top_skills", []),
+        "skills_by_stored_seniority_level": market_data.get("skills_by_level", []),
+        "top_5_companies_by_postings_and_their_skills": market_data.get(
+            "top_companies", []
+        ),
+    }
+    data_limitations = None
+    missing_skill_count = total_jobs - context["postings_with_extracted_skills"]
+    if missing_skill_count > 0:
+        data_limitations = (
+            f"{missing_skill_count} postings have no extracted skills; "
+            "skill comparisons cover only postings with extracted skills."
+        )
+
+    try:
+        import ollama
+    except ImportError as exc:
+        return {
+            "status": "unavailable",
+            "model": config.ollama_model,
+            "reason": f"Ollama Python client unavailable: {exc}",
+            "data_limitations": data_limitations,
+        }
+
+    def request_plain_commentary(client: Any) -> str:
+        response = client.chat(
+            model=config.ollama_model,
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "Analyze only the supplied job-posting aggregates. In Portuguese, "
+                        "briefly compare the most requested skills by stored seniority and "
+                        "the top companies and their skills. Use at most 250 characters. "
+                        "Do not infer missing skills, seniority, causation, or market-wide "
+                        "demand. Mention that findings describe only this collected sample. "
+                        "Return plain text only."
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": (
+                        "Summarize the main observed patterns from these data:\n"
+                        f"{json.dumps(context, ensure_ascii=False)}"
+                    ),
+                },
+            ],
+            options={"temperature": 0, "num_predict": 100},
+        )
+        commentary = response.message.content
+        if not isinstance(commentary, str) or not commentary.strip():
+            raise ValueError("Ollama returned an empty job-market commentary.")
+        return commentary.strip()
+
+    try:
+        client = ollama.Client(timeout=60)
+        response = client.chat(
+            model=config.ollama_model,
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are a cautious job-market data analyst. Analyze only the "
+                        "provided collected-posting aggregates. Return a brief 1-3 sentence "
+                        "commentary in Portuguese, no more than "
+                        f"{MAX_AI_COMMENTARY_CHARACTERS} characters. Compare which skills "
+                        "appear most often at each stored seniority level, then relate the "
+                        "top companies by posting count to their extracted skills. Use the "
+                        "counts and percentages accurately. Do not infer missing skills, "
+                        "seniority, causation, or market-wide demand; describe this as a "
+                        "sample of collected postings."
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": (
+                        "Return only a JSON object with one non-empty string field named "
+                        "commentary. Base the analysis on this evidence:\n"
+                        f"{json.dumps(context, ensure_ascii=False)}"
+                    ),
+                },
+            ],
+            format={
+                "type": "object",
+                "properties": {
+                    "commentary": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": MAX_AI_COMMENTARY_CHARACTERS,
+                    },
+                },
+                "required": ["commentary"],
+                "additionalProperties": False,
+            },
+            options={"temperature": 0, "num_predict": 128},
+        )
+        content = response.message.content
+        if not isinstance(content, str) or not content.strip():
+            raise ValueError("Ollama returned an empty job-market analysis.")
+        try:
+            result = json.loads(content)
+        except json.JSONDecodeError:
+            commentary = request_plain_commentary(client)
+        else:
+            commentary = result.get("commentary") if isinstance(result, dict) else None
+            if not isinstance(commentary, str) or not commentary.strip():
+                commentary = request_plain_commentary(client)
+        commentary, truncated = _bound_ai_commentary(commentary.strip())
+        if truncated:
+            notice = "The AI commentary was shortened to fit the display limit."
+            data_limitations = f"{data_limitations} {notice}" if data_limitations else notice
+        return {
+            "status": "available",
+            "model": config.ollama_model,
+            "commentary": commentary,
+            "data_limitations": data_limitations,
+        }
+    except (
+        ollama.RequestError,
+        ollama.ResponseError,
+        OSError,
+        TimeoutError,
+        ValueError,
+    ) as exc:
+        return {
+            "status": "unavailable",
+            "model": config.ollama_model,
+            "reason": f"Local Ollama analysis unavailable: {exc}",
+            "data_limitations": data_limitations,
+        }
+
+
 def analyze_test_risk_with_ollama(
     scenario_coverage: dict[str, Any],
     flows: list[dict[str, Any]],

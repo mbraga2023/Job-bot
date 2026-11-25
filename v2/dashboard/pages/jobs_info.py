@@ -37,6 +37,17 @@ PAGE_HTML = """<!doctype html>
       <article class="stat-card"><div class="label">Skills found</div><div id="skills-count" class="value">—</div></article>
     </section>
     <p id="market-scope-note" class="market-note">Statistics use jobs first collected in the selected period.</p>
+    <article class="panel market-ai-panel" aria-labelledby="market-ai-title">
+      <div class="market-ai-heading">
+        <div>
+          <p class="eyebrow">AI MARKET ANALYSIS · LOCAL OLLAMA</p>
+          <h2 id="market-ai-title">Seniority, skills, and company demand</h2>
+        </div>
+        <strong id="market-ai-value">Waiting for analysis</strong>
+      </div>
+      <small id="market-ai-details">Analysis uses extracted data from the selected period.</small>
+      <div id="market-ai-content" class="market-ai-content" aria-live="polite"></div>
+    </article>
     <section class="market-grid">
       <article class="panel market-list-panel">
         <h2>Top 10 most wanted skills</h2>
@@ -50,6 +61,16 @@ PAGE_HTML = """<!doctype html>
       <article class="panel market-list-panel">
         <h2>Positions by level</h2>
         <ol id="levels" class="market-list"><li class="empty">Loading...</li></ol>
+      </article>
+      <article class="panel market-list-panel">
+        <h2>Top skills by seniority level</h2>
+        <p class="market-card-note">Percentages use postings with that stored level as the denominator.</p>
+        <ol id="skills-by-level" class="market-list"><li class="empty">Loading...</li></ol>
+      </article>
+      <article class="panel market-list-panel">
+        <h2>Top 5 companies by openings</h2>
+        <p class="market-card-note">Company percentages use all postings; skill percentages use each company's postings.</p>
+        <ol id="top-companies" class="market-list"><li class="empty">Loading...</li></ol>
       </article>
       <article class="panel market-list-panel">
         <h2>Positions by contract</h2>
@@ -92,10 +113,133 @@ PAGE_HTML = """<!doctype html>
       }
     }
 
+    function renderSkillsByLevel(entries) {
+      const list = document.getElementById("skills-by-level");
+      list.replaceChildren();
+      if (!entries.length) {
+        const empty = document.createElement("li");
+        empty.className = "empty";
+        empty.textContent = "No seniority-level data available.";
+        list.appendChild(empty);
+        return;
+      }
+
+      for (const entry of entries) {
+        const item = document.createElement("li");
+        item.className = "market-list-item";
+        const label = document.createElement("div");
+        label.className = "market-list-label";
+        const name = document.createElement("span");
+        name.textContent = entry.name;
+        const count = document.createElement("strong");
+        count.textContent = entry.count.toLocaleString() + " postings";
+        label.append(name, count);
+        const skills = document.createElement("p");
+        skills.className = "market-cross-skills";
+        skills.textContent = entry.skills.length
+          ? "Most common: " + entry.skills.map(skill =>
+            `${skill.name} (${skill.percent}%)`
+          ).join(", ")
+          : "No extracted skills for these postings.";
+        item.append(label, skills);
+        list.appendChild(item);
+      }
+    }
+
+    function renderTopCompanies(entries) {
+      const list = document.getElementById("top-companies");
+      list.replaceChildren();
+      if (!entries.length) {
+        const empty = document.createElement("li");
+        empty.className = "empty";
+        empty.textContent = "No company data available.";
+        list.appendChild(empty);
+        return;
+      }
+
+      const maxCount = entries[0].count;
+      for (const entry of entries) {
+        const item = document.createElement("li");
+        item.className = "market-list-item";
+        const label = document.createElement("div");
+        label.className = "market-list-label";
+        const name = document.createElement("span");
+        name.textContent = entry.name;
+        const count = document.createElement("strong");
+        count.textContent = entry.count.toLocaleString() + " (" + entry.percent + "%)";
+        label.append(name, count);
+        const bar = document.createElement("div");
+        bar.className = "market-bar";
+        const fill = document.createElement("span");
+        fill.style.width = (entry.count / maxCount * 100) + "%";
+        bar.appendChild(fill);
+        const skills = document.createElement("p");
+        skills.className = "market-cross-skills";
+        skills.textContent = entry.skills.length
+          ? "Most common skills: " + entry.skills.map(skill =>
+            `${skill.name} (${skill.percent}%)`
+          ).join(", ")
+          : "No skills extracted for these postings.";
+        item.append(label, bar, skills);
+        list.appendChild(item);
+      }
+    }
+
+    function renderMarketAiAnalysis(analysis) {
+      const value = document.getElementById("market-ai-value");
+      const details = document.getElementById("market-ai-details");
+      const content = document.getElementById("market-ai-content");
+      content.replaceChildren();
+      details.textContent = analysis.model
+        ? analysis.model + " · local Ollama · qualitative sample analysis"
+        : "Analysis uses extracted data from the selected period.";
+      if (analysis.status !== "available") {
+        value.textContent = "Unavailable";
+        const message = document.createElement("p");
+        message.className = "market-ai-commentary";
+        message.textContent = analysis.reason || "Ollama did not return an analysis.";
+        content.appendChild(message);
+      } else {
+        value.textContent = "Analysis ready";
+        const label = document.createElement("strong");
+        label.className = "market-ai-label";
+        label.textContent = "AI commentary on the selected postings";
+        const commentary = document.createElement("p");
+        commentary.className = "market-ai-commentary";
+        commentary.textContent = analysis.commentary;
+        content.append(label, commentary);
+      }
+      if (analysis.data_limitations) {
+        const limitations = document.createElement("p");
+        limitations.className = "market-ai-limitations";
+        limitations.textContent = "Data limitation: " + analysis.data_limitations;
+        content.appendChild(limitations);
+      }
+    }
+
+    function renderMarketAiLoading() {
+      document.getElementById("market-ai-value").textContent = "AI is thinking…";
+      document.getElementById("market-ai-details").textContent =
+        "Local Ollama is cross-referencing the selected job data.";
+      const content = document.getElementById("market-ai-content");
+      content.replaceChildren();
+      const loading = document.createElement("div");
+      loading.className = "market-ai-loading";
+      const spinner = document.createElement("span");
+      spinner.className = "market-ai-spinner";
+      spinner.setAttribute("role", "status");
+      spinner.setAttribute("aria-label", "AI analysis in progress");
+      const message = document.createElement("span");
+      message.textContent = "Analyzing seniority, skills, and company demand…";
+      loading.append(spinner, message);
+      content.appendChild(loading);
+    }
+
     async function loadJobsInfo() {
       const status = document.getElementById("jobs-info-status");
       status.textContent = "Loading job statistics...";
       status.className = "message";
+      renderMarketAiLoading();
       try {
         const period = document.getElementById("period-filter").value;
         const response = await fetch("/api/jobs-info?period=" + encodeURIComponent(period));
@@ -117,11 +261,18 @@ PAGE_HTML = """<!doctype html>
         renderRankedList("top-titles", result.top_titles);
         renderRankedList("levels", result.levels);
         renderRankedList("contracts", result.contracts);
+        renderSkillsByLevel(result.skills_by_level);
+        renderTopCompanies(result.top_companies);
+        renderMarketAiAnalysis(result.ai_market_analysis);
         status.textContent = result.jobs_with_skills.toLocaleString() +
           " postings collected " + periodLabel + " have extracted skills.";
       } catch (error) {
         status.textContent = error.message || "Could not load job statistics.";
         status.className = "message error";
+        renderMarketAiAnalysis({
+          status: "unavailable",
+          reason: error.message || "Could not load job-market analysis.",
+        });
       }
     }
 

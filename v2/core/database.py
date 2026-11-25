@@ -605,7 +605,7 @@ def get_job_market_insights(days: int | None = 30) -> dict[str, Any]:
     init_db()
     with get_connection() as conn:
         query = """
-            SELECT title, remote, level, contract, technologies
+            SELECT title, company, remote, level, contract, technologies
             FROM jobs
         """
         parameters: tuple[str, ...] = ()
@@ -621,10 +621,19 @@ def get_job_market_insights(days: int | None = 30) -> dict[str, Any]:
     level_counts: dict[str, list[Any]] = {}
     contract_counts: dict[str, list[Any]] = {}
     skill_counts: dict[str, list[Any]] = {}
+    level_skill_counts: dict[str, dict[str, list[Any]]] = {}
+    company_counts: dict[str, list[Any]] = {}
+    company_skill_counts: dict[str, dict[str, list[Any]]] = {}
     jobs_with_skills = 0
 
     for row in rows:
         remote_jobs += int(row["remote"] == 1)
+        company = " ".join((row["company"] or "").split()).strip()
+        company_key = company.casefold()
+        if company:
+            if company_key not in company_counts:
+                company_counts[company_key] = [company, 0]
+            company_counts[company_key][1] += 1
 
         title = (row["title"] or "").strip()
         if title:
@@ -633,24 +642,28 @@ def get_job_market_insights(days: int | None = 30) -> dict[str, Any]:
                 title_counts[title_key] = [" ".join(title.split()), 0]
             title_counts[title_key][1] += 1
 
+        level_key = ""
         for field, counts in (("level", level_counts), ("contract", contract_counts)):
             value = (row[field] or "").strip()
             if field == "contract" and value:
                 value = _normalize_contract(value)
             if value:
-                key = " ".join(value.split()).casefold()
+                value = " ".join(value.split())
+                key = value.casefold()
                 if key not in counts:
-                    counts[key] = [" ".join(value.split()), 0]
+                    counts[key] = [value, 0]
                 counts[key][1] += 1
+                if field == "level":
+                    level_key = key
 
         technologies = row["technologies"]
+        job_skills: dict[str, str] = {}
         if technologies:
             try:
                 parsed = json.loads(technologies)
             except (TypeError, json.JSONDecodeError):
                 parsed = [part.strip() for part in technologies.split(",")]
             if isinstance(parsed, list):
-                job_skills = {}
                 for skill in parsed:
                     if not isinstance(skill, str) or not skill.strip():
                         continue
@@ -662,6 +675,16 @@ def get_job_market_insights(days: int | None = 30) -> dict[str, Any]:
                     if key not in skill_counts:
                         skill_counts[key] = [skill, 0]
                     skill_counts[key][1] += 1
+                    if level_key:
+                        level_skills = level_skill_counts.setdefault(level_key, {})
+                        if key not in level_skills:
+                            level_skills[key] = [skill, 0]
+                        level_skills[key][1] += 1
+                    if company_key:
+                        company_skills = company_skill_counts.setdefault(company_key, {})
+                        if key not in company_skills:
+                            company_skills[key] = [skill, 0]
+                        company_skills[key][1] += 1
 
     def ranked(counts: dict[str, list[Any]], limit: int) -> list[dict[str, Any]]:
         return [
@@ -672,9 +695,48 @@ def get_job_market_insights(days: int | None = 30) -> dict[str, Any]:
             )[:limit]
         ]
 
+    def ranked_skills(
+        counts: dict[str, list[Any]],
+        denominator: int,
+        limit: int = 5,
+    ) -> list[dict[str, Any]]:
+        return [
+            {
+                **skill,
+                "percent": round(skill["count"] / denominator * 100, 1)
+                if denominator else 0,
+            }
+            for skill in ranked(counts, limit)
+        ]
+
     top_skills = ranked(skill_counts, 10)
     for skill in top_skills:
         skill["percent"] = round(skill["count"] / total_jobs * 100, 1)
+    skills_by_level = []
+    for level in ranked(level_counts, len(level_counts)):
+        level_key = level["name"].casefold()
+        skills_by_level.append({
+            **level,
+            "skills": ranked_skills(
+                level_skill_counts.get(level_key, {}),
+                level["count"],
+            ),
+        })
+    top_companies = []
+    for company_key in sorted(
+        company_counts,
+        key=lambda key: (-company_counts[key][1], company_counts[key][0].casefold()),
+    )[:5]:
+        name, count = company_counts[company_key]
+        top_companies.append({
+            "name": name,
+            "count": count,
+            "percent": round(count / total_jobs * 100, 1) if total_jobs else 0,
+            "skills": ranked_skills(
+                company_skill_counts.get(company_key, {}),
+                count,
+            ),
+        })
 
     return {
         "total_jobs": total_jobs,
@@ -687,5 +749,7 @@ def get_job_market_insights(days: int | None = 30) -> dict[str, Any]:
         "top_skills": top_skills,
         "top_titles": ranked(title_counts, 5),
         "levels": ranked(level_counts, len(level_counts)),
+        "skills_by_level": skills_by_level,
+        "top_companies": top_companies,
         "contracts": ranked(contract_counts, len(contract_counts)),
     }

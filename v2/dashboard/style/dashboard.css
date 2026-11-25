@@ -227,6 +227,101 @@ main {
   font-size: 13px;
 }
 
+.market-ai-panel {
+  margin: 0 0 18px;
+}
+
+.market-ai-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.market-ai-heading .eyebrow {
+  margin: 0 0 5px;
+  color: #82a9d8;
+  font-size: 9px;
+  letter-spacing: 0.8px;
+}
+
+.market-ai-heading h2 {
+  margin: 0;
+  color: #e9f1fc;
+  font-size: 17px;
+}
+
+.market-ai-heading > strong {
+  color: #8bc5ef;
+  font-size: 11px;
+}
+
+.market-ai-panel > small {
+  display: block;
+  margin-top: 7px;
+  color: #849ab7;
+  font-size: 9px;
+}
+
+.market-ai-content {
+  display: grid;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.market-ai-loading {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 22px;
+  color: #cbd5e1;
+  font-size: 11px;
+}
+
+.market-ai-spinner {
+  display: block;
+  width: 17px;
+  height: 17px;
+  flex: 0 0 17px;
+  border: 2px solid #28415f;
+  border-top-color: #60a5fa;
+  border-radius: 50%;
+  animation: market-ai-spin 0.8s linear infinite;
+}
+
+@keyframes market-ai-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .market-ai-spinner {
+    animation: none;
+  }
+}
+
+.market-ai-label {
+  color: #8bc5ef;
+  font-size: 10px;
+}
+
+.market-ai-commentary,
+.market-ai-limitations {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.market-ai-commentary {
+  color: #e0ecfa;
+  font-size: 12px;
+}
+
+.market-ai-limitations {
+  color: #849ab7;
+  font-size: 9px;
+}
+
 .market-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -254,6 +349,13 @@ main {
 
 .market-list-item {
   min-width: 0;
+}
+
+.market-cross-skills {
+  margin: -1px 0 0;
+  color: #94a3b8;
+  font-size: 11px;
+  line-height: 1.5;
 }
 
 .market-list-label {
@@ -1207,11 +1309,37 @@ td a {
 }
 
 .insights-main .coverage-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 62px;
   align-self: flex-start;
   padding: 5px 8px;
   border-color: #31577f;
   border-radius: 5px;
   font-size: 9px;
+}
+
+.coverage-spinner {
+  display: block;
+  width: 12px;
+  height: 12px;
+  flex: 0 0 12px;
+  border: 2px solid #31577f;
+  border-top-color: #93c5fd;
+  border-radius: 50%;
+  animation: market-ai-spin 0.8s linear infinite;
+}
+
+.coverage-spinner[hidden] {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .coverage-spinner {
+    animation: none;
+  }
 }
 
 .coverage-status {

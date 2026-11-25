@@ -164,13 +164,26 @@ class TestDashboardCommandLogs(unittest.TestCase):
         self.addCleanup(httpd.server_close)
         self.addCleanup(httpd.shutdown)
         payload = {"total_jobs": 3, "remote_percent": 66.7, "top_skills": []}
+        ai_analysis = {
+            "status": "available",
+            "model": "qwen2.5-coder:1.5b",
+            "commentary": "Skill patterns vary by level in this sample.",
+        }
 
-        with patch.object(server, "get_job_market_insights", return_value=payload) as get_insights:
+        with (
+            patch.object(server, "get_job_market_insights", return_value=payload) as get_insights,
+            patch.object(
+                server,
+                "analyze_job_market_with_ollama",
+                return_value=ai_analysis,
+            ) as analyze_ai,
+        ):
             with urlopen(f"http://127.0.0.1:{httpd.server_port}/api/jobs-info?period=30") as response:
                 self.assertEqual(response.status, 200)
-                self.assertEqual(json.load(response), payload)
+                self.assertEqual(json.load(response), {**payload, "ai_market_analysis": ai_analysis})
 
         get_insights.assert_called_once_with(30)
+        analyze_ai.assert_called_once_with(payload)
 
     def test_jobs_info_endpoint_accepts_all_time_and_rejects_unknown_period(self) -> None:
         httpd = ThreadingHTTPServer(("127.0.0.1", 0), server.DashboardHandler)
@@ -179,9 +192,16 @@ class TestDashboardCommandLogs(unittest.TestCase):
         self.addCleanup(httpd.server_close)
         self.addCleanup(httpd.shutdown)
 
-        with patch.object(server, "get_job_market_insights", return_value={"period_days": None}) as get_insights:
+        ai_analysis = {"status": "unavailable", "reason": "No postings."}
+        with (
+            patch.object(server, "get_job_market_insights", return_value={"period_days": None}) as get_insights,
+            patch.object(server, "analyze_job_market_with_ollama", return_value=ai_analysis),
+        ):
             with urlopen(f"http://127.0.0.1:{httpd.server_port}/api/jobs-info?period=all") as response:
-                self.assertEqual(json.load(response), {"period_days": None})
+                self.assertEqual(
+                    json.load(response),
+                    {"period_days": None, "ai_market_analysis": ai_analysis},
+                )
         get_insights.assert_called_once_with(None)
 
         with self.assertRaises(HTTPError) as error:
@@ -201,6 +221,10 @@ class TestDashboardCommandLogs(unittest.TestCase):
         self.assertIn('id="kpi-coverage"', page)
         self.assertIn('id="kpi-branch-coverage"', page)
         self.assertIn('id="measure-coverage"', page)
+        self.assertIn('class="coverage-spinner" aria-hidden="true" hidden', page)
+        self.assertIn('button.setAttribute("aria-busy", "true")', page)
+        self.assertIn("spinner.hidden = false", page)
+        self.assertIn("spinner.hidden = true", page)
         self.assertIn('id="flow-attention"', page)
         self.assertIn('id="flow-attention-groups"', page)
         self.assertIn('id="risk-weighted-coverage"', page)

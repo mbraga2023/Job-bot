@@ -32,6 +32,7 @@ from v2.dashboard.pages.dashboard import PAGE_HTML as DASHBOARD_PAGE_HTML
 from v2.dashboard.pages.jobs_info import PAGE_HTML as JOBS_INFO_PAGE_HTML
 from v2.dashboard.pages.test_insights import PAGE_HTML as TEST_INSIGHTS_PAGE_HTML
 from v2.dashboard.insights import (
+    analyze_job_market_with_ollama,
     get_coverage_analysis,
     get_repository_test_insights,
 )
@@ -408,7 +409,9 @@ class DashboardHandler(BaseHTTPRequestHandler):
             else:
                 self._send_json(400, {"error": "Period must be 30 days or all time."})
                 return
-            self._send_json(200, get_job_market_insights(days))
+            data = get_job_market_insights(days)
+            ai_analysis = analyze_job_market_with_ollama(data)
+            self._send_json(200, {**data, "ai_market_analysis": ai_analysis})
             return
 
         if parsed.path == "/api/test-insights":

@@ -13,6 +13,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 from v2.dashboard import insights
+from v2.dashboard.pages.jobs_info import PAGE_HTML as JOBS_INFO_PAGE_HTML
 
 
 class TestRepositoryInsights(unittest.TestCase):
@@ -26,6 +27,93 @@ class TestRepositoryInsights(unittest.TestCase):
                     test_id = f"v2.tests.{module_name}.TestScenarios.{method}"
                     outcomes[test_id] = "passed"
         return outcomes
+
+    def test_jobs_info_dashboard_shows_ai_analysis_and_skill_cross_tabs(self) -> None:
+        for expected in (
+            "AI MARKET ANALYSIS · LOCAL OLLAMA",
+            "Top skills by seniority level",
+            "Top 5 companies by openings",
+            'id="market-ai-content"',
+            'id="skills-by-level"',
+            'id="top-companies"',
+            "renderSkillsByLevel(result.skills_by_level)",
+            "renderTopCompanies(result.top_companies)",
+            "renderMarketAiAnalysis(result.ai_market_analysis)",
+            "renderMarketAiLoading()",
+            'spinner.setAttribute("role", "status")',
+            "market-ai-spinner",
+        ):
+            with self.subTest(expected=expected):
+                self.assertIn(expected, JOBS_INFO_PAGE_HTML)
+
+    def test_job_market_ollama_analysis_crosses_levels_and_company_skills(self) -> None:
+        market_data = {
+            "period_days": 30,
+            "total_jobs": 12,
+            "jobs_with_skills": 10,
+            "top_skills": [{"name": "Python", "count": 7, "percent": 58.3}],
+            "skills_by_level": [{
+                "name": "Mid-level",
+                "count": 6,
+                "skills": [{"name": "Python", "count": 4, "percent": 66.7}],
+            }],
+            "top_companies": [{
+                "name": "Acme",
+                "count": 5,
+                "percent": 41.7,
+                "skills": [{"name": "Playwright", "count": 3, "percent": 60.0}],
+            }],
+        }
+        response = SimpleNamespace(message=SimpleNamespace(content=json.dumps({
+            "commentary": (
+                "Python lidera nas vagas mid-level; entre as empresas com mais anúncios, "
+                "Acme pede Playwright com frequência."
+            ),
+        })))
+        with patch("ollama.Client") as client_class:
+            client_class.return_value.chat.return_value = response
+            result = insights.analyze_job_market_with_ollama(market_data)
+
+        self.assertEqual(result["status"], "available")
+        self.assertIn("Python lidera", result["commentary"])
+        self.assertIn("2 postings have no extracted skills", result["data_limitations"])
+        call = client_class.return_value.chat.call_args.kwargs
+        self.assertEqual(call["model"], insights.config.ollama_model)
+        prompt = " ".join(message["content"] for message in call["messages"])
+        self.assertIn("skills_by_stored_seniority_level", prompt)
+        self.assertIn("top_5_companies_by_postings_and_their_skills", prompt)
+        self.assertIn("Mid-level", prompt)
+        self.assertIn("Playwright", prompt)
+
+    def test_job_market_ollama_retries_plain_text_and_bounds_long_commentary(self) -> None:
+        client = MagicMock()
+        client.chat.side_effect = [
+            SimpleNamespace(message=SimpleNamespace(content='{"commentary":')),
+            SimpleNamespace(message=SimpleNamespace(content="x" * 400)),
+        ]
+        with patch("ollama.Client", return_value=client):
+            result = insights.analyze_job_market_with_ollama({
+                "period_days": 30,
+                "total_jobs": 1,
+                "jobs_with_skills": 1,
+                "skills_by_level": [],
+                "top_companies": [],
+            })
+
+        self.assertEqual(result["status"], "available")
+        self.assertEqual(len(result["commentary"]), 350)
+        self.assertTrue(result["commentary"].endswith("…"))
+        self.assertIn("shortened to fit", result["data_limitations"])
+        self.assertEqual(client.chat.call_count, 2)
+        retry = client.chat.call_args
+        self.assertNotIn("format", retry.kwargs)
+        self.assertIn("sample", retry.kwargs["messages"][0]["content"])
+
+    def test_job_market_ollama_analysis_reports_no_postings_without_calling_model(self) -> None:
+        result = insights.analyze_job_market_with_ollama({"total_jobs": 0})
+
+        self.assertEqual(result["status"], "unavailable")
+        self.assertIn("No job postings", result["reason"])
 
     def test_test_coverage_parses_line_and_branch_report(self) -> None:
         payload = {

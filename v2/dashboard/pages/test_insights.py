@@ -76,7 +76,10 @@ PAGE_HTML = """<!doctype html>
             <small id="coverage-details">Execute a suíte para medir</small>
             <small>Branches: <b id="kpi-branch-coverage">—</b></small>
           </div>
-          <button id="measure-coverage" class="coverage-action secondary" type="button">Medir</button>
+          <button id="measure-coverage" class="coverage-action secondary" type="button">
+            <span class="coverage-spinner" aria-hidden="true" hidden></span>
+            <span class="coverage-action-label">Medir</span>
+          </button>
         </article>
       </section>
       <p id="coverage-status" class="coverage-status" role="status" aria-live="polite"></p>
@@ -559,9 +562,13 @@ PAGE_HTML = """<!doctype html>
 
     async function measureCoverage() {
       const button = document.getElementById("measure-coverage");
+      const buttonLabel = button.querySelector(".coverage-action-label");
+      const spinner = button.querySelector(".coverage-spinner");
       const status = document.getElementById("coverage-status");
       button.disabled = true;
-      button.textContent = "Medindo…";
+      button.setAttribute("aria-busy", "true");
+      spinner.hidden = false;
+      buttonLabel.textContent = "Medindo…";
       status.className = "coverage-status";
       status.textContent = "Executando a suíte v2 e medindo cobertura de cenários, linhas e branches…";
       try {
@@ -613,7 +620,9 @@ PAGE_HTML = """<!doctype html>
         status.textContent = error.message || "Não foi possível medir a cobertura.";
       } finally {
         button.disabled = false;
-        button.textContent = "Medir";
+        button.removeAttribute("aria-busy");
+        spinner.hidden = true;
+        buttonLabel.textContent = "Medir";
       }
     }
 
