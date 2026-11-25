@@ -394,6 +394,77 @@ def get_job_by_id(job_id: int) -> dict[str, Any] | None:
         return dict(row) if row else None
 
 
+def get_jobs_list(
+    query: str = "",
+    limit: int = 50,
+    page: int = 1,
+) -> dict[str, Any]:
+    """Return the newest jobs, optionally searched across their stored details."""
+    if limit < 1:
+        raise ValueError("The job list limit must be a positive number.")
+    if page < 1:
+        raise ValueError("The job list page must be a positive number.")
+
+    search = query.strip()
+    searchable_fields = (
+        "title",
+        "company",
+        "level",
+        "location",
+        "status",
+        "pipeline",
+        "contract",
+        "category",
+        "technologies",
+        "requirements",
+        "differentials",
+        "benefits",
+        "description",
+    )
+    where_clause = ""
+    parameters: tuple[Any, ...] = ()
+    if search:
+        where_clause = " WHERE " + " OR ".join(
+            f"instr(lower(COALESCE({field}, '')), lower(?)) > 0"
+            for field in searchable_fields
+        )
+        parameters = (search,) * len(searchable_fields)
+
+    selected_fields = (
+        "id, pipeline, external_id, career_source_id, source_url, title, company, "
+        "location, remote, level, contract, category, application_url, "
+        "application_source, description, technologies, requirements, differentials, "
+        "benefits, published_date, status, discard_reason, ai_status, ai_reason, "
+        "first_seen_at, last_seen_at, validated_at, updated_at"
+    )
+    with get_connection() as conn:
+        total_matches = conn.execute(
+            f"SELECT COUNT(*) FROM jobs{where_clause}",
+            parameters,
+        ).fetchone()[0]
+        total_pages = max(1, (total_matches + limit - 1) // limit)
+        page = min(page, total_pages)
+        rows = conn.execute(
+            f"""
+                SELECT {selected_fields}
+                FROM jobs{where_clause}
+                ORDER BY datetime(first_seen_at) DESC, id DESC
+                LIMIT ?
+                OFFSET ?
+            """,
+            (*parameters, limit, (page - 1) * limit),
+        ).fetchall()
+
+    return {
+        "jobs": [dict(row) for row in rows],
+        "total_matches": total_matches,
+        "limit": limit,
+        "page": page,
+        "total_pages": total_pages,
+        "query": search,
+    }
+
+
 def get_job_by_source_url(source_url: str) -> dict[str, Any] | None:
     """Fetch single job by source URL."""
     with get_connection() as conn:

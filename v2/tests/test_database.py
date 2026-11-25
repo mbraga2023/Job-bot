@@ -12,6 +12,7 @@ from v2.core.database import (
     get_career_sources,
     get_database_stats,
     get_job_market_insights,
+    get_jobs_list,
     get_non_qa_job_count,
     get_job_by_id,
     get_job_by_source_url,
@@ -337,6 +338,44 @@ class TestCentralizedDatabase(unittest.TestCase):
         ])
         self.assertEqual(insights["period_days"], 30)
         self.assertEqual(get_job_market_insights(None)["total_jobs"], 4)
+
+    def test_jobs_list_paginates_50_and_searches_all_stored_details(self):
+        for index in range(55):
+            insert_discovered_job(
+                pipeline="TELEGRAM",
+                source_url=f"https://example.com/jobs/list-{index}",
+                title="Rare QA role" if index == 0 else f"QA role {index:02d}",
+                company=f"Company {index % 5}",
+            )
+        with get_connection(self.db_path) as conn:
+            conn.execute(
+                "UPDATE jobs SET description = ? WHERE title = ?",
+                ("A unique searchable database systems opening", "Rare QA role"),
+            )
+            conn.commit()
+
+        recent = get_jobs_list()
+        self.assertEqual(recent["total_matches"], 55)
+        self.assertEqual(recent["limit"], 50)
+        self.assertEqual(recent["page"], 1)
+        self.assertEqual(recent["total_pages"], 2)
+        self.assertEqual(len(recent["jobs"]), 50)
+        self.assertEqual(recent["jobs"][0]["title"], "QA role 54")
+        self.assertEqual(recent["jobs"][-1]["title"], "QA role 05")
+
+        second_page = get_jobs_list(page=2)
+        self.assertEqual(len(second_page["jobs"]), 5)
+        self.assertEqual(second_page["jobs"][0]["title"], "QA role 04")
+        self.assertEqual(second_page["jobs"][-1]["title"], "Rare QA role")
+
+        search_results = get_jobs_list("searchable database systems")
+        self.assertEqual(search_results["total_matches"], 1)
+        self.assertEqual(search_results["jobs"][0]["title"], "Rare QA role")
+        self.assertEqual(search_results["query"], "searchable database systems")
+        with self.assertRaisesRegex(ValueError, "positive number"):
+            get_jobs_list(limit=0)
+        with self.assertRaisesRegex(ValueError, "positive number"):
+            get_jobs_list(page=0)
 
     def test_delete_non_qa_jobs_preserves_qa_and_requires_current_preview(self):
         qa_job_id = insert_discovered_job(

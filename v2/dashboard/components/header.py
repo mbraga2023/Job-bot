@@ -4,7 +4,13 @@ from typing import Literal
 
 
 def render_header(
-    active_page: Literal["dashboard", "companies", "jobs-info", "test-insights"],
+    active_page: Literal[
+        "dashboard",
+        "companies",
+        "jobs-list",
+        "jobs-info",
+        "test-insights",
+    ],
 ) -> str:
     """Render the shared title, navigation, and dashboard controls."""
     dashboard_link = (
@@ -16,6 +22,11 @@ def render_header(
         '<a href="/companies" class="active" aria-current="page">Companies</a>'
         if active_page == "companies"
         else '<a href="/companies">Companies</a>'
+    )
+    jobs_list_link = (
+        '<a href="/jobs-list" class="active" aria-current="page">Jobs List</a>'
+        if active_page == "jobs-list"
+        else '<a href="/jobs-list">Jobs List</a>'
     )
     jobs_info_link = (
         '<a href="/jobs-info" class="active" aria-current="page">Jobs Info</a>'
@@ -32,6 +43,7 @@ def render_header(
     <nav class="tabs" aria-label="Main navigation">
       {dashboard_link}
       {companies_link}
+      {jobs_list_link}
       {jobs_info_link}
       {test_insights_link}
     </nav>

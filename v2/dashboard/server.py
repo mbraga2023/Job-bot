@@ -22,6 +22,7 @@ from v2.core.database import (
     get_career_sources,
     get_database_stats,
     get_job_market_insights,
+    get_jobs_list,
     get_non_qa_job_count,
     insert_career_source,
     set_career_source_active,
@@ -30,6 +31,7 @@ from v2.core.database import (
 from v2.dashboard.pages.companies import PAGE_HTML as COMPANIES_PAGE_HTML
 from v2.dashboard.pages.dashboard import PAGE_HTML as DASHBOARD_PAGE_HTML
 from v2.dashboard.pages.jobs_info import PAGE_HTML as JOBS_INFO_PAGE_HTML
+from v2.dashboard.pages.jobs_list import PAGE_HTML as JOBS_LIST_PAGE_HTML
 from v2.dashboard.pages.test_insights import PAGE_HTML as TEST_INSIGHTS_PAGE_HTML
 from v2.dashboard.insights import (
     analyze_job_market_with_ollama,
@@ -42,6 +44,8 @@ STYLESHEET_PATH = Path(__file__).resolve().parent / "style" / "dashboard.css"
 MAIN_SCRIPT = PROJECT_ROOT / "v2" / "main.py"
 HOST = "127.0.0.1"
 DEFAULT_PORT = 8766
+JOB_LIST_LIMIT = 50
+MAX_JOB_LIST_QUERY_LENGTH = 200
 OLLAMA_API_URL = "http://127.0.0.1:11434/api/tags"
 MAX_OUTPUT_CHARS = 100_000
 PAGE_HTML = DASHBOARD_PAGE_HTML
@@ -371,6 +375,13 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self.wfile.write(JOBS_INFO_PAGE_HTML.encode("utf-8"))
             return
 
+        if parsed.path == "/jobs-list":
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.end_headers()
+            self.wfile.write(JOBS_LIST_PAGE_HTML.encode("utf-8"))
+            return
+
         if parsed.path == "/test-insights":
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
@@ -412,6 +423,29 @@ class DashboardHandler(BaseHTTPRequestHandler):
             data = get_job_market_insights(days)
             ai_analysis = analyze_job_market_with_ollama(data)
             self._send_json(200, {**data, "ai_market_analysis": ai_analysis})
+            return
+
+        if parsed.path == "/api/jobs-list":
+            query = parse_qs(parsed.query).get("q", [""])[0].strip()
+            if len(query) > MAX_JOB_LIST_QUERY_LENGTH:
+                self._send_json(
+                    400,
+                    {"error": f"Search query must be {MAX_JOB_LIST_QUERY_LENGTH} characters or fewer."},
+                )
+                return
+            raw_page = parse_qs(parsed.query).get("page", ["1"])[0]
+            try:
+                page = int(raw_page)
+            except ValueError:
+                self._send_json(400, {"error": "Page must be a positive integer."})
+                return
+            if page < 1:
+                self._send_json(400, {"error": "Page must be a positive integer."})
+                return
+            self._send_json(
+                200,
+                get_jobs_list(query=query, limit=JOB_LIST_LIMIT, page=page),
+            )
             return
 
         if parsed.path == "/api/test-insights":

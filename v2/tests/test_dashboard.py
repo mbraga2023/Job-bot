@@ -133,10 +133,53 @@ class TestDashboardCommandLogs(unittest.TestCase):
 
     def test_dashboard_and_companies_pages_are_separate(self) -> None:
         self.assertIn('href="/companies">Companies</a>', server.PAGE_HTML)
+        self.assertIn('href="/jobs-list">Jobs List</a>', server.PAGE_HTML)
         self.assertNotIn("import-modal", server.PAGE_HTML)
         self.assertIn('href="/">Dashboard</a>', server.COMPANIES_PAGE_HTML)
         self.assertIn('id="add-company-form"', server.COMPANIES_PAGE_HTML)
         self.assertIn('fetch("/api/companies")', server.COMPANIES_PAGE_HTML)
+
+    def test_jobs_list_page_has_search_table_and_details_modal(self) -> None:
+        page = server.JOBS_LIST_PAGE_HTML
+        self.assertIn('href="/jobs-list" class="active" aria-current="page">Jobs List</a>', page)
+        self.assertIn('id="jobs-search-input"', page)
+        self.assertIn('id="jobs-table-body"', page)
+        self.assertIn("50 most recently collected jobs per page", page)
+        self.assertIn('id="jobs-previous-page"', page)
+        self.assertIn('id="jobs-next-page"', page)
+        self.assertIn("jobsPageStatus.textContent = `Page ${result.page} of ${result.total_pages}`", page)
+        self.assertIn('<th scope="col">Added to DB</th>', page)
+        self.assertIn('["Added to database", job.first_seen_at]', page)
+        self.assertIn('"/api/jobs-list?q=" + encodeURIComponent(search) + "&page=" + page', page)
+        self.assertIn('createExternalLink(job.source_url, "Open", "job-open-button")', page)
+        self.assertIn('link.rel = "noopener noreferrer"', page)
+        self.assertIn('id="job-details-dialog"', page)
+        self.assertIn("jobDetailsDialog.showModal()", page)
+        self.assertIn('["Description", job.description]', page)
+        self.assertIn('["Technologies / skills", job.technologies]', page)
+
+    def test_jobs_list_endpoint_searches_and_caps_results(self) -> None:
+        httpd = ThreadingHTTPServer(("127.0.0.1", 0), server.DashboardHandler)
+        thread = Thread(target=httpd.serve_forever, daemon=True)
+        thread.start()
+        self.addCleanup(httpd.server_close)
+        self.addCleanup(httpd.shutdown)
+        payload = {"jobs": [{"id": 8, "title": "QA Engineer"}], "total_matches": 1}
+
+        with patch.object(server, "get_jobs_list", return_value=payload) as get_jobs:
+            with urlopen(f"http://127.0.0.1:{httpd.server_port}/api/jobs-list?q=QA%20Engineer&page=2") as response:
+                self.assertEqual(json.load(response), payload)
+        get_jobs.assert_called_once_with(query="QA Engineer", limit=50, page=2)
+
+        with self.assertRaises(HTTPError) as error:
+            urlopen(
+                f"http://127.0.0.1:{httpd.server_port}/api/jobs-list?q="
+                + ("x" * 201)
+            )
+        self.assertEqual(error.exception.code, 400)
+        with self.assertRaises(HTTPError) as error:
+            urlopen(f"http://127.0.0.1:{httpd.server_port}/api/jobs-list?page=0")
+        self.assertEqual(error.exception.code, 400)
 
     def test_jobs_info_page_shows_market_statistics_and_navigation(self) -> None:
         page = server.JOBS_INFO_PAGE_HTML
