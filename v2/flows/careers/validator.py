@@ -8,7 +8,11 @@ import random
 import re
 from typing import Any
 from urllib.parse import urlsplit
-from playwright.async_api import async_playwright
+from playwright.async_api import (
+    Page,
+    TimeoutError as PlaywrightTimeoutError,
+    async_playwright,
+)
 
 from v2.config import config
 from v2.core.database import get_jobs_for_validation, update_job_validation
@@ -54,12 +58,26 @@ GUPY_NON_REMOTE_PATTERN = re.compile(
     r"in[- ]office|non[- ]remote|n[aã]o remoto)\b",
     re.IGNORECASE,
 )
+GUPY_TITLE_SELECTOR = (
+    "xpath=//*[@id='main']//*[@data-testid='content-wrapper']//*[@id='h1']"
+)
 
 
 def is_gupy_job_url(url: str) -> bool:
     """Check whether a job URL is hosted on a Gupy subdomain."""
     hostname = (urlsplit(url).hostname or "").casefold()
     return hostname == "gupy.io" or hostname.endswith(".gupy.io")
+
+
+async def extract_gupy_page_title(page: Page) -> str:
+    """Extract the job title from Gupy's content heading."""
+    heading = page.locator(GUPY_TITLE_SELECTOR).first
+    if not await heading.is_visible():
+        return ""
+    try:
+        return normalize_job_title(await heading.inner_text(timeout=1000))
+    except PlaywrightTimeoutError:
+        return ""
 
 
 def is_gupy_remote_work_model(value: str | None) -> bool:
@@ -355,6 +373,10 @@ async def run_validator(limit: int | None = None) -> None:
                     body_text = ""
 
                 gupy_details = extract_gupy_job_details(body_text) if gupy_job else {}
+                if gupy_job:
+                    gupy_page_title = await extract_gupy_page_title(page)
+                    if gupy_page_title:
+                        gupy_details["title"] = gupy_page_title
                 work_model = gupy_details.get("work_model")
                 title_text = " ".join(
                     filter(None, (gupy_details.get("title"), raw_title))

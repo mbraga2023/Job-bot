@@ -153,6 +153,32 @@ class TestCareerValidatorTitleChecks(unittest.TestCase):
         )
         sleep.assert_awaited_once_with(1.5)
 
+    def test_gupy_title_uses_content_wrapper_heading_instead_of_skip_link(self) -> None:
+        page, _browser, classify, update, _sleep = self.run_validation(
+            {
+                "id": 58,
+                "company": "Instituto Eldorado",
+                "source_url": (
+                    "https://institutoeldorado.gupy.io/jobs/12594277"
+                    "?jobBoardSource=gupy_public_page"
+                ),
+                "title": "Pular para o conteúdo principal",
+            },
+            "## Pular para o conteúdo principal\n"
+            "## QA Engineer Pleno\n"
+            "## Responsabilidades e atribuições\nExecutar testes.",
+            h1_text="QA Engineer Pleno",
+        )
+
+        page.locator.assert_any_call(
+            "xpath=//*[@id='main']//*[@data-testid='content-wrapper']//*[@id='h1']"
+        )
+        classify.assert_awaited_once()
+        self.assertEqual(classify.await_args.args[0], "QA Engineer Pleno")
+        update.assert_called_once()
+        self.assertEqual(update.call_args.kwargs["status"], "VALIDATED")
+        self.assertEqual(update.call_args.kwargs["title"], "QA Engineer Pleno")
+
     def test_non_qa_extracted_title_is_discarded_without_classification(self) -> None:
         _page, _browser, classify, update, _sleep = self.run_validation(
             {
@@ -335,9 +361,14 @@ Vaga também para PcD
 """
         body = MagicMock()
         body.inner_text = AsyncMock(return_value=page_text)
+        heading = MagicMock()
+        heading.first = heading
+        heading.is_visible = AsyncMock(return_value=False)
         page = MagicMock()
         page.goto = AsyncMock()
-        page.locator.return_value = body
+        page.locator.side_effect = lambda selector: (
+            body if selector == "body" else heading
+        )
         browser = SimpleNamespace(
             new_page=AsyncMock(return_value=page),
             close=AsyncMock(),
