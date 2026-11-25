@@ -206,6 +206,15 @@ class TestDashboardCommandLogs(unittest.TestCase):
         self.assertIn('id="risk-weighted-coverage"', page)
         self.assertIn('id="ai-analysis-value"', page)
         self.assertIn('id="ai-analysis-content"', page)
+        self.assertIn("commentary.textContent = hasCommentary", page)
+        self.assertIn(
+            'commentaryLabel.textContent = "Comentário da IA sobre os resultados"',
+            page,
+        )
+        self.assertIn('value.textContent = hasCommentary ? "Análise pronta" : "Análise parcial"', page)
+        self.assertIn("O Ollama não retornou comentário textual.", page)
+        self.assertIn("Limitação dos dados: ${analysis.data_limitations}", page)
+        self.assertIn("content.append(commentaryLabel, commentary, summary)", page)
         self.assertIn("COBERTURA DE CENÁRIOS PONDERADA POR RISCO", page)
         self.assertIn("renderFlowAttention(result.flows)", page)
         self.assertIn("renderScenarioRiskCoverage(scenarioCoverage)", page)

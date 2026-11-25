@@ -17,6 +17,7 @@ from v2.config import config, get_env
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 TEST_DIRECTORY = PROJECT_ROOT / "v2" / "tests"
+MAX_AI_COMMENTARY_CHARACTERS = 350
 MODULES = (
     {
         "id": "core",
@@ -1059,18 +1060,72 @@ def calculate_risk_weighted_scenario_coverage(
     }
 
 
+def _request_plain_ollama_commentary(client: Any, context: dict[str, Any]) -> str:
+    response = client.chat(
+        model=config.ollama_model,
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "Analise somente os indicadores fornecidos. Em português, compare a "
+                    "cobertura geral de linhas e branches, destaque o indicador mais baixo "
+                    "e recomende um foco de testes baseado nesses números. Use no máximo "
+                    "200 caracteres. Não invente dados, não estime probabilidades e não "
+                    "afirme que não houve defeitos quando o histórico está indisponível. "
+                    "Descreva cenários sem cobertura como ainda não cobertos, nunca como "
+                    "testes que falharam. Retorne somente texto simples, sem JSON."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    "Resuma o principal indicador e o próximo foco de testes, se houver, "
+                    "com base somente nestes dados:\n"
+                    f"{json.dumps(context, ensure_ascii=False)}"
+                ),
+            },
+        ],
+        options={"temperature": 0, "num_predict": 80},
+    )
+    commentary = response.message.content
+    if not isinstance(commentary, str) or not commentary.strip():
+        raise ValueError("Ollama retornou uma análise vazia na nova tentativa.")
+    return commentary.strip()
+
+
+def _bound_ai_commentary(commentary: str) -> tuple[str, bool]:
+    if len(commentary) <= MAX_AI_COMMENTARY_CHARACTERS:
+        return commentary, False
+
+    shortened = commentary[:MAX_AI_COMMENTARY_CHARACTERS - 1]
+    if " " in shortened:
+        shortened = shortened.rsplit(" ", 1)[0]
+    shortened = shortened.rstrip(" ,;:")
+    return f"{shortened}…", True
+
+
 def analyze_test_risk_with_ollama(
     scenario_coverage: dict[str, Any],
     flows: list[dict[str, Any]],
     defect_history: dict[str, Any],
+    code_coverage: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Generate an evidence-bound qualitative review using the local Ollama model."""
     modules = scenario_coverage.get("modules", [])
+    code_coverage = code_coverage or {}
+    line_coverage_percent = code_coverage.get(
+        "line_coverage_percent",
+        code_coverage.get("coverage_percent"),
+    )
+    has_coverage_metrics = (
+        line_coverage_percent is not None
+        or code_coverage.get("branch_coverage_percent") is not None
+    )
     data_limitations = (
         defect_history.get("reason")
         if defect_history.get("status") != "available" else None
     )
-    if not modules:
+    if not modules and not has_coverage_metrics:
         return {
             "status": "unavailable",
             "model": config.ollama_model,
@@ -1125,7 +1180,21 @@ def analyze_test_risk_with_ollama(
     context = {
         "modules": evidence,
         "testing_priority_candidates": sorted(candidate_module_ids),
-        "missing_risk_inputs": scenario_coverage["missing_risk_inputs"],
+        "overall_code_coverage": {
+            key: value
+            for key, value in {
+                "line_coverage_percent": (code_coverage or {}).get(
+                    "line_coverage_percent", line_coverage_percent
+                ),
+                "covered_lines": code_coverage.get("covered_lines"),
+                "total_lines": code_coverage.get("total_lines"),
+                "branch_coverage_percent": code_coverage.get("branch_coverage_percent"),
+                "covered_branches": code_coverage.get("covered_branches"),
+                "total_branches": code_coverage.get("total_branches"),
+            }.items()
+            if value is not None
+        },
+        "missing_risk_inputs": scenario_coverage.get("missing_risk_inputs", []),
         "github_defect_history": {
             "status": defect_history.get("status"),
             "explanation": defect_history.get("reason"),
@@ -1133,19 +1202,27 @@ def analyze_test_risk_with_ollama(
         },
     }
     valid_module_ids = candidate_module_ids
-    factual_summary = (
-        f"{scenario_coverage['coverage_percent']}% de cobertura ponderada "
-        f"nos cenários inventariados em {scenario_coverage['measured_modules']} módulos."
-    )
-    if not valid_module_ids:
-        return {
-            "status": "available",
-            "model": config.ollama_model,
-            "summary": factual_summary,
-            "priorities": [],
-            "kind": "qualitative_local_llm_review",
-            "data_limitations": data_limitations,
-        }
+    overall_coverage = context["overall_code_coverage"]
+    summary_parts = []
+    if "line_coverage_percent" in overall_coverage:
+        summary_parts.append(
+            f"Cobertura de linhas: {overall_coverage['line_coverage_percent']}% "
+            f"({overall_coverage.get('covered_lines', '?')}/"
+            f"{overall_coverage.get('total_lines', '?')})."
+        )
+    if "branch_coverage_percent" in overall_coverage:
+        summary_parts.append(
+            f"Branches: {overall_coverage['branch_coverage_percent']}% "
+            f"({overall_coverage.get('covered_branches', '?')}/"
+            f"{overall_coverage.get('total_branches', '?')})."
+        )
+    scenario_coverage_percent = scenario_coverage.get("coverage_percent")
+    if scenario_coverage_percent is not None:
+        summary_parts.append(
+            f"{scenario_coverage_percent}% de cobertura ponderada nos cenários "
+            f"inventariados em {scenario_coverage.get('measured_modules', 0)} módulos."
+        )
+    factual_summary = " ".join(summary_parts)
     try:
         import ollama
     except ImportError as exc:
@@ -1159,29 +1236,37 @@ def analyze_test_risk_with_ollama(
         }
 
     try:
-        response = ollama.Client(timeout=60).chat(
+        client = ollama.Client(timeout=60)
+        response = client.chat(
             model=config.ollama_model,
             messages=[
                 {
                     "role": "system",
                     "content": (
                         "You are a cautious software test reviewer. Analyze only the "
-                        "provided measurements. Your only task is ranking eligible module "
-                        "IDs for testing attention. Missing GitHub defect labels or mapped "
-                        "issues mean defect history is unknown, not that defects do not "
-                        "exist. Do not invent modules, test gaps, defect records, or "
-                        "probabilities. Never recommend GitHub configuration work. Select "
-                        "only from testing_priority_candidates and return no more than two "
-                        "IDs. The scenario catalog is limited; 100% does not mean complete "
-                        "product coverage."
+                        "provided measurements. Write a brief 1-3 sentence commentary in "
+                        "Portuguese, at most "
+                        f"{MAX_AI_COMMENTARY_CHARACTERS} characters, explicitly comparing "
+                        "the overall line and branch coverage and using their counts to "
+                        "identify the most useful testing focus. Also rank eligible module "
+                        "IDs for testing attention, selecting only from "
+                        "testing_priority_candidates and returning no more than two IDs. "
+                        "Missing GitHub defect labels or mapped issues mean defect history "
+                        "is unknown, not that defects do not exist. Do not invent modules, "
+                        "test gaps, defect records, or probabilities, and never recommend "
+                        "GitHub configuration work. Describe uncovered scenarios as lacking "
+                        "coverage, not as failed tests. The scenario catalog is limited; "
+                        "100% does not mean complete product coverage."
                     ),
                 },
                 {
                     "role": "user",
                     "content": (
-                        "Return only JSON containing priority_module_ids, an array of zero "
-                        "to two module IDs ranked highest attention first. Pick only modules "
-                        "with measured priority_evidence. Do not return prose.\n"
+                        "Return only JSON containing commentary (brief, evidence-based "
+                        "Portuguese text) and priority_module_ids, an array of zero to two "
+                        "module IDs ranked highest attention first. Pick only modules with "
+                        "measured priority_evidence. If there are no eligible modules, "
+                        "return an empty array and still summarize the available indicators.\n"
                         f"Evidence: {json.dumps(context, ensure_ascii=False)}"
                     ),
                 },
@@ -1191,11 +1276,22 @@ def analyze_test_risk_with_ollama(
                 "properties": {
                     "priority_module_ids": {
                         "type": "array",
-                        "items": {"type": "string", "enum": sorted(valid_module_ids)},
-                        "maxItems": 2,
+                        "items": {
+                            "type": "string",
+                            **(
+                                {"enum": sorted(valid_module_ids)}
+                                if valid_module_ids else {}
+                            ),
+                        },
+                        "maxItems": min(2, len(valid_module_ids)),
+                    },
+                    "commentary": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": MAX_AI_COMMENTARY_CHARACTERS,
                     },
                 },
-                "required": ["priority_module_ids"],
+                "required": ["commentary", "priority_module_ids"],
                 "additionalProperties": False,
             },
             options={"temperature": 0, "num_predict": 64},
@@ -1203,12 +1299,45 @@ def analyze_test_risk_with_ollama(
         content = response.message.content
         if not content:
             raise ValueError("Ollama retornou uma análise vazia.")
-        result = json.loads(content)
+        try:
+            result = json.loads(content)
+        except json.JSONDecodeError:
+            commentary = _request_plain_ollama_commentary(client, context)
+            commentary, commentary_truncated = _bound_ai_commentary(commentary)
+            if commentary_truncated:
+                truncation_notice = "O comentário do modelo foi encurtado ao limite de exibição."
+                data_limitations = (
+                    f"{data_limitations} {truncation_notice}"
+                    if data_limitations else truncation_notice
+                )
+            return {
+                "status": "available",
+                "model": config.ollama_model,
+                "summary": factual_summary,
+                "commentary": commentary,
+                "priorities": [],
+                "kind": "qualitative_local_llm_review",
+                "data_limitations": data_limitations,
+            }
         if (
             not isinstance(result, dict)
             or not isinstance(result.get("priority_module_ids"), list)
         ):
             raise ValueError("Ollama retornou uma análise em formato inválido.")
+        commentary = result.get("commentary")
+        if not isinstance(commentary, str) or not commentary.strip():
+            commentary = _request_plain_ollama_commentary(client, context)
+        else:
+            commentary = commentary.strip()
+        if len(commentary) > MAX_AI_COMMENTARY_CHARACTERS:
+            commentary = _request_plain_ollama_commentary(client, context)
+        commentary, commentary_truncated = _bound_ai_commentary(commentary)
+        if commentary_truncated:
+            truncation_notice = "O comentário do modelo foi encurtado ao limite de exibição."
+            data_limitations = (
+                f"{data_limitations} {truncation_notice}"
+                if data_limitations else truncation_notice
+            )
         priorities = []
         module_evidence = {item["module"]: item for item in evidence}
         for module_id in result["priority_module_ids"][:2]:
@@ -1255,6 +1384,7 @@ def analyze_test_risk_with_ollama(
             "status": "available",
             "model": config.ollama_model,
             "summary": factual_summary,
+            "commentary": commentary,
             "priorities": priorities[:2],
             "kind": "qualitative_local_llm_review",
             "data_limitations": data_limitations,
@@ -1306,6 +1436,18 @@ def get_coverage_analysis(days: int = 30) -> dict[str, Any]:
         coverage_data["risk_weighted_scenario_coverage"],
         coverage_data["flows"],
         defect_history,
+        {
+            key: coverage_data.get(key)
+            for key in (
+                "coverage_percent",
+                "line_coverage_percent",
+                "covered_lines",
+                "total_lines",
+                "branch_coverage_percent",
+                "covered_branches",
+                "total_branches",
+            )
+        },
     )
     coverage_data["analysis_period_days"] = days
     return coverage_data

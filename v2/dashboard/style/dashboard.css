@@ -1400,6 +1400,27 @@ td a {
   line-height: 1.5;
 }
 
+.ai-analysis-commentary-label {
+  margin: 0 0 -5px;
+  color: #8bc5ef;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.ai-analysis-commentary {
+  margin: 0;
+  color: #e0ecfa;
+  font-size: 10px;
+  line-height: 1.55;
+}
+
+.ai-analysis-limitations {
+  margin: 0;
+  color: #849ab7;
+  font-size: 8px;
+  line-height: 1.5;
+}
+
 .ai-analysis-priorities {
   display: grid;
   gap: 6px;

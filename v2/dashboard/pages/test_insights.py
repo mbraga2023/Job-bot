@@ -518,13 +518,27 @@ PAGE_HTML = """<!doctype html>
         ].filter(Boolean).join(" ");
         return;
       }
-      value.textContent = "Análise pronta";
+      const hasCommentary =
+        typeof analysis.commentary === "string" && analysis.commentary.trim();
+      value.textContent = hasCommentary ? "Análise pronta" : "Análise parcial";
       details.textContent =
-        `${analysis.model} · IA local · qualitativa, sem probabilidades preditivas` +
-        (analysis.data_limitations ? ` · ${analysis.data_limitations}` : "");
+        `${analysis.model} · IA local · qualitativa, sem probabilidades preditivas`;
+      const commentaryLabel = document.createElement("p");
+      commentaryLabel.className = "ai-analysis-commentary-label";
+      commentaryLabel.textContent = "Comentário da IA sobre os resultados";
+      const commentary = document.createElement("p");
+      commentary.className = "ai-analysis-commentary";
+      commentary.textContent = hasCommentary
+        ? analysis.commentary
+        : "O Ollama não retornou comentário textual.";
       const summary = document.createElement("p");
       summary.className = "ai-analysis-summary";
       summary.textContent = analysis.summary;
+      const limitations = document.createElement("p");
+      limitations.className = "ai-analysis-limitations";
+      limitations.textContent = analysis.data_limitations
+        ? `Limitação dos dados: ${analysis.data_limitations}`
+        : "";
       const priorities = document.createElement("ul");
       priorities.className = "ai-analysis-priorities";
       analysis.priorities.forEach(priority => {
@@ -538,7 +552,9 @@ PAGE_HTML = """<!doctype html>
         item.append(title, observation, action);
         priorities.appendChild(item);
       });
-      content.append(summary, priorities);
+      content.append(commentaryLabel, commentary, summary);
+      if (analysis.data_limitations) content.appendChild(limitations);
+      content.appendChild(priorities);
     }
 
     async function measureCoverage() {

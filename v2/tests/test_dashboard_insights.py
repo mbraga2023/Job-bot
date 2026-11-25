@@ -10,7 +10,7 @@ from io import BytesIO
 from datetime import date, timedelta
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from v2.dashboard import insights
 
@@ -276,6 +276,7 @@ class TestRepositoryInsights(unittest.TestCase):
             "missing_risk_inputs": ["mapped GitHub defect history"],
         }
         response = SimpleNamespace(message=SimpleNamespace(content=json.dumps({
+            "commentary": "A cobertura de linhas e branches abaixo de 80% merece atenção.",
             "priority_module_ids": ["careers"],
         })))
         with patch("ollama.Client") as client_class:
@@ -284,17 +285,181 @@ class TestRepositoryInsights(unittest.TestCase):
                 scenario_coverage,
                 [{"id": "careers", "coverage_percent": 42.0, "branch_coverage_percent": 35.0}],
                 {"status": "no_labeled_defects"},
+                {
+                    "coverage_percent": 65.7,
+                    "line_coverage_percent": 65.7,
+                    "covered_lines": 2065,
+                    "total_lines": 3143,
+                    "branch_coverage_percent": 75.7,
+                    "covered_branches": 742,
+                    "total_branches": 980,
+                },
             )
 
         self.assertEqual(result["status"], "available")
         self.assertEqual(result["kind"], "qualitative_local_llm_review")
+        self.assertIn("65.7% (2065/3143)", result["summary"])
+        self.assertIn("75.7% (742/980)", result["summary"])
+        self.assertEqual(
+            result["commentary"],
+            "A cobertura de linhas e branches abaixo de 80% merece atenção.",
+        )
         self.assertEqual(result["priorities"][0]["module_name"], "Fluxo de carreiras")
         call = client_class.return_value.chat.call_args.kwargs
         self.assertEqual(call["model"], insights.config.ollama_model)
+        self.assertIn("commentary", call["format"]["required"])
+        self.assertEqual(call["format"]["properties"]["commentary"]["maxLength"], 350)
         prompt = " ".join(message["content"] for message in call["messages"])
         self.assertIn("probabilities", prompt)
+        self.assertIn("commentary", prompt)
+        self.assertIn("not as failed tests", prompt)
         self.assertIn("scenario_gaps", prompt)
+        self.assertIn("overall_code_coverage", prompt)
+        self.assertIn("2065", prompt)
+        self.assertIn("3143", prompt)
+        self.assertIn("742", prompt)
+        self.assertIn("980", prompt)
+        self.assertIn("overall line and branch coverage", prompt)
         self.assertNotIn("source code", prompt)
+
+    def test_ollama_provides_commentary_when_all_measured_modules_are_clear(self) -> None:
+        scenario_coverage = {
+            "coverage_percent": 100.0,
+            "measured_modules": 1,
+            "modules": [{
+                "id": "careers",
+                "name": "Fluxo de carreiras",
+                "scenario_coverage_percent": 100.0,
+                "covered_scenarios": 4,
+                "total_scenarios": 4,
+                "risk_weight_percent": 100.0,
+                "recent_commits": 0,
+                "severity_weighted_defects": 0,
+                "scenarios": [{"name": "Validação", "status": "covered"}],
+            }],
+            "missing_risk_inputs": ["mapped GitHub defect history"],
+        }
+        response = SimpleNamespace(message=SimpleNamespace(content=json.dumps({
+            "commentary": "Todos os cenários inventariados estão cobertos; isso não representa cobertura completa do produto.",
+            "priority_module_ids": [],
+        })))
+        with patch("ollama.Client") as client_class:
+            client_class.return_value.chat.return_value = response
+            result = insights.analyze_test_risk_with_ollama(
+                scenario_coverage,
+                [{
+                    "id": "careers",
+                    "coverage_percent": 100.0,
+                    "branch_coverage_percent": 100.0,
+                }],
+                {"status": "no_labeled_defects"},
+            )
+
+        self.assertEqual(result["status"], "available")
+        self.assertIn("Todos os cenários inventariados", result["commentary"])
+        self.assertEqual(result["priorities"], [])
+        chat_call = client_class.return_value.chat.call_args
+        self.assertEqual(
+            chat_call.kwargs["format"]["properties"]["priority_module_ids"]["maxItems"],
+            0,
+        )
+
+    def test_ollama_retries_empty_and_bounds_oversized_commentary(self) -> None:
+        scenario_coverage = {
+            "coverage_percent": 75.0,
+            "measured_modules": 1,
+            "modules": [{
+                "id": "careers",
+                "name": "Fluxo de carreiras",
+                "scenario_coverage_percent": 75.0,
+                "covered_scenarios": 1,
+                "total_scenarios": 2,
+                "risk_weight_percent": 100.0,
+                "recent_commits": 1,
+                "severity_weighted_defects": None,
+                "scenarios": [{"name": "Validação", "status": "uncovered"}],
+            }],
+            "missing_risk_inputs": [],
+        }
+        response = SimpleNamespace(message=SimpleNamespace(content=json.dumps({
+            "commentary": " ",
+            "priority_module_ids": ["careers"],
+        })))
+        empty_retry = SimpleNamespace(message=SimpleNamespace(content=" "))
+        client = MagicMock()
+        client.chat.side_effect = [response, empty_retry]
+        with patch("ollama.Client", return_value=client):
+            result = insights.analyze_test_risk_with_ollama(
+                scenario_coverage,
+                [],
+                {"status": "no_labeled_defects"},
+            )
+            oversized_response = SimpleNamespace(message=SimpleNamespace(content=json.dumps({
+                "commentary": "x" * 351,
+                "priority_module_ids": ["careers"],
+            })))
+            long_retry = SimpleNamespace(message=SimpleNamespace(content="x" * 400))
+            client.chat.side_effect = [oversized_response, long_retry]
+            oversized_result = insights.analyze_test_risk_with_ollama(
+                scenario_coverage,
+                [],
+                {"status": "no_labeled_defects"},
+            )
+
+        self.assertEqual(result["status"], "unavailable")
+        self.assertIn("vazia na nova tentativa", result["reason"])
+        self.assertEqual(oversized_result["status"], "available")
+        self.assertEqual(len(oversized_result["commentary"]), 350)
+        self.assertTrue(oversized_result["commentary"].endswith("…"))
+        self.assertIn("encurtado ao limite", oversized_result["data_limitations"])
+
+    def test_ollama_retries_plain_text_when_structured_response_is_malformed(self) -> None:
+        scenario_coverage = {
+            "coverage_percent": 75.0,
+            "measured_modules": 1,
+            "modules": [{
+                "id": "careers",
+                "name": "Fluxo de carreiras",
+                "scenario_coverage_percent": 75.0,
+                "covered_scenarios": 3,
+                "total_scenarios": 4,
+                "risk_weight_percent": 100.0,
+                "recent_commits": 1,
+                "severity_weighted_defects": None,
+                "scenarios": [{"name": "Validação", "status": "uncovered"}],
+            }],
+            "missing_risk_inputs": ["mapped GitHub defect history"],
+        }
+        client = MagicMock()
+        client.chat.side_effect = [
+            SimpleNamespace(message=SimpleNamespace(
+                content='{"commentary": "unterminated'
+            )),
+            SimpleNamespace(message=SimpleNamespace(
+                content="Priorize os cenários ainda não cobertos no fluxo de carreiras."
+            )),
+        ]
+        with patch("ollama.Client", return_value=client):
+            result = insights.analyze_test_risk_with_ollama(
+                scenario_coverage,
+                [],
+                {"status": "no_labeled_defects", "reason": "Defeitos não mapeados."},
+            )
+
+        self.assertEqual(result["status"], "available")
+        self.assertEqual(
+            result["commentary"],
+            "Priorize os cenários ainda não cobertos no fluxo de carreiras.",
+        )
+        self.assertEqual(result["priorities"], [])
+        self.assertEqual(client.chat.call_count, 2)
+        retry = client.chat.call_args
+        self.assertNotIn("format", retry.kwargs)
+        self.assertIn("sem JSON", retry.kwargs["messages"][0]["content"])
+        self.assertIn(
+            "nunca como testes que falharam",
+            retry.kwargs["messages"][0]["content"],
+        )
 
     def test_ollama_analysis_reports_unavailable_when_service_fails(self) -> None:
         import ollama
@@ -329,6 +494,13 @@ class TestRepositoryInsights(unittest.TestCase):
     def test_coverage_analysis_runs_qualitative_ai_analysis_without_claiming_prediction(self) -> None:
         coverage_data = {
             "tests_run": 114,
+            "coverage_percent": 65.7,
+            "line_coverage_percent": 65.7,
+            "covered_lines": 2065,
+            "total_lines": 3143,
+            "branch_coverage_percent": 75.7,
+            "covered_branches": 742,
+            "total_branches": 980,
             "test_outcomes": self.passing_scenario_outcomes(),
             "flows": [{
                 "id": "careers",
@@ -372,6 +544,18 @@ class TestRepositoryInsights(unittest.TestCase):
         self.assertEqual(data["ai_risk_analysis"]["status"], "available")
         self.assertEqual(data["ai_risk_analysis"]["kind"], "qualitative_local_llm_review")
         analyze_ai.assert_called_once()
+        self.assertEqual(
+            analyze_ai.call_args.args[3],
+            {
+                "coverage_percent": 65.7,
+                "line_coverage_percent": 65.7,
+                "covered_lines": 2065,
+                "total_lines": 3143,
+                "branch_coverage_percent": 75.7,
+                "covered_branches": 742,
+                "total_branches": 980,
+            },
+        )
         self.assertEqual(data["analysis_period_days"], 7)
         self.assertNotIn("test_outcomes", data)
         get_insights.assert_called_once_with(7)
